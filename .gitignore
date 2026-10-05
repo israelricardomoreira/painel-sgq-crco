@@ -1,0 +1,8 @@
+# Nunca publicar dados
+*.json
+!package.json
+*.xlsx
+*.xls
+*.csv
+backup*
+dbdump/
