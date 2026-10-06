@@ -43,6 +43,7 @@ var Motor = (function(){
     if (tem('etapa') && tem('data execucao')) return 'etapa';
     if (tem('status') && tem('vencimento')) return 'demanda';
     if (tem('grupo de inconformidade') && tem('justificativa')) return 'inconf';
+    if (tem('status do andamento') && tem('data andam.')) return 'andam';
     if (tem('tipo protocolo') && tem('data protocolo') && tem('data andamento')) return 'tri7';
     if (tem('finalizacao') && tem('prazo') && (tem('tempo') || tem('tempo permanencia'))) return 'prazo';
     return null;
@@ -236,7 +237,53 @@ var Motor = (function(){
     return doc.recs.map(function(s){ var f=s.split('|'); return {p:f[0],i:minIso(f[1]),f:minIso(f[2]),u:doc.usuarios[+f[3]],mes:doc.mes}; });
   }
 
-  return {processar:processar, processarInconf:processarInconf, processarCert:processarCert, codificarCert:codificarCert, decodificarCert:decodificarCert, horasUteis:horasUteis, limiteCert:limiteCert, feriadoSet:feriadoSet, nomearErro:nomearErro, CATS_ERRO:CATS_ERRO, detectar:detectar, codificar:codificar, decodificar:decodificar, criarCalendario:criarCalendario, diaDeIso:diaDeIso, isoDeDia:isoDeDia, codificarLog:codificarLog, decodificarLog:decodificarLog, paraDia:paraDia, semAcento:semAcento, linhas:linhas};
+
+  // ——— Tri7 · Relatório de andamentos (quem fez cada andamento; horário local, sem ajuste)
+  var AND_ST={'prenotado':'PN','prenotado automaticamente':'PA','re-analise':'RA','revisao de exigencia':'RE','nota de exigencia':'NE','selos gerados':'SG','recebido para entrega':'RC'};
+  var AND_NOME={PN:'Prenotado',PA:'Prenotado automaticamente',RA:'Re-análise',RE:'Revisão de Exigência',NE:'Nota de Exigência',SG:'Selos Gerados',RC:'Recebido para Entrega'};
+  function andMin(dv, hv){ // data (serial ou dd/mm/aaaa) + hora (fração ou hh:mm[:ss]) -> minutos "ingênuos" locais
+    var d=null, h=0, m;
+    if (typeof dv==='number') d=Math.floor(dv)-25569+(dv%1);
+    else if (dv!=null && (m=String(dv).trim().match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/))){ d=Date.UTC(+m[3],+m[2]-1,+m[1])/DIA; if (m[4]) d+=(+m[4]*60+ +m[5]+(+(m[6]||0))/60)/1440; }
+    if (d==null) return null;
+    if (typeof hv==='number') h=hv%1;
+    else if (hv!=null && (m=String(hv).trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/))) h=(+m[1]*60+ +m[2]+(+(m[3]||0))/60)/1440;
+    return Math.round((d+h)*1440);
+  }
+  function processarAndam(rows){
+    var L=linhas(rows), ev={}, cert={}, ini=Infinity, fim=-Infinity, nP=0, nC=0, nAuto=0;
+    L.forEach(function(r){
+      var tipo=semAcento(r['tipo']), st=semAcento(r['status do andamento']), num=r['nº']!=null?r['nº']:(r['no']!=null?r['no']:r['n°']);
+      if (num==null||num===''||!st) return; num=String(num).replace(/\.0+$/,'').trim();
+      var mi=andMin(r['data andam.'], r['hora andam.']); if (mi==null) return;
+      var u=String(r['usuario']||'').trim().toUpperCase();
+      if (mi<ini) ini=mi; if (mi>fim) fim=mi;
+      if (tipo.indexOf('certid')>=0){ // certidões: pedido -> Selos Gerados
+        if (st!=='selos gerados') return;
+        if (u==='TRI7'){ nAuto++; return; } // emitida automaticamente pelo sistema (SAEC), sem ação humana
+        var i=andMin(r['data prot.']); if (i==null) return; nC++;
+        var mc=isoMin(mi).slice(0,7), C=cert[mc]=cert[mc]||{mes:mc,recs:[],erros:0,pend:0};
+        C.recs.push({p:num,i:i,f:mi,u:u,nat:String(r['natureza titulo']||'').trim()}); return;
+      }
+      var t=tipo==='protocolo'?'P':tipo.indexOf('exame')===0?'E':null; if (!t) return;
+      var cod=AND_ST[st]||String(r['status do andamento']).trim(), me=isoMin(mi).slice(0,7); nP++;
+      (ev[me]=ev[me]||[]).push({t:t,n:num,s:cod,u:u,m:mi});
+    });
+    return {ev:ev, cert:cert, ini:ini===Infinity?null:isoMin(ini), fim:fim===-Infinity?null:isoMin(fim), nP:nP, nC:nC, nAuto:nAuto};
+  }
+  function andChave(e){ return e.t+'|'+e.n+'|'+e.s+'|'+e.u+'|'+e.m; }
+  function codificarAndam(mes, lista, origem){
+    var us=[], ui={}, ss=[], si={}, vistos={}, rows=[];
+    function id(a,ix,x){ if(!(x in ix)){ ix[x]=a.length; a.push(x);} return ix[x]; }
+    lista.slice().sort(function(a,b){ return a.m-b.m || (a.n<b.n?-1:a.n>b.n?1:0); }).forEach(function(e){ var k=andChave(e); if (vistos[k]) return; vistos[k]=1;
+      rows.push([e.t,e.n,id(ss,si,e.s),id(us,ui,e.u),e.m].join('|')); });
+    return {mes:mes, v:1, atualizadoEm:new Date().toISOString(), origem:origem||'', us:us, ss:ss, rows:rows};
+  }
+  function decodificarAndam(doc){
+    return (doc.rows||[]).map(function(s){ var f=s.split('|'); return {t:f[0],n:f[1],s:doc.ss[+f[2]],u:doc.us[+f[3]],m:+f[4]}; });
+  }
+
+  return {processarAndam:processarAndam, codificarAndam:codificarAndam, decodificarAndam:decodificarAndam, andChave:andChave, AND_NOME:AND_NOME, isoMin:isoMin, processar:processar, processarInconf:processarInconf, processarCert:processarCert, codificarCert:codificarCert, decodificarCert:decodificarCert, horasUteis:horasUteis, limiteCert:limiteCert, feriadoSet:feriadoSet, nomearErro:nomearErro, CATS_ERRO:CATS_ERRO, detectar:detectar, codificar:codificar, decodificar:decodificar, criarCalendario:criarCalendario, diaDeIso:diaDeIso, isoDeDia:isoDeDia, codificarLog:codificarLog, decodificarLog:decodificarLog, paraDia:paraDia, semAcento:semAcento, linhas:linhas};
 })();
 if (typeof module!=='undefined') module.exports=Motor;
 // MOTOR-FIM ———————————————————————————————————————————————————

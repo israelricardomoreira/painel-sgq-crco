@@ -1,7 +1,7 @@
 (function(){
   if (typeof document==='undefined') return;
   var $=function(id){ return document.getElementById(id); };
-  var state={ docs:{}, extras:[], arquivos:{prazo:[],etapa:[],demanda:[],inconf:[],tri7:[]}, nomes:{prazo:[],etapa:[],demanda:[],inconf:[],tri7:[]},
+  var state={ docs:{}, extras:[], arquivos:{prazo:[],etapa:[],demanda:[],inconf:[],tri7:[],andam:[]}, nomes:{prazo:[],etapa:[],demanda:[],inconf:[],tri7:[],andam:[]}, andam:{}, andIdx:null, usr:{}, usrAuto:{}, resAnd:null,
     resultado:null, periodo:'todos', aba:'geral', natSel:null, sortNat:{k:'total',d:-1}, filtroFora:false, busca:'', natBusca:'', natTodas:false, just:{}, aval:{}, filtroEx:'pend', buscaEx:'', inconf:{}, incCat:{}, incSetor:'todos', incFiltroCat:null, incFiltroPessoa:null, cert:{}, cfg:{expIni:8, expFim:17, intim:null}, relSel:'__geral', feedback:{}, kp:{}, k9:{}, lancMes:null, lancTodos:false, atPessoa:null, logs:{}, logCache:{}, protSel:null, protTxt:'', senhas:{}, atMes:'todos', atMet:'esp', atTodosDias:false };
   var db=null, dbPronto=false, podeEscrever=true;
 
@@ -86,7 +86,7 @@
     if (vazio){
       $('kpis').innerHTML='<div class="panel empty" style="grid-column:1/-1"><b>Nenhum mês carregado ainda</b>Clique em <b>Importar planilhas</b> e solte os 3 exports do VHL. Os resultados ficam salvos aqui e cada mês novo vai se somando.</div>';
       ['tabNat','tabK1','tabCer','tabEta','tabNao','tabFp','tabEx','tabRel'].forEach(function(id){ $(id).innerHTML='<div class="empty">Sem dados para o período.</div>'; });
-      if (!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#tabLanc input[type=text],#tabLanc textarea'))) renderLanc(); renderAtend(); renderGraficos(); renderMetodo(); return;
+      if (!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#tabLanc input[type=text],#tabLanc textarea'))) renderLanc(); if (!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#tabTri input'))) renderTri(); renderAtend(); renderGraficos(); renderMetodo(); return;
     }
     var r=resumo(atos);
     $('kpis').innerHTML=[
@@ -100,7 +100,7 @@
       kpi('KPI-02 complementar · cancelamento',pct(r.total?r.N/r.total*100:null),r.N+' de '+r.total+' atos · cancelado, devolvido ou caducou','canc'),
       kpi('Volume RI',String(r.total+pesquisaTotal()),'inclui '+pesquisaTotal()+' pesquisas qualificadas')
     ].join('') + (r.aberto? '<div class="banner warn" style="grid-column:1/-1;margin:0">'+r.aberto+' ato(s) fora do prazo em aberto. Registre o motivo na aba <b>Fora do prazo</b> para levá-lo à curva normal.</div>':'') + (r.I? '<div class="banner warn" style="grid-column:1/-1;margin:0">'+r.I+' ato(s) sem histórico suficiente ficaram fora do cálculo. Reimporte o mês com a Produção por Etapa começando 2 meses antes.</div>':'');
-    renderTendencia(); renderNat(atos); renderEta(atos); renderNao(atos); renderFp(atos); renderEx(atos); renderK1(atos); renderCer(); if (!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#tabRel textarea'))) renderRel(); if (!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#tabLanc input[type=text],#tabLanc textarea'))) renderLanc(); renderAtend(); renderGraficos(); renderMetodo();
+    renderTendencia(); renderNat(atos); renderEta(atos); renderNao(atos); renderFp(atos); renderEx(atos); renderK1(atos); renderCer(); if (!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#tabRel textarea'))) renderRel(); if (!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#tabLanc input[type=text],#tabLanc textarea'))) renderLanc(); if (!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#tabTri input'))) renderTri(); renderAtend(); renderGraficos(); renderMetodo();
   }
   function kpi(l,v,s,cls){ return '<div class="kpi '+(cls||'')+'"><span class="l">'+l+'</span><span class="v">'+v+'</span><span class="s">'+s+'</span></div>'; }
 
@@ -917,8 +917,9 @@
     var h='<div class="sec-h"><h2>Protocolo '+esc(c)+'</h2><span><button class="btn sm" type="button" id="protCopiar">Copiar resumo</button> <button class="btn sm" type="button" id="protFechar">Fechar</button></span></div>';
     if (!a){
       h+='<div class="empty"><b>Não encontrei esse protocolo nos meses importados.</b>O painel guarda os atos <i>finalizados</i> (arquivados) nos meses carregados — '+(Object.keys(state.docs).sort().map(nomeMes).join(', ')||'nenhum')+'. Protocolo ainda em andamento, pesquisa qualificada ou de outro mês não aparece.</div>';
+      var AF0=andFichaHTML(c); h+=AF0.h;
       if (inc.length) h+=protInc(inc);
-      box.innerHTML=h; box.hidden=false; box.scrollIntoView({behavior:'smooth',block:'start'}); state.protTxt='Protocolo '+c+': não encontrado nos meses importados.'; return;
+      box.innerHTML=h; box.hidden=false; box.scrollIntoView({behavior:'smooth',block:'start'}); state.protTxt='Protocolo '+c+': não encontrado nos meses importados.'+AF0.txt; return;
     }
     var du=Motor.criarCalendario(state.extras||[]), fer=Motor.feriadoSet(state.extras||[]), D=function(d){ return Motor.isoDeDia(d); }, F=function(d){ return fmtData(D(d)); };
     var sit=a.cat==='R'?(ok(a)?(a.dentro?'Registrado dentro do prazo':'Fora do prazo, com justificativa'):'Registrado FORA do prazo'):a.cat==='N'?'Não registrado — '+(MOTIVOS_N[a.motivo]||'cancelado'):a.cat==='E'?'Abertura de matrícula + outros atos (fluxo especial, fora do KPI-02)':'Sem histórico suficiente (entrou antes do início da Produção por Etapa importada)';
@@ -952,16 +953,141 @@
           linhasTxt.push(F(e.d)+' · '+e.et+' · '+(e.rp||'—')+' · '+e.pz+' d.u.');
           return '<tr'+(pos?' style="opacity:.6"':'')+'><td>'+F(e.d)+'</td><td>'+esc(e.et)+'</td><td>'+esc(e.rp||'—')+'</td><td>'+e.pz+' d.u.</td><td>'+nota.join(' · ')+'</td></tr>'; }).join('')+'</tbody></table></div>';
     } else h+='<p class="hint" style="margin-top:12px">'+(Object.keys(state.logs).length?'Sem etapas deste protocolo na Produção por Etapa importada.':'Linha do tempo indisponível: reimporte os meses (Prazo + Produção por Etapa) para o painel guardar o histórico detalhado.')+'</p>';
+    var AF=andFichaHTML(c); h+=AF.h;
     if (inc.length) h+=protInc(inc);
     var av=state.aval[idDoc(c)]; if (av) h+='<p class="hint">Avaliação das exigências: <b>'+esc(AV[av.resultado]||av.resultado)+'</b>'+(av.obs?' — '+esc(av.obs):'')+'</p>';
     box.innerHTML=h; box.hidden=false; box.scrollIntoView({behavior:'smooth',block:'start'});
-    state.protTxt='Protocolo '+c+' — '+a.nat+'\n'+sit+'\nIngresso: '+(a.ing?fmtData(a.ing):'—')+(a.reg?' · Registro (última Revisão Oficial): '+fmtData(a.reg):'')+(a.bruto!=null?'\nBruto: '+a.bruto+' d.u. · Limite: '+a.lim+' d.u.'+(a.liq!=null?' · Líquido: '+a.liq+' d.u. · Espera: '+a.espera+' d.u.':''):'')+(a.cat==='R'?'\nExigências: '+a.nex+(a.npg?' · Retornos por pagamento: '+a.npg:''):'')+(linhasTxt.length?'\n\nLinha do tempo:\n'+linhasTxt.join('\n'):'');
+    state.protTxt='Protocolo '+c+' — '+a.nat+'\n'+sit+'\nIngresso: '+(a.ing?fmtData(a.ing):'—')+(a.reg?' · Registro (última Revisão Oficial): '+fmtData(a.reg):'')+(a.bruto!=null?'\nBruto: '+a.bruto+' d.u. · Limite: '+a.lim+' d.u.'+(a.liq!=null?' · Líquido: '+a.liq+' d.u. · Espera: '+a.espera+' d.u.':''):'')+(a.cat==='R'?'\nExigências: '+a.nex+(a.npg?' · Retornos por pagamento: '+a.npg:''):'')+(linhasTxt.length?'\n\nLinha do tempo:\n'+linhasTxt.join('\n'):'')+AF.txt;
   }
   function protInc(inc){ return '<div class="sub-h" style="margin-top:14px">Inconformidades deste protocolo ('+inc.length+')</div><div class="tbl-wrap"><table class="tleft"><thead><tr><th>Data</th><th>Responsável</th><th>Tipo</th><th>Erro</th><th>Observação</th></tr></thead><tbody>'+
     inc.map(function(r){ return '<tr><td>'+fmtData(r.d)+'</td><td>'+esc(r.r)+'</td><td>'+(grupoDe(r)==='E'?'Externo':'Interno')+'</td><td>'+esc(catDe(r))+'</td><td style="min-width:240px">'+esc(r.o)+'</td></tr>'; }).join('')+'</tbody></table></div>'; }
 
+  // ——— Tri7 · Relatório de andamentos: quem fez cada andamento (entrada, exigência, revisão, registro)
+  // "Usuário" = quem fez o andamento. "Usuário destino" é ignorado. Nada aqui atribui culpa: é só quem registrou o andamento no Tri7.
+  var AND_ORD=['PN','PA','RA','RE','NE','SG','RC'];
+  var AND_COR={PN:'good',PA:'good',RA:'mute',RE:'warn',NE:'warn',SG:'good',RC:'mute'};
+  function andNome(s){ return Motor.AND_NOME[s]||s; }
+  function minFmt(m){ var s=Motor.isoMin(m); return s.slice(8,10)+'/'+s.slice(5,7)+'/'+s.slice(2,4)+' '+s.slice(11,16); }
+  function andIndice(){ // protocolo -> eventos (todos os meses carregados)
+    if (state.andIdx) return state.andIdx; var ix={};
+    Object.keys(state.andam).forEach(function(m){ state.andam[m].forEach(function(e){ if (e.t!=='P') return; (ix[e.n]=ix[e.n]||[]).push(e); }); });
+    Object.keys(ix).forEach(function(k){ ix[k].sort(function(a,b){ return a.m-b.m; }); });
+    return state.andIdx=ix;
+  }
+  // nomes completos conhecidos (Tri7 antigo + VHL), sem acento como chave
+  function nomesConhecidos(){
+    var tri={}, todos={};
+    function add(o,n){ n=String(n||'').trim(); if (!n||/^tri7$/i.test(n)) return; var k=semAc(n); if (!o[k]) o[k]=n; }
+    Object.keys(state.cert).forEach(function(m){ var r=state.cert[m].raw||{}; (r.usuarios||[]).forEach(function(n){ add(tri,n); add(todos,n); }); });
+    Object.keys(state.logs).forEach(function(m){ (state.logs[m].rps||[]).forEach(function(n){ add(todos,n); }); });
+    Object.keys(state.inconf).forEach(function(m){ state.inconf[m].forEach(function(r){ add(todos,r.r); }); });
+    return {tri:tri, todos:todos};
+  }
+  function tituloLogin(l){ return String(l||'').toLowerCase().split(/[.\s]+/).filter(Boolean).map(function(p){ return p.charAt(0).toUpperCase()+p.slice(1); }).join(' '); }
+  // sugestão automática login -> nome: 1º pelos mesmos pedidos de certidão já salvos; depois pelo primeiro nome (+ sobrenome do login)
+  function mapaSugerido(logins, certNovos){
+    var sug={}, votos={};
+    if (certNovos){ var velho={}; Object.keys(state.cert).forEach(function(m){ state.cert[m].recs.forEach(function(r){ velho[r.p]=r.u; }); });
+      certNovos.forEach(function(r){ var n=velho[r.p]; if (!n||/^tri7$/i.test(n)) return; var v=votos[r.u]=votos[r.u]||{}; v[n]=(v[n]||0)+1; });
+      Object.keys(votos).forEach(function(l){ var v=votos[l], best=null; Object.keys(v).forEach(function(n){ if (!best||v[n]>v[best]) best=n; }); var tot=Object.keys(v).reduce(function(s,n){return s+v[n];},0); if (best && v[best]>=Math.max(3,tot*0.8)) sug[l]=best; }); }
+    var K=nomesConhecidos(), usados={}; Object.keys(sug).forEach(function(l){ usados[semAc(sug[l])]=1; }); Object.keys(state.usr).forEach(function(l){ usados[semAc(state.usr[l])]=1; });
+    function cand(base, tk){ return Object.keys(base).filter(function(k){ var p=k.split(/\s+/); return p[0]===tk[0] && tk.slice(1).every(function(t){ return p.indexOf(t)>=0; }); }).map(function(k){ return base[k]; }); }
+    // logins com sobrenome primeiro (SAMUEL.COIMBRA antes de SAMUEL)
+    logins.slice().sort(function(a,b){ return b.split('.').length-a.split('.').length; }).forEach(function(l){
+      if (sug[l]||state.usr[l]||!l) return; if (l==='TRI7'){ sug[l]='Tri7'; return; }
+      var tk=semAc(l).split(/[.\s]+/).filter(Boolean), c=cand(K.tri,tk); if (c.length!==1) c=cand(K.todos,tk);
+      if (c.length>1){ var livres=c.filter(function(n){ return !usados[semAc(n)]; }); if (livres.length===1) c=livres; }
+      if (c.length===1){ sug[l]=c[0]; usados[semAc(c[0])]=1; } });
+    return sug;
+  }
+  function nomeLogin(l){ if (!l) return '(sem usuário)'; return state.usr[l]||state.usrAuto[l]||tituloLogin(l); }
+  function salvarUsr(){ if (dbPronto&&podeEscrever) return db.doc('config/usuarios').set({map:state.usr, em:new Date().toISOString()}).catch(function(){ toast('Não consegui salvar os nomes'); }); return Promise.resolve(); }
+  function atualizarAuto(){ var ls={}; Object.keys(state.andam).forEach(function(m){ state.andam[m].forEach(function(e){ ls[e.u]=1; }); }); state.usrAuto=mapaSugerido(Object.keys(ls)); }
+
+  // resumo de quem fez o quê num protocolo
+  function andResumo(evs){
+    var r={ent:null, ex:{}, rv:{}, ra:{}, sg:null, nRE:0, nNE:0};
+    evs.forEach(function(e){
+      if ((e.s==='PN'||e.s==='PA') && !r.ent) r.ent=e;
+      if (e.s==='RE'){ r.nRE++; r.ex[e.u]=(r.ex[e.u]||0)+1; }
+      if (e.s==='NE'){ r.nNE++; r.rv[e.u]=(r.rv[e.u]||0)+1; }
+      if (e.s==='RA') r.ra[e.u]=(r.ra[e.u]||0)+1;
+      if (e.s==='SG') r.sg=e; });
+    return r;
+  }
+  function listaPessoas(o){ return Object.keys(o).map(function(u){ return nomeLogin(u)+(o[u]>1?' ('+o[u]+')':''); }).join(', '); }
+  function andFichaHTML(c){
+    var evs=andIndice()[c]; if (!evs||!evs.length) return {h:Object.keys(state.andam).length?'<p class="hint" style="margin-top:12px">Sem andamentos deste protocolo no Relatório de andamentos do Tri7 importado.</p>':'', txt:''};
+    var r=andResumo(evs), it=[];
+    it.push(['Deu entrada (prenotou)', r.ent?'<b>'+esc(nomeLogin(r.ent.u))+'</b> · '+minFmt(r.ent.m)+(r.ent.s==='PA'?' (automática · ONR)':''):'—']);
+    if (r.nRE) it.push(['Exigência redigida por', esc(listaPessoas(r.ex))]);
+    if (r.nNE) it.push(['Nota de exigência emitida por', esc(listaPessoas(r.rv))+' <span class="mut">(revisão)</span>']);
+    if (Object.keys(r.ra).length) it.push(['Re-análise recebida por', esc(listaPessoas(r.ra))]);
+    it.push(['Selos gerados (registro) por', r.sg?'<b>'+esc(nomeLogin(r.sg.u))+'</b> · '+minFmt(r.sg.m):'—']);
+    var h='<div class="sub-h" style="margin-top:14px">Quem fez · Relatório de andamentos (Tri7)</div><div class="prot-grid">'+it.map(function(x){ return '<div class="pk">'+x[0]+'</div><div class="pv">'+x[1]+'</div>'; }).join('')+'</div>'+
+      '<div class="tbl-wrap" style="margin-top:8px"><table class="tleft"><thead><tr><th>Data e hora</th><th>Andamento</th><th>Quem fez</th></tr></thead><tbody>'+
+      evs.map(function(e){ return '<tr><td>'+minFmt(e.m)+'</td><td><span class="pill '+(AND_COR[e.s]||'mute')+'">'+esc(andNome(e.s))+'</span></td><td>'+esc(nomeLogin(e.u))+'</td></tr>'; }).join('')+'</tbody></table></div>'+
+      '<p class="hint">É quem registrou o andamento no Tri7. Serve para consulta e treinamento; não indica, sozinho, responsável por erro.</p>';
+    var txt='\n\nTri7 — quem fez:\n'+it.map(function(x){ return x[0]+': '+x[1].replace(/<[^>]+>/g,''); }).join('\n')+'\n'+evs.map(function(e){ return minFmt(e.m)+' · '+andNome(e.s)+' · '+nomeLogin(e.u); }).join('\n');
+    return {h:h, txt:txt};
+  }
+
+  // ——— página "Quem fez · Tri7"
+  function andPeriodo(){ var out=[]; Object.keys(state.andam).sort().forEach(function(m){ if (state.periodo==='todos'||state.periodo===m) out=out.concat(state.andam[m]); }); return out; }
+  function renderTri(){
+    var el=$('tabTri'); if (!el) return;
+    if (!Object.keys(state.andam).length){ el.innerHTML='<div class="empty"><b>Nenhum Relatório de andamentos importado</b>No Tri7, gere o <i>Relatório de andamentos</i> com os andamentos 0011 Prenotado, 0504 Prenotado Automaticamente, 0357 Re-análise, 0334 Revisão de Exigência, 0326 Nota de Exigência, 0019 Selos Gerados e 0328 Recebido para Entrega, e solte o .xls em <b>Importar planilhas</b>. Ele substitui a planilha Andamentos antiga (certidões saem dele também).</div>'; return; }
+    var E=andPeriodo(), P={}, ix=andIndice(), fer=Motor.feriadoSet(state.extras), h0=state.cfg.expIni, h1=state.cfg.expFim;
+    function p(u){ return P[u]=P[u]||{u:u,PN:0,PA:0,RA:0,RE:0,NE:0,SG:0,RC:0,CE:0,tEx:[],tRv:[]}; }
+    E.forEach(function(e){ if (e.t!=='P') return; var x=p(e.u); if (x[e.s]!=null) x[e.s]++; });
+    var cer=certRecs(); cer.forEach(function(c){ var l=null; Object.keys(state.usr).concat(Object.keys(state.usrAuto)).some(function(k){ if (nomeLogin(k)===c.u){ l=k; return true; } }); if (l) p(l).CE++; else { var x=P['nome:'+c.u]=P['nome:'+c.u]||{u:'nome:'+c.u,nome:c.u,PN:0,PA:0,RA:0,RE:0,NE:0,SG:0,RC:0,CE:0,tEx:[],tRv:[]}; x.CE++; } });
+    // tempos: entrada/re-análise -> exigência redigida (autor) e exigência -> nota emitida (revisor), em horas úteis
+    var tEx={}, tRv={};
+    E.forEach(function(e){ if (e.t!=='P'||(e.s!=='RE'&&e.s!=='NE')) return; var L=ix[e.n]||[], i=L.indexOf(e), j;
+      if (e.s==='RE'){ for (j=i-1;j>=0;j--){ if (L[j].s==='PN'||L[j].s==='PA'||L[j].s==='RA'){ p(e.u).tEx.push(Motor.horasUteis(L[j].m,e.m,fer,h0,h1)); break; } if (L[j].s==='RE'||L[j].s==='NE') break; } }
+      else { for (j=i-1;j>=0;j--){ if (L[j].s==='RE'){ p(e.u).tRv.push(Motor.horasUteis(L[j].m,e.m,fer,h0,h1)); break; } if (L[j].s==='NE'||L[j].s==='RA') break; } } });
+    var tot={PN:0,PA:0,RA:0,RE:0,NE:0,SG:0,RC:0,CE:cer.length}; Object.keys(P).forEach(function(k){ AND_ORD.forEach(function(s){ tot[s]+=P[k][s]; }); });
+    var prots={}; E.forEach(function(e){ if (e.t==='P') prots[e.n]=1; });
+    var h='<div class="kpis">'+
+      kpi('Entradas (prenotações)',String(tot.PN+tot.PA),tot.PA?tot.PA+' automáticas (ONR)':'balcão e e-protocolo')+
+      kpi('Exigências redigidas',String(tot.RE),'andamento Revisão de Exigência')+
+      kpi('Notas de exigência',String(tot.NE),'emitidas após a revisão')+
+      kpi('Re-análises',String(tot.RA),'título voltou (exigência cumprida)')+
+      kpi('Registros (selos gerados)',String(tot.SG),'protocolos de RI')+
+      kpi('Certidões',String(tot.CE),'emitidas por pessoa (sem as automáticas)')+'</div>';
+    var ks=Object.keys(P).map(function(k){ var x=P[k]; x.total=AND_ORD.reduce(function(s,c){return s+x[c];},0)+x.CE; return x; }).filter(function(x){ return x.total && x.u!=='TRI7' && !/^tri7$/i.test(x.nome||''); }).sort(function(a,b){ return b.total-a.total; });
+    function cel(v,mx){ return '<td class="num">'+(v?'<span class="barra" style="--w:'+Math.round(v/mx*100)+'%">'+v.toLocaleString('pt-BR')+'</span>':'<span class="mut">·</span>')+'</td>'; }
+    var mx={}; ['PN','RA','RE','NE','SG','CE'].forEach(function(c){ mx[c]=Math.max(1,Math.max.apply(null,ks.map(function(x){ return c==='PN'?x.PN+x.PA:x[c]; }))); });
+    h+='<div class="sub-h" style="margin-top:16px">Produção por pessoa · '+(state.periodo==='todos'?'todo o período':nomeMes(state.periodo))+'</div><div class="tbl-wrap"><table><thead><tr><th class="tleft">Pessoa</th><th title="Prenotado + Prenotado automaticamente">Entradas</th><th title="Recebeu o título de volta">Re-análise</th><th title="Andamento Revisão de Exigência: quem redigiu a exigência e mandou revisar">Exigência redigida</th><th title="Nota de Exigência: emitida por quem revisou">Nota emitida</th><th title="Selos Gerados em protocolo de RI">Registro (selos)</th><th>Certidões</th></tr></thead><tbody>'+
+      ks.map(function(x){ return '<tr><td class="tleft">'+esc(x.nome||nomeLogin(x.u))+'</td>'+cel(x.PN+x.PA,mx.PN)+cel(x.RA,mx.RA)+cel(x.RE,mx.RE)+cel(x.NE,mx.NE)+cel(x.SG,mx.SG)+cel(x.CE,mx.CE)+'</tr>'; }).join('')+'</tbody></table></div>';
+    // tempos
+    function lin(x,k){ var e=est(x[k]); return e.n>=MIN_N?'<td class="num">'+e.n+'</td><td class="num">'+fmtH(e.mediana)+'</td><td class="num">'+fmtH(e.p90)+'</td>':'<td class="num">'+(e.n||'·')+'</td><td class="num mut" colspan="2">'+(e.n?'poucos casos':'')+'</td>'; }
+    var ae=ks.filter(function(x){return x.tEx.length;}), ar=ks.filter(function(x){return x.tRv.length;});
+    if (ae.length||ar.length){
+      var tAll=est([].concat.apply([],ae.map(function(x){return x.tEx;}))), rAll=est([].concat.apply([],ar.map(function(x){return x.tRv;})));
+      h+='<div class="sub-h" style="margin-top:16px">Tempo no sistema (horas úteis, expediente '+h0+'h–'+h1+'h)</div><p class="hint" style="margin:0 0 6px">Do andamento de entrada (Prenotado ou Re-análise) até a exigência ser redigida, e da exigência até a nota ser emitida. É o tempo entre dois registros no Tri7 — a pessoa pode ter recebido o título depois. Mostra mediana e P90 (90% dos casos em até) só com '+MIN_N+' casos ou mais.</p>'+
+        '<div class="grid2"><div class="tbl-wrap"><table><thead><tr><th class="tleft">Redigiu a exigência</th><th>Casos</th><th>Mediana</th><th>P90</th></tr></thead><tbody>'+ae.map(function(x){ return '<tr><td class="tleft">'+esc(nomeLogin(x.u))+'</td>'+lin(x,'tEx')+'</tr>'; }).join('')+'<tr class="tot"><td class="tleft">Equipe</td><td class="num">'+tAll.n+'</td><td class="num">'+fmtH(tAll.mediana)+'</td><td class="num">'+fmtH(tAll.p90)+'</td></tr></tbody></table></div>'+
+        '<div class="tbl-wrap"><table><thead><tr><th class="tleft">Revisou (emitiu a nota)</th><th>Casos</th><th>Mediana</th><th>P90</th></tr></thead><tbody>'+ar.map(function(x){ return '<tr><td class="tleft">'+esc(nomeLogin(x.u))+'</td>'+lin(x,'tRv')+'</tr>'; }).join('')+'<tr class="tot"><td class="tleft">Equipe</td><td class="num">'+rAll.n+'</td><td class="num">'+fmtH(rAll.mediana)+'</td><td class="num">'+fmtH(rAll.p90)+'</td></tr></tbody></table></div></div>';
+    }
+    // cruzamento com inconformidades (só consulta)
+    var inc=incTodos().filter(function(r){ return state.periodo==='todos'||String(r.d||'').slice(0,7)===state.periodo; });
+    if (inc.length){
+      var com=inc.filter(function(r){ return ix[String(r.c)]; });
+      h+='<div class="sub-h" style="margin-top:16px">Inconformidades × quem tocou o protocolo no Tri7</div><p class="hint" style="margin:0 0 6px">Cruzamento só para consulta: mostra quem deu entrada, quem redigiu exigência e quem gerou os selos de cada protocolo com inconformidade. Não aponta responsável — isso continua sendo a análise da inconformidade. '+com.length+' de '+inc.length+' inconformidades têm o protocolo no relatório do Tri7.</p>'+
+        '<div class="tbl-wrap" style="max-height:420px"><table class="tleft"><thead><tr><th>Protocolo</th><th>Data</th><th>Erro</th><th>Responsável (VHL)</th><th>Deu entrada</th><th>Exigência redigida por</th><th>Selos por</th></tr></thead><tbody>'+
+        com.slice().sort(function(a,b){ return String(b.d).localeCompare(String(a.d)); }).map(function(r){ var s=andResumo(ix[String(r.c)]); return '<tr><td>'+protLink(String(r.c))+'</td><td>'+fmtData(r.d)+'</td><td>'+esc(catDe(r))+'</td><td>'+esc(r.r||'—')+'</td><td>'+(s.ent?esc(nomeLogin(s.ent.u)):'—')+'</td><td>'+(s.nRE?esc(listaPessoas(s.ex)):'—')+'</td><td>'+(s.sg?esc(nomeLogin(s.sg.u)):'—')+'</td></tr>'; }).join('')+'</tbody></table></div>';
+    }
+    // nomes
+    var ls={}; Object.keys(state.andam).forEach(function(m){ state.andam[m].forEach(function(e){ ls[e.u]=(ls[e.u]||0)+1; }); });
+    var K=nomesConhecidos().todos, dl='<datalist id="dlNomes">'+Object.keys(K).sort().map(function(k){ return '<option value="'+esc(K[k])+'">'; }).join('')+'</datalist>';
+    h+='<details class="panel" style="margin-top:16px;padding:10px 12px"><summary><b>Nomes dos usuários do Tri7</b> <span class="hint">(login → nome completo usado no painel)</span></summary><p class="hint">Sugerido automaticamente pelos pedidos de certidão já salvos e pelo primeiro nome. Corrija se precisar: o nome precisa ser igual ao do VHL para casar com os relatórios por pessoa e com o fluxo de intimação.</p>'+dl+
+      '<div class="tbl-wrap"><table class="tleft"><thead><tr><th>Login no Tri7</th><th>Andamentos</th><th>Nome no painel</th></tr></thead><tbody>'+
+      Object.keys(ls).filter(Boolean).sort().map(function(l){ return '<tr><td>'+esc(l)+'</td><td class="num">'+ls[l]+'</td><td><input type="text" list="dlNomes" data-usr="'+esc(l)+'" value="'+esc(nomeLogin(l))+'" '+(podeEscrever?'':'disabled ')+'style="min-width:240px" aria-label="Nome de '+esc(l)+'">'+(state.usr[l]?' <span class="pill good">ajustado</span>':state.usrAuto[l]?' <span class="pill mute">sugerido</span>':' <span class="pill warn">sem par</span>')+'</td></tr>'; }).join('')+'</tbody></table></div></details>';
+    el.innerHTML=h;
+  }
+
   // ——— versão, dados brutos, recálculo, backup e memória de cálculo (site no GitHub + Supabase)
-  var APP_VERSAO='1.1.0';
+  var APP_VERSAO='1.2.0';
   // Dados brutos: só as colunas que o cálculo usa (sem título, solicitante ou nome de parte)
   function brutosMontar(){
     var S=XLSX.SSF, out={};
@@ -1223,7 +1349,7 @@
       '<h3>Até quando conta</h3>Até a última <b>Revisão Oficial</b>, que é quando o registro sai para o cliente. Imprimir Ficha e Arquivamento vêm depois e ficam de fora. Atos que não passam por Revisão Oficial (ex.: CNIB) usam o campo Prazo do VHL.'+
       '<h3>Bruto, líquido e espera</h3><b>Bruto</b>: dias úteis do ingresso até o registro. <b>Líquido</b>: soma dos dias em cada etapa até o registro — o tempo em que o documento estava com o cartório. <b>Espera</b>: bruto − líquido, o tempo suspenso aguardando o cliente. Nos atos sem reingresso, líquido e bruto coincidem.'+
       '<h3>Quem sai do KPI-02</h3><b>Pesquisa Qualificada</b> (só conta no volume). <b>Não registrados</b>: status Cancelado, ou última etapa Cancelamento de Protocolo, ONR – Envio do Recibo do Protocolo, ONR – Nota de Devolução ou Re-Análise sem Revisão Oficial depois. <b>Abertura de matrícula + Outros atos</b>: fluxo especial, acompanhado à parte. <b>Sem histórico</b>: atos que entraram antes do início da Produção por Etapa importada.'+
-      '<h3>Fora do prazo justificado</h3>Atos com prazo especial (Georreferenciamento, sobrestado a pedido do interessado, suscitação de dúvida, ordem judicial) ficam em aberto até você registrar o motivo. Com motivo, contam como dentro do prazo no KPI-02 e saem das médias e medianas, para não distorcer a curva normal.'+'<h3>KPI-02 complementar · cancelamento</h3>Atos cancelados, devolvidos ou com prenotação caducada, sobre o total de atos RI do período (sem Pesquisa Qualificada).'+'<h3>Exigências e pagamento</h3>Quando o título fica parado fora do fluxo (dias úteis que nenhuma etapa explica) e consta como Suspenso no relatório de Demanda, houve uma suspensão. Se ele volta por <code>Re-Análise</code> ou <code>Revisão de Exigência</code>, foi <b>exigência</b> cumprida; se volta direto para Minuta, foi <b>pagamento</b> (ONR). Re-Análise sem suspensão (Revisão devolvendo ao analista) não conta como exigência. Aprovado na 1ª qualificação = registrado sem nenhuma exigência. Títulos com 2 ou mais exigências vão para avaliação: conforme (causa do cliente) ou não conforme (falha na qualificação).'+'<h3>KPI-01 · inconformidades</h3>KPI-01 = atos RI registrados no período com ao menos 1 inconformidade ÷ atos RI registrados. A inconformidade é ligada ao ato pelo código, então não importa o mês em que foi registrada. Complementar = mesma conta só com erro externo. O nome do erro sai da Observação (regras por palavras-chave) e pode ser corrigido na lista. A taxa por pessoa divide as inconformidades pelos documentos que a pessoa trabalhou no VHL no período.'+'<h3>Certidões</h3>Base: planilha Andamentos do Tri7 (pedidos de certidão concluídos). O horário do export vem 3 horas adiantado e é corrigido. Conta horas úteis do pedido até a conclusão (Selos Gerados), só dentro do expediente. Prazos (art. 19 §10 da Lei 6.015/73): inteiro teor 4 horas; ônus e ações / situação jurídica 1 dia útil; demais 5 dias úteis. Pedido de balcão = aparece como Certidão - RI no VHL, que também dá o tipo; os demais vêm da central e seguem o prazo de 4 horas. Certidões do fluxo de intimação ficam fora porque o prazo corre do pagamento.'+'<h3>Feriados</h3>Nacionais automáticos, inclusive Carnaval, Sexta-feira Santa e Corpus Christi. Locais: em Importar planilhas.'+
+      '<h3>Fora do prazo justificado</h3>Atos com prazo especial (Georreferenciamento, sobrestado a pedido do interessado, suscitação de dúvida, ordem judicial) ficam em aberto até você registrar o motivo. Com motivo, contam como dentro do prazo no KPI-02 e saem das médias e medianas, para não distorcer a curva normal.'+'<h3>KPI-02 complementar · cancelamento</h3>Atos cancelados, devolvidos ou com prenotação caducada, sobre o total de atos RI do período (sem Pesquisa Qualificada).'+'<h3>Exigências e pagamento</h3>Quando o título fica parado fora do fluxo (dias úteis que nenhuma etapa explica) e consta como Suspenso no relatório de Demanda, houve uma suspensão. Se ele volta por <code>Re-Análise</code> ou <code>Revisão de Exigência</code>, foi <b>exigência</b> cumprida; se volta direto para Minuta, foi <b>pagamento</b> (ONR). Re-Análise sem suspensão (Revisão devolvendo ao analista) não conta como exigência. Aprovado na 1ª qualificação = registrado sem nenhuma exigência. Títulos com 2 ou mais exigências vão para avaliação: conforme (causa do cliente) ou não conforme (falha na qualificação).'+'<h3>KPI-01 · inconformidades</h3>KPI-01 = atos RI registrados no período com ao menos 1 inconformidade ÷ atos RI registrados. A inconformidade é ligada ao ato pelo código, então não importa o mês em que foi registrada. Complementar = mesma conta só com erro externo. O nome do erro sai da Observação (regras por palavras-chave) e pode ser corrigido na lista. A taxa por pessoa divide as inconformidades pelos documentos que a pessoa trabalhou no VHL no período.'+'<h3>Certidões</h3>Base: Relatório de andamentos do Tri7 (andamento Selos Gerados dos pedidos de certidão), no horário local. Certidões emitidas automaticamente pelo usuário TRI7 (central SAEC, sem ação de ninguém) ficam fora. Meses antigos podem ter vindo da planilha Andamentos (horário corrigido em 3 horas); ao importar o relatório novo, ele prevalece no mesmo pedido e o resto continua. Conta horas úteis do pedido até os selos gerados, só dentro do expediente.'+'<h3>Quem fez · Tri7</h3>Do Relatório de andamentos do Tri7 sai, por protocolo, quem fez cada andamento (a coluna Usuário; Usuário destino é ignorado): <b>Prenotado</b> = quem deu entrada; <b>Revisão de Exigência</b> = quem redigiu a exigência e mandou revisar; <b>Nota de Exigência</b> = quem revisou e emitiu a nota; <b>Re-análise</b> = quem recebeu o título de volta; <b>Selos Gerados</b> = quem gerou os selos do registro. É informação de consulta e treinamento: o cruzamento com inconformidades não aponta responsável. Os prazos do KPI-02 continuam pela Revisão Oficial do VHL. Prazos (art. 19 §10 da Lei 6.015/73): inteiro teor 4 horas; ônus e ações / situação jurídica 1 dia útil; demais 5 dias úteis. Pedido de balcão = aparece como Certidão - RI no VHL, que também dá o tipo; os demais vêm da central e seguem o prazo de 4 horas. Certidões do fluxo de intimação ficam fora porque o prazo corre do pagamento.'+'<h3>Feriados</h3>Nacionais automáticos, inclusive Carnaval, Sexta-feira Santa e Corpus Christi. Locais: em Importar planilhas.'+
       '<h3>Meses salvos</h3>'+(meses.length?'<table style="max-width:560px"><thead><tr><th>Mês</th><th>Atos</th><th>Sem histórico</th><th>Atualizado</th><th></th></tr></thead><tbody>'+meses.map(function(m){ var d=state.docs[m]; return '<tr><td>'+nomeMes(m)+'</td><td>'+d.raw.total+'</td><td>'+d.raw.incompletos+'</td><td>'+new Date(d.raw.atualizadoEm).toLocaleDateString('pt-BR')+'</td><td>'+(dbPronto&&podeEscrever?'<button class="btn" type="button" data-del="'+m+'" style="padding:3px 9px;font-size:.78rem">Excluir</button>':'')+'</td></tr>'; }).join('')+'</tbody></table>':'Nenhum ainda.')+
       '</div>';
   }
@@ -1247,7 +1373,7 @@
     }).catch(function(e){ toast('Não consegui ler o arquivo: '+e.message); });
   }
   function atualizarChips(){
-    [['prazo','chipPrazo','Prazo e Tempo Médio'],['etapa','chipEtapa','Produção por Etapa'],['demanda','chipDemanda','Demanda & Produção (Suspensos)'],['inconf','chipInconf','Consulta de inconformidades'],['tri7','chipTri7','Andamentos (Tri7)']].forEach(function(x){
+    [['prazo','chipPrazo','Prazo e Tempo Médio'],['etapa','chipEtapa','Produção por Etapa'],['demanda','chipDemanda','Demanda & Produção (Suspensos)'],['inconf','chipInconf','Consulta de inconformidades'],['andam','chipAndam','Relatório de andamentos (Tri7)'],['tri7','chipTri7','Andamentos (Tri7) · antiga']].forEach(function(x){
       var n=state.arquivos[x[0]].length, el=$(x[1]);
       el.className='chip'+(n?' ok':''); el.textContent=(n?'✓ ':'')+x[2]+(n?' · '+n.toLocaleString('pt-BR')+' linhas':'');
     });
@@ -1256,14 +1382,25 @@
     var a=state.arquivos;
     state.resInc = a.inconf.length ? Motor.processarInconf(a.inconf, XLSX.SSF) : null;
     state.resCert = a.tri7.length ? Motor.processarCert(a.tri7) : null;
+    state.resAnd = a.andam.length ? Motor.processarAndam(a.andam) : null;
     var hInc='';
+    if (state.resAnd){ var RA=state.resAnd, certN=[].concat.apply([],Object.keys(RA.cert).map(function(m){ return RA.cert[m].recs; })), lsA={};
+      Object.keys(RA.ev).forEach(function(m){ RA.ev[m].forEach(function(e){ lsA[e.u]=1; }); }); certN.forEach(function(r){ lsA[r.u]=1; });
+      var sugA=mapaSugerido(Object.keys(lsA), certN); Object.keys(sugA).forEach(function(l){ state.usrAuto[l]=sugA[l]; });
+      // certidões do relatório novo (nome completo pelo mapa); se vier junto a planilha antiga, o relatório novo prevalece
+      var rc={}; Object.keys(RA.cert).forEach(function(m){ rc[m]={mes:m, recs:RA.cert[m].recs.map(function(r){ return {p:r.p,i:r.i,f:r.f,u:nomeLogin(r.u)}; }), erros:0, pend:0, novo:true}; });
+      if (state.resCert) Object.keys(state.resCert).forEach(function(m){ if (!rc[m]) rc[m]=state.resCert[m]; });
+      state.resCert=rc;
+      var mA=Object.keys(RA.ev).sort();
+      hInc+='<div class="sub-h" style="margin-top:14px">Relatório de andamentos (Tri7) · '+fmtData(RA.ini&&RA.ini.slice(0,10))+' a '+fmtData(RA.fim&&RA.fim.slice(0,10))+'</div><p class="hint" style="margin:0 0 6px">'+RA.nP.toLocaleString('pt-BR')+' andamentos de protocolo e '+RA.nC.toLocaleString('pt-BR')+' certidões emitidas por pessoas ('+RA.nAuto.toLocaleString('pt-BR')+' automáticas do usuário TRI7 ficam fora). Apresentante, adquirente e valores não são lidos. Ao salvar, junta com o que já existe — nada se perde.</p><div class="tbl-wrap"><table><thead><tr><th>Mês</th><th>Andamentos</th><th>Já salvo</th><th>Salvar</th></tr></thead><tbody>'+
+        mA.map(function(m){ var ex=state.andam[m]; return '<tr><td>'+nomeMes(m)+'</td><td>'+RA.ev[m].length+'</td><td>'+(ex?'<span class="pill mute">junta ('+ex.length+')</span>':'—')+'</td><td><input type="checkbox" data-and-mes="'+m+'" checked aria-label="Salvar andamentos de '+nomeMes(m)+'"></td></tr>'; }).join('')+'</tbody></table></div>'; }
     if (state.resCert){ var mcx=Object.keys(state.resCert).sort();
       hInc+='<div class="sub-h" style="margin-top:14px">Certidões (Tri7)</div><div class="tbl-wrap"><table><thead><tr><th>Mês</th><th>Concluídas</th><th>Já salvo</th><th>Salvar</th></tr></thead><tbody>'+
-        mcx.map(function(m){ var ex=state.cert[m]; return '<tr><td>'+nomeMes(m)+'</td><td>'+state.resCert[m].recs.length+'</td><td>'+(ex?'<span class="pill mute">substitui ('+ex.recs.length+')</span>':'—')+'</td><td><input type="checkbox" data-cert-mes="'+m+'"'+(state.resCert[m].recs.length?' checked':'')+' aria-label="Salvar certidões de '+nomeMes(m)+'"></td></tr>'; }).join('')+'</tbody></table></div>'; }
+        mcx.map(function(m){ var ex=state.cert[m]; return '<tr><td>'+nomeMes(m)+'</td><td>'+state.resCert[m].recs.length+'</td><td>'+(ex?'<span class="pill mute">'+(state.resCert[m].novo?'junta ('+ex.recs.length+')':'substitui ('+ex.recs.length+')')+'</span>':'—')+'</td><td><input type="checkbox" data-cert-mes="'+m+'"'+(state.resCert[m].recs.length?' checked':'')+' aria-label="Salvar certidões de '+nomeMes(m)+'"></td></tr>'; }).join('')+'</tbody></table></div>'; }
     if (state.resInc){ var mi=Object.keys(state.resInc).sort();
       hInc+='<div class="sub-h" style="margin-top:14px">Inconformidades</div><div class="tbl-wrap"><table><thead><tr><th>Mês</th><th>Registros</th><th>Já salvo</th><th>Salvar</th></tr></thead><tbody>'+
         mi.map(function(m){ var ex=state.inconf[m]; return '<tr><td>'+nomeMes(m)+'</td><td>'+state.resInc[m].length+'</td><td>'+(ex?'<span class="pill mute">substitui ('+ex.length+')</span>':'—')+'</td><td><input type="checkbox" data-inc-mes="'+m+'" checked aria-label="Salvar inconformidades de '+nomeMes(m)+'"></td></tr>'; }).join('')+'</tbody></table></div>'; }
-    if ((!a.prazo.length || !a.etapa.length) && (state.resInc||state.resCert)){ state.resultado=null;
+    if ((!a.prazo.length || !a.etapa.length) && (state.resInc||state.resCert||state.resAnd)){ state.resultado=null;
       $('previa').innerHTML=hInc+'<div class="ctl" style="margin-top:10px"><button class="btn primary" type="button" id="btnSalvar">'+(dbPronto?'Salvar':'Mostrar no painel')+'</button><button class="btn" type="button" id="btnLimpar">Limpar arquivos</button></div>'+
         (a.prazo.length||a.etapa.length?'<p class="hint">Para os prazos, faltam: '+[!a.prazo.length&&'Prazo e Tempo Médio',!a.etapa.length&&'Produção por Etapa'].filter(Boolean).join(' e ')+'.</p>':'');
       return; }
@@ -1286,24 +1423,31 @@
     var marcados=Array.prototype.slice.call(document.querySelectorAll('#previa input[data-mes]:checked')).map(function(i){return i.dataset.mes;});
     var mInc=Array.prototype.slice.call(document.querySelectorAll('#previa input[data-inc-mes]:checked')).map(function(i){return i.dataset.incMes;});
     var mCert=Array.prototype.slice.call(document.querySelectorAll('#previa input[data-cert-mes]:checked')).map(function(i){return i.dataset.certMes;});
-    if (!marcados.length && !mInc.length && !mCert.length){ toast('Marque pelo menos um mês'); return; }
+    var mAnd=Array.prototype.slice.call(document.querySelectorAll('#previa input[data-and-mes]:checked')).map(function(i){return i.dataset.andMes;});
+    if (!marcados.length && !mInc.length && !mCert.length && !mAnd.length){ toast('Marque pelo menos um mês'); return; }
     var docs=[];
     if (res){ var origem={prazo:state.nomes.prazo.join(', '),etapa:state.nomes.etapa.join(', '),demanda:state.nomes.demanda.join(', '),etapaIni:res.etapaIni,etapaFim:res.etapaFim};
       marcados.forEach(function(m){ docs.push({col:'meses',id:m,data:Motor.codificar(res.meses[m],origem,(res.producao||{})[m])}); docs.push({col:'logs',id:m,data:Motor.codificarLog(res.meses[m])}); }); }
-    if (state.resCert) mCert.forEach(function(m){ docs.push({col:'cert',id:m,data:Motor.codificarCert(state.resCert[m],state.nomes.tri7.join(', '))}); });
+    if (state.resCert) mCert.forEach(function(m){ var C=state.resCert[m], org=state.nomes.tri7.join(', ');
+      if (C.novo){ org=state.nomes.andam.join(', '); var ex=state.cert[m], por={}; // junta: o relatório novo prevalece no mesmo pedido; o que só existia antes continua
+        if (ex){ ex.recs.forEach(function(r){ por[r.p]=r; }); C={mes:m, erros:ex.raw.erros||0, pend:ex.raw.pend||0, recs:[]}; state.resCert[m].recs.forEach(function(r){ por[r.p]=r; }); C.recs=Object.keys(por).map(function(k){ return por[k]; }).sort(function(a,b){ return a.f-b.f; }); } }
+      docs.push({col:'cert',id:m,data:Motor.codificarCert(C,org)}); });
+    if (state.resAnd) mAnd.forEach(function(m){ docs.push({col:'andam',id:m,data:Motor.codificarAndam(m,(state.andam[m]||[]).concat(state.resAnd.ev[m]),state.nomes.andam.join(', '))}); });
+    var usrNovo=state.resAnd?Object.assign({},state.usrAuto,state.usr):null;
     if (rinc) mInc.forEach(function(m){ docs.push({col:'inconf',id:m,data:{mes:m,v:1,origem:state.nomes.inconf.join(', '),atualizadoEm:new Date().toISOString(),recs:rinc[m]}}); });
-    var grande=docs.filter(function(d){ return JSON.stringify(d.data).length>(d.col==='logs'?900000:250000); });
+    var grande=docs.filter(function(d){ return JSON.stringify(d.data).length>(d.col==='logs'||d.col==='andam'?900000:250000); });
     if (grande.length){ toast('Mês grande demais para salvar: '+grande.map(function(d){return nomeMes(d.id);}).join(', ')); return; }
-    function aplicar(){ docs.forEach(function(d){ if (d.col==='meses') state.docs[d.id]={raw:d.data,atos:Motor.decodificar(d.data)}; else if (d.col==='logs'){ state.logs[d.id]=d.data; delete state.logCache[d.id]; } else if (d.col==='cert') state.cert[d.id]={raw:d.data,recs:Motor.decodificarCert(d.data)}; else state.inconf[d.id]=d.data.recs; }); }
+    function aplicar(){ docs.forEach(function(d){ if (d.col==='meses') state.docs[d.id]={raw:d.data,atos:Motor.decodificar(d.data)}; else if (d.col==='logs'){ state.logs[d.id]=d.data; delete state.logCache[d.id]; } else if (d.col==='cert') state.cert[d.id]={raw:d.data,recs:Motor.decodificarCert(d.data)}; else if (d.col==='andam'){ state.andam[d.id]=Motor.decodificarAndam(d.data); state.andIdx=null; } else state.inconf[d.id]=d.data.recs; }); }
     if (!dbPronto){ aplicar(); fecharImport(); limparArquivos(); render(); toast('Resultados no painel (não salvos)'); return; }
     var btn=$('btnSalvar'); btn.disabled=true; btn.textContent='Salvando…';
     var p=Promise.resolve();
     docs.forEach(function(d){ p=p.then(function(){ return db.doc(d.col+'/'+d.id).set(d.data); }); });
+    if (usrNovo) p=p.then(function(){ state.usr=usrNovo; return salvarUsr(); });
     p.then(function(){ return brutosSalvar().catch(function(){ toast('Resultados salvos, mas os dados brutos não foram guardados'); }); }).then(function(){ aplicar(); limparArquivos(); fecharImport(); render(); toast(docs.length===1?'Salvo':'Salvo ('+docs.filter(function(d){return d.col!=='logs';}).length+' documentos)'); })
      .catch(function(e){ btn.disabled=false; btn.textContent='Salvar meses marcados';
        toast(e&&e.code==='quota_exceeded'?'Banco cheio — exclua meses antigos':e&&e.code==='invalid_argument'?'Sem permissão para salvar':'Não consegui salvar, tente de novo'); });
   }
-  function limparArquivos(){ state.arquivos={prazo:[],etapa:[],demanda:[],inconf:[],tri7:[]}; state.nomes={prazo:[],etapa:[],demanda:[],inconf:[],tri7:[]}; state.resInc=null; state.resCert=null; state.resultado=null; atualizarChips(); $('previa').innerHTML=''; }
+  function limparArquivos(){ state.arquivos={prazo:[],etapa:[],demanda:[],inconf:[],tri7:[],andam:[]}; state.nomes={prazo:[],etapa:[],demanda:[],inconf:[],tri7:[],andam:[]}; state.resAnd=null; state.resInc=null; state.resCert=null; state.resultado=null; atualizarChips(); $('previa').innerHTML=''; }
   function abrirImport(){ $('importar').hidden=false; $('btnImportar').textContent='Fechar importação'; $('importar').scrollIntoView({behavior:'smooth',block:'start'}); }
   function fecharImport(){ $('importar').hidden=true; $('btnImportar').textContent='Importar planilhas'; }
   function renderFeriados(){
@@ -1381,11 +1525,11 @@
     var tab=t.closest&&t.closest('.tab');
     if (tab) return irAba(tab.dataset.tab);
   });
-  var TITULOS={geral:'Painel geral',nat:'Prazos · por natureza',eta:'Prazos · por etapa',fp:'Prazos · fora do prazo',ex:'Prazos · exigências',nao:'Prazos · cancelados e especiais',k1:'KPI-01 · inconformidades',cer:'Certidões',at:'Atendimento',rel:'Relatórios por pessoa',lanc:'Lançar KPIs no ANOREG+',met:'Como é calculado'};
+  var TITULOS={geral:'Painel geral',nat:'Prazos · por natureza',eta:'Prazos · por etapa',fp:'Prazos · fora do prazo',ex:'Prazos · exigências',nao:'Prazos · cancelados e especiais',k1:'KPI-01 · inconformidades',cer:'Certidões',at:'Atendimento',rel:'Relatórios por pessoa',tri:'Quem fez · Tri7',lanc:'Lançar KPIs no ANOREG+',met:'Como é calculado'};
   function menuAbrir(sim){ document.body.classList.toggle('menu-aberto',!!sim); $('menuFundo').hidden=!sim; }
   function irAba(k){ state.aba=k; $('pgGeral').hidden=k!=='geral'; $('pgConteudo').hidden=k==='geral'; $('pgTitulo').textContent=TITULOS[k]||''; menuAbrir(false); window.scrollTo(0,0); if (k==='geral') renderGraficos(); document.querySelectorAll('.tab').forEach(function(b){ b.setAttribute('aria-selected',b.dataset.tab===k?'true':'false'); });
-    var MAP={nat:'tabNat',k1:'tabK1',cer:'tabCer',eta:'tabEta',fp:'tabFp',ex:'tabEx',nao:'tabNao',at:'tabAt',lanc:'tabLanc',rel:'tabRel',met:'tabMet'}; Object.keys(MAP).forEach(function(x){ $(MAP[x]).hidden=state.aba!==x; });
-    if (k==='rel') renderRel(); if (k==='lanc') renderLanc(); if (k==='at') renderAtend(); }
+    var MAP={nat:'tabNat',k1:'tabK1',cer:'tabCer',eta:'tabEta',fp:'tabFp',ex:'tabEx',nao:'tabNao',at:'tabAt',tri:'tabTri',lanc:'tabLanc',rel:'tabRel',met:'tabMet'}; Object.keys(MAP).forEach(function(x){ $(MAP[x]).hidden=state.aba!==x; });
+    if (k==='rel') renderRel(); if (k==='tri') renderTri(); if (k==='lanc') renderLanc(); if (k==='at') renderAtend(); }
   document.addEventListener('change',function(e){
     var t=e.target;
     if (t.id==='relSel'){ state.relSel=t.value; return renderRel(); }
@@ -1413,6 +1557,7 @@
   document.addEventListener('input',function(e){
     if (e.target.dataset && e.target.dataset.kpin){ var card=e.target.closest('.lc-card'), dk=lancDoc(state.lancMes), id=card.dataset.kpi, v=dk.v[id]=dk.v[id]||{}; v[e.target.dataset.kpin]=e.target.value; if (e.target.dataset.kpin!=='a') lancAtualizarCard(card); lancSalvar(state.lancMes); return; }
     if (e.target.dataset && e.target.dataset.fb && state.relSel!=='__geral'){ var kf=chaveFeedback(state.relSel), o=state.feedback[kf]=Object.assign({},state.feedback[kf]||{}); o[e.target.dataset.fb]=e.target.value; return; }
+    if (e.target.dataset && e.target.dataset.usr!=null){ var lg=e.target.dataset.usr, nv=e.target.value.trim(); clearTimeout(state.usrT); state.usrT=setTimeout(function(){ if (nv) state.usr[lg]=nv; else delete state.usr[lg]; salvarUsr(); },900); return; }
     if (e.target.id==='buscaEx'){ state.buscaEx=e.target.value; var p2=e.target.selectionStart; renderEx(todosAtos()); var bx=$('buscaEx'); bx.focus(); bx.setSelectionRange(p2,p2); return; }
     if (e.target.id==='natBusca'){ state.natBusca=e.target.value; renderNatTabela(todosAtos()); return; }
     if (e.target.id==='busca'){ state.busca=e.target.value; var pos=e.target.selectionStart; renderDetalhe(todosAtos().filter(function(a){return a.nat===state.natSel;})); var b=$('busca'); b.focus(); b.setSelectionRange(pos,pos); }
@@ -1455,6 +1600,8 @@
     db.collection('kpis').onSnapshot(function(snap){ snap.docs.forEach(function(d){ var x=d.data(); if (x) state.kp[d.id]={mes:d.id,v:x.v||{},lanc:x.lanc||{}}; }); if (state.aba==='lanc') render(); }, function(){});
     db.collection('kpi09').onSnapshot(function(snap){ snap.docs.forEach(function(d){ var x=d.data(); if (x&&x.pessoas) state.k9[d.id]=x; }); if (state.aba==='lanc') render(); }, function(){});
     db.collection('feedback').onSnapshot(function(snap){ var m={}; snap.docs.forEach(function(d){ m[d.id]=d.data(); }); Object.assign(state.feedback,m); if (state.aba==='rel' && !document.activeElement.matches('#tabRel textarea')) renderRel(); }, function(){});
+    db.doc('config/usuarios').get().then(function(s){ if (s.exists){ var u=s.data(); state.usr=Object.assign({},u.map||{}); if (state.aba==='tri') renderTri(); } }).catch(function(){});
+    db.collection('andam').onSnapshot(function(snap){ snap.docs.forEach(function(d){ var x=d.data(); if (x&&x.rows) state.andam[x.mes||d.id]=Motor.decodificarAndam(x); }); state.andIdx=null; atualizarAuto(); if (state.aba==='tri') renderTri(); if (state.protSel) fichaProtocolo(state.protSel); }, function(){});
     db.collection('cert').onSnapshot(function(snap){ var m={}; snap.docs.forEach(function(d){ var x=d.data(); if (x&&x.recs) m[x.mes||d.id]={raw:x,recs:Motor.decodificarCert(x)}; }); state.cert=m; render(); }, function(){});
   });
 })();

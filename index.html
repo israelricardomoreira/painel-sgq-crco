@@ -194,6 +194,10 @@ svg text{fill:var(--ink-2);font-family:var(--font)}
 .metodo code{background:var(--surface-2);padding:1px 5px;border-radius:4px;font-size:.8rem}
 .toast{position:fixed;bottom:calc(18px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:9px;font-size:.84rem;z-index:30}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.barra{display:inline-block;min-width:2.4em;padding:1px 6px;border-radius:4px;background:linear-gradient(90deg,var(--brand-soft,rgba(234,88,12,.18)) var(--w),transparent var(--w))}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:12px}
+tr.tot td{font-weight:700;border-top:2px solid var(--line)}
+details>summary{cursor:pointer}
 </style>
 <style>
 /* navegação lateral + celular/tablet */
@@ -267,6 +271,7 @@ svg text{fill:var(--ink-2);font-family:var(--font)}
   <button class="tab" type="button" data-tab="at" aria-selected="false">Atendimento</button>
   <div class="menu-grp">Pessoas e rotina</div>
   <button class="tab" type="button" data-tab="rel" aria-selected="false">Relatórios por pessoa</button>
+  <button class="tab" type="button" data-tab="tri" aria-selected="false">Quem fez · Tri7</button>
   <button class="tab" type="button" data-tab="lanc" aria-selected="false">Lançar KPIs</button>
   <button class="tab" type="button" data-tab="met" aria-selected="false">Como é calculado</button>
 </nav>
@@ -294,7 +299,7 @@ svg text{fill:var(--ink-2);font-family:var(--font)}
       <div>
         <div class="drop" id="drop" tabindex="0" role="button" aria-label="Selecionar planilhas">
           <b>Arraste as planilhas aqui</b> ou clique para escolher
-          <div class="hint" style="margin-top:4px">.xlsx exportados do VHL — pode mandar mais de um arquivo de cada tipo</div>
+          <div class="hint" style="margin-top:4px">.xls e .xlsx exportados do VHL e do Tri7 — pode mandar mais de um arquivo de cada tipo</div>
         </div>
         <input type="file" id="fileIn" accept=".xlsx,.xls" multiple hidden>
         <div class="chips">
@@ -302,7 +307,8 @@ svg text{fill:var(--ink-2);font-family:var(--font)}
           <span class="chip" id="chipEtapa">Produção por Etapa</span>
           <span class="chip" id="chipDemanda">Demanda & Produção (Suspensos)</span>
           <span class="chip" id="chipInconf">Consulta de inconformidades</span>
-          <span class="chip" id="chipTri7">Andamentos (Tri7)</span>
+          <span class="chip" id="chipAndam">Relatório de andamentos (Tri7)</span>
+          <span class="chip" id="chipTri7">Andamentos (Tri7) · antiga</span>
         </div>
         <div id="previa" style="margin-top:14px"></div>
       </div>
@@ -355,6 +361,7 @@ svg text{fill:var(--ink-2);font-family:var(--font)}
     <div id="tabAt" hidden></div>
     <div id="tabLanc" hidden></div>
     <div id="tabRel" hidden></div>
+    <div id="tabTri" hidden></div>
     <div id="tabMet" hidden></div>
   </section>
 <p class="rodape">Painel SGQ · CRCO — dados no Supabase com acesso restrito · código em github.com/israelricardomoreira/painel-sgq-crco</p>
