@@ -239,8 +239,8 @@ var Motor = (function(){
 
 
   // ——— Tri7 · Relatório de andamentos (quem fez cada andamento; horário local, sem ajuste)
-  var AND_ST={'prenotado':'PN','prenotado automaticamente':'PA','re-analise':'RA','revisao de exigencia':'RE','nota de exigencia':'NE','selos gerados':'SG','recebido para entrega':'RC'};
-  var AND_NOME={PN:'Prenotado',PA:'Prenotado automaticamente',RA:'Re-análise',RE:'Revisão de Exigência',NE:'Nota de Exigência',SG:'Selos Gerados',RC:'Recebido para Entrega'};
+  var AND_ST={'prenotado':'PN','prenotado automaticamente':'PA','prenotado automaticamente (saec/onr)':'PA','re-analise':'RA','revisao de exigencia':'RE','nota de exigencia':'NE','selos gerados':'SG','recebido para entrega':'RC','custas informadas (saec/onr)':'CI','custas informadas':'CI','aguardando pagamento':'AP'};
+  var AND_NOME={PN:'Prenotado',PA:'Prenotado automaticamente',RA:'Re-análise',RE:'Revisão de Exigência',NE:'Nota de Exigência',SG:'Selos Gerados',RC:'Recebido para Entrega',CI:'Custas Informadas (ONR)',AP:'Aguardando Pagamento'};
   function andMin(dv, hv){ // data (serial ou dd/mm/aaaa) + hora (fração ou hh:mm[:ss]) -> minutos "ingênuos" locais
     var d=null, h=0, m;
     if (typeof dv==='number') d=Math.floor(dv)-25569+(dv%1);
@@ -280,7 +280,8 @@ var Motor = (function(){
     return {mes:mes, v:1, atualizadoEm:new Date().toISOString(), origem:origem||'', us:us, ss:ss, rows:rows};
   }
   function decodificarAndam(doc){
-    return (doc.rows||[]).map(function(s){ var f=s.split('|'); return {t:f[0],n:f[1],s:doc.ss[+f[2]],u:doc.us[+f[3]],m:+f[4]}; });
+    var ss=(doc.ss||[]).map(function(x){ return AND_NOME[x]?x:(AND_ST[semAcento(x)]||x); });
+    return (doc.rows||[]).map(function(s){ var f=s.split('|'); return {t:f[0],n:f[1],s:ss[+f[2]],u:doc.us[+f[3]],m:+f[4]}; });
   }
 
   return {processarAndam:processarAndam, codificarAndam:codificarAndam, decodificarAndam:decodificarAndam, andChave:andChave, AND_NOME:AND_NOME, isoMin:isoMin, processar:processar, processarInconf:processarInconf, processarCert:processarCert, codificarCert:codificarCert, decodificarCert:decodificarCert, horasUteis:horasUteis, limiteCert:limiteCert, feriadoSet:feriadoSet, nomearErro:nomearErro, CATS_ERRO:CATS_ERRO, detectar:detectar, codificar:codificar, decodificar:decodificar, criarCalendario:criarCalendario, diaDeIso:diaDeIso, isoDeDia:isoDeDia, codificarLog:codificarLog, decodificarLog:decodificarLog, paraDia:paraDia, semAcento:semAcento, linhas:linhas};
