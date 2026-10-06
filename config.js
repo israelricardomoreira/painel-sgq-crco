@@ -1,10 +1,6 @@
-/* Configuração do Painel SGQ · CRCO
- * Cole aqui a URL do projeto e a chave PÚBLICA do Supabase
- * (Project Settings > API: "Project URL" e a chave "anon public" / "publishable").
- * Essa chave é feita para ficar no site; quem protege os dados são as regras do banco (schema.sql).
- * NUNCA coloque aqui a chave "service_role" / "secret". */
+/* Configuração do Painel SGQ · CRCO — chave PÚBLICA (publishable). Nunca coloque a secret/service_role aqui. */
 window.CRCO_CONFIG = {
-  supabaseUrl: '',
-  supabaseAnonKey: '',
+  supabaseUrl: 'https://muxvfqeutfteohnllppk.supabase.co',
+  supabaseAnonKey: 'sb_publishable_2YOpekqgjUCzhYUiusbKOQ_ZeZEu3O0',
   minutosInatividade: 30
 };
