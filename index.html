@@ -196,6 +196,42 @@ svg text{fill:var(--ink-2);font-family:var(--font)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 <style>
+/* navegação lateral + celular/tablet */
+.layout{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}
+.menu{position:sticky;top:0;height:100vh;overflow-y:auto;background:var(--surface);border-right:1px solid var(--line);padding:16px 10px 24px;display:flex;flex-direction:column;gap:2px}
+.menu-marca{display:flex;align-items:center;gap:10px;padding:0 8px 14px}.menu-marca .mark{width:28px;height:28px;font-size:11px}
+.menu-grp{font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:700;padding:14px 10px 4px}
+.menu .tab{display:block;width:100%;text-align:left;border:0;border-radius:8px;padding:9px 10px;background:none;color:var(--ink-2);font-weight:600;font-size:.86rem;white-space:normal;border-bottom:0}
+.menu .tab:hover{background:var(--surface-2);color:var(--ink)}
+.menu .tab[aria-selected=true]{background:var(--brand-soft);color:var(--brand)}
+.layout>.wrap{min-width:0;width:100%}
+.menu-btn{display:none;font-size:1.1rem;padding:6px 11px}
+.menu-fundo{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:40}
+.pg-tit{font-size:1.15rem;margin-bottom:14px}
+.gm{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+.gm-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 12px 8px;min-width:0;display:flex;flex-direction:column}
+.gm-h{display:flex;justify-content:space-between;gap:8px;align-items:baseline}.gm-t{font-size:.78rem;font-weight:700;color:var(--ink-2)}.gm-v{font-size:1.25rem;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.gm-s{font-size:.72rem;color:var(--ink-3);margin:2px 0 4px}.gm-bom{color:var(--good);font-weight:700}.gm-mau{color:var(--crit);font-weight:700}
+.gm-svg{width:100%;height:auto;display:block}.gm-vazio{font-size:.8rem;color:var(--ink-3);padding:30px 0;text-align:center}
+.gm-ir{align-self:flex-end;font-size:.76rem;margin-top:2px;text-decoration:none}
+#chartMeses{overflow-x:auto}
+@media (max-width:980px){
+  .layout{grid-template-columns:minmax(0,1fr)}
+  .menu{position:fixed;left:0;top:0;bottom:0;width:270px;z-index:50;transform:translateX(-105%);transition:transform .2s ease;box-shadow:var(--shadow)}
+  body.menu-aberto .menu{transform:none}
+  .menu-btn{display:inline-flex}
+}
+@media (max-width:640px){
+  .wrap{padding-inline:12px;padding-block:12px 40px}
+  .top{gap:10px}.brand small{display:none}.brand h1{font-size:1rem}
+  .top .ctl{width:100%}.top .ctl select{flex:1;min-width:0}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi .v{font-size:1.35rem}
+  .panel{padding:12px;border-radius:12px}
+  .gm{grid-template-columns:minmax(0,1fr)}
+  table{font-size:.8rem}
+  .tbl-wrap td:first-child,.tbl-wrap th:first-child,.scroll td:first-child,.scroll th:first-child{position:sticky;left:0;background:var(--surface);z-index:1}
+  .nl-user span{display:none}
+}
 .nl{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto}
 .nl[hidden]{display:none}
 .nl-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:24px;width:100%;max-width:380px}
@@ -215,8 +251,29 @@ svg text{fill:var(--ink-2);font-family:var(--font)}
 <div id="nuvemLogin" class="nl"></div>
 
 
+<div class="layout">
+<nav id="menu" class="menu" aria-label="Seções do painel">
+  <div class="menu-marca"><div class="mark">RI</div><b>Painel SGQ</b></div>
+  <button class="tab" type="button" data-tab="geral" aria-selected="true">Painel geral</button>
+  <div class="menu-grp">Prazos do RI</div>
+  <button class="tab" type="button" data-tab="nat" aria-selected="false">Por natureza</button>
+  <button class="tab" type="button" data-tab="eta" aria-selected="false">Por etapa</button>
+  <button class="tab" type="button" data-tab="fp" aria-selected="false">Fora do prazo</button>
+  <button class="tab" type="button" data-tab="ex" aria-selected="false">Exigências</button>
+  <button class="tab" type="button" data-tab="nao" aria-selected="false">Cancelados e especiais</button>
+  <div class="menu-grp">Qualidade</div>
+  <button class="tab" type="button" data-tab="k1" aria-selected="false">KPI-01 · Inconformidades</button>
+  <button class="tab" type="button" data-tab="cer" aria-selected="false">Certidões</button>
+  <button class="tab" type="button" data-tab="at" aria-selected="false">Atendimento</button>
+  <div class="menu-grp">Pessoas e rotina</div>
+  <button class="tab" type="button" data-tab="rel" aria-selected="false">Relatórios por pessoa</button>
+  <button class="tab" type="button" data-tab="lanc" aria-selected="false">Lançar KPIs</button>
+  <button class="tab" type="button" data-tab="met" aria-selected="false">Como é calculado</button>
+</nav>
+<div id="menuFundo" class="menu-fundo" hidden></div>
 <div class="wrap">
   <header class="top">
+    <button class="btn menu-btn" id="btnMenu" type="button" aria-label="Abrir menu de seções">☰</button>
     <div class="brand"><div class="mark">RI</div><div><h1>Painel de Prazos RI</h1><small>CRCO · KPI-02 · Art. 205 e Art. 9º §1º da Lei 6.015/73</small></div></div>
     <div class="spacer"></div>
     <div class="ctl">
@@ -271,31 +328,24 @@ svg text{fill:var(--ink-2);font-family:var(--font)}
     </div>
   </section>
 
+  <div id="pgGeral">
   <section class="section">
     <div class="kpis" id="kpis"></div>
   </section>
-
+  <section class="section panel" id="secGraficos">
+    <div class="sec-h"><h2>Comparação mês a mês</h2><span class="note">Últimos 12 meses · linha tracejada = meta · ponto vermelho = fora da meta · toque ou passe o mouse para ver o valor</span></div>
+    <div class="gm" id="graficos"></div>
+  </section>
   <section class="section panel" id="secTendencia">
-    <div class="sec-h"><h2>Mês a mês</h2><span class="note">Mediana em dias úteis até o registro · KPI-02 acima de cada mês</span></div>
+    <div class="sec-h"><h2>Tempo até o registro</h2><span class="note">Mediana em dias úteis · KPI-02 acima de cada mês</span></div>
     <div class="legend"><span><span class="dot" style="background:var(--s-bruto)"></span>Bruto (ingresso → registro)</span><span><span class="dot" style="background:var(--s-liq)"></span>Líquido (com o cartório)</span></div>
     <div class="chart" id="chartMeses"></div>
   </section>
+  </div>
 
-  <section class="section panel">
-    <div class="tabs" role="tablist">
-      <button class="tab" role="tab" aria-selected="true" data-tab="nat">Por natureza</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="k1">KPI-01 · Inconformidades</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="cer">Certidões</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="eta">Por etapa</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="fp">Fora do prazo</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="ex">Exigências</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="nao">Cancelados e especiais</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="at">Atendimento</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="lanc">Lançar KPIs</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="rel">Relatórios</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="met">Como é calculado</button>
-    </div>
-    <div id="tabNat"></div>
+  <section class="section panel" id="pgConteudo" hidden>
+    <h2 class="pg-tit" id="pgTitulo"></h2>
+    <div id="tabNat" hidden></div>
     <div id="tabK1" hidden></div>
     <div id="tabCer" hidden></div>
     <div id="tabEta" hidden></div>
@@ -307,8 +357,9 @@ svg text{fill:var(--ink-2);font-family:var(--font)}
     <div id="tabRel" hidden></div>
     <div id="tabMet" hidden></div>
   </section>
-</div>
 <p class="rodape">Painel SGQ · CRCO — dados no Supabase com acesso restrito · código em github.com/israelricardomoreira/painel-sgq-crco</p>
+</div>
+</div>
 <div id="tip" hidden></div>
 
 

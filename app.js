@@ -2,7 +2,7 @@
   if (typeof document==='undefined') return;
   var $=function(id){ return document.getElementById(id); };
   var state={ docs:{}, extras:[], arquivos:{prazo:[],etapa:[],demanda:[],inconf:[],tri7:[]}, nomes:{prazo:[],etapa:[],demanda:[],inconf:[],tri7:[]},
-    resultado:null, periodo:'todos', aba:'nat', natSel:null, sortNat:{k:'total',d:-1}, filtroFora:false, busca:'', natBusca:'', natTodas:false, just:{}, aval:{}, filtroEx:'pend', buscaEx:'', inconf:{}, incCat:{}, incSetor:'todos', incFiltroCat:null, incFiltroPessoa:null, cert:{}, cfg:{expIni:8, expFim:17, intim:null}, relSel:'__geral', feedback:{}, kp:{}, k9:{}, lancMes:null, lancTodos:false, atPessoa:null, logs:{}, logCache:{}, protSel:null, protTxt:'', senhas:{}, atMes:'todos', atMet:'esp', atTodosDias:false };
+    resultado:null, periodo:'todos', aba:'geral', natSel:null, sortNat:{k:'total',d:-1}, filtroFora:false, busca:'', natBusca:'', natTodas:false, just:{}, aval:{}, filtroEx:'pend', buscaEx:'', inconf:{}, incCat:{}, incSetor:'todos', incFiltroCat:null, incFiltroPessoa:null, cert:{}, cfg:{expIni:8, expFim:17, intim:null}, relSel:'__geral', feedback:{}, kp:{}, k9:{}, lancMes:null, lancTodos:false, atPessoa:null, logs:{}, logCache:{}, protSel:null, protTxt:'', senhas:{}, atMes:'todos', atMet:'esp', atTodosDias:false };
   var db=null, dbPronto=false, podeEscrever=true;
 
   var MOTIVOS={C:'Cancelado (status)',P:'Cancelamento de Protocolo',O:'ONR – recibo de cancelamento',D:'ONR – nota de devolução, sem registro',A:'Re-análise sem registro (caducou)'};
@@ -86,7 +86,7 @@
     if (vazio){
       $('kpis').innerHTML='<div class="panel empty" style="grid-column:1/-1"><b>Nenhum mês carregado ainda</b>Clique em <b>Importar planilhas</b> e solte os 3 exports do VHL. Os resultados ficam salvos aqui e cada mês novo vai se somando.</div>';
       ['tabNat','tabK1','tabCer','tabEta','tabNao','tabFp','tabEx','tabRel'].forEach(function(id){ $(id).innerHTML='<div class="empty">Sem dados para o período.</div>'; });
-      if (!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#tabLanc input[type=text],#tabLanc textarea'))) renderLanc(); renderAtend(); renderMetodo(); return;
+      if (!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#tabLanc input[type=text],#tabLanc textarea'))) renderLanc(); renderAtend(); renderGraficos(); renderMetodo(); return;
     }
     var r=resumo(atos);
     $('kpis').innerHTML=[
@@ -100,7 +100,7 @@
       kpi('KPI-02 complementar · cancelamento',pct(r.total?r.N/r.total*100:null),r.N+' de '+r.total+' atos · cancelado, devolvido ou caducou','canc'),
       kpi('Volume RI',String(r.total+pesquisaTotal()),'inclui '+pesquisaTotal()+' pesquisas qualificadas')
     ].join('') + (r.aberto? '<div class="banner warn" style="grid-column:1/-1;margin:0">'+r.aberto+' ato(s) fora do prazo em aberto. Registre o motivo na aba <b>Fora do prazo</b> para levá-lo à curva normal.</div>':'') + (r.I? '<div class="banner warn" style="grid-column:1/-1;margin:0">'+r.I+' ato(s) sem histórico suficiente ficaram fora do cálculo. Reimporte o mês com a Produção por Etapa começando 2 meses antes.</div>':'');
-    renderTendencia(); renderNat(atos); renderEta(atos); renderNao(atos); renderFp(atos); renderEx(atos); renderK1(atos); renderCer(); if (!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#tabRel textarea'))) renderRel(); if (!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#tabLanc input[type=text],#tabLanc textarea'))) renderLanc(); renderAtend(); renderMetodo();
+    renderTendencia(); renderNat(atos); renderEta(atos); renderNao(atos); renderFp(atos); renderEx(atos); renderK1(atos); renderCer(); if (!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#tabRel textarea'))) renderRel(); if (!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#tabLanc input[type=text],#tabLanc textarea'))) renderLanc(); renderAtend(); renderGraficos(); renderMetodo();
   }
   function kpi(l,v,s,cls){ return '<div class="kpi '+(cls||'')+'"><span class="l">'+l+'</span><span class="v">'+v+'</span><span class="s">'+s+'</span></div>'; }
 
@@ -961,7 +961,7 @@
     inc.map(function(r){ return '<tr><td>'+fmtData(r.d)+'</td><td>'+esc(r.r)+'</td><td>'+(grupoDe(r)==='E'?'Externo':'Interno')+'</td><td>'+esc(catDe(r))+'</td><td style="min-width:240px">'+esc(r.o)+'</td></tr>'; }).join('')+'</tbody></table></div>'; }
 
   // ——— versão, dados brutos, recálculo, backup e memória de cálculo (site no GitHub + Supabase)
-  var APP_VERSAO='1.0.0';
+  var APP_VERSAO='1.1.0';
   // Dados brutos: só as colunas que o cálculo usa (sem título, solicitante ou nome de parte)
   function brutosMontar(){
     var S=XLSX.SSF, out={};
@@ -1087,6 +1087,63 @@
     var wsL=XLSX.utils.aoa_to_sheet(leia); wsL['!cols']=[{wch:18},{wch:120}]; XLSX.utils.book_append_sheet(wb, wsL, 'Leia-me');
     XLSX.writeFile(wb, 'Memoria de calculo KPIs - '+compLabel(m).replace(/[\/. ]+/g,'-')+'.xlsx');
     toast('Memória de cálculo baixada');
+  }
+
+  // ——— Painel geral: comparação mês a mês de todos os indicadores (pequenos gráficos lado a lado)
+  var MES_AB=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  function mesesGraficos(){
+    var s={}; [state.docs,state.cert,state.senhas,state.k9,state.inconf].forEach(function(o){ Object.keys(o||{}).forEach(function(m){ if (/^\d{4}-\d{2}$/.test(m)) s[m]=1; }); });
+    Object.keys(HIST).forEach(function(m){ s[m]=1; });
+    return Object.keys(s).sort().slice(-12);
+  }
+  function fmtG(v,un){ if (v==null||isNaN(v)) return '—'; return un==='%'?numBR(v,1)+'%':un==='min'?numBR(v,2)+' min':un==='d.u.'?numBR(v,1)+' d.u.':un==='pp'?numBR(v,1)+' p.p.':numBR(v,v%1?1:0); }
+  // gráfico de linha simples (1 série) com linha de meta opcional; dica ao tocar/passar o mouse em cada mês
+  function graficoLinha(ms, vals, o){
+    var W=320, H=156, pl=34, pr=14, pt=22, pb=24, n=ms.length, val=vals.filter(function(v){return v!=null&&!isNaN(v);});
+    if (!val.length) return '<div class="gm-vazio">Sem dados no período</div>';
+    var lo=Math.min.apply(null,val), hi=Math.max.apply(null,val); if (o.meta!=null){ lo=Math.min(lo,o.meta); hi=Math.max(hi,o.meta); }
+    if (o.zero) lo=Math.min(0,lo); var pad=(hi-lo)*0.15||Math.max(1,Math.abs(hi)*0.05); lo=o.zero?lo:lo-pad; hi=hi+pad; if (o.un==='%'){ lo=Math.max(0,lo); hi=Math.min(100,hi); if (hi<=lo) hi=lo+1; }
+    var x=function(i){ return n<2?(pl+W-pr)/2:pl+(W-pl-pr)*i/(n-1); }, y=function(v){ return pt+(H-pt-pb)*(1-(v-lo)/(hi-lo)); };
+    var s='<svg viewBox="0 0 '+W+' '+H+'" class="gm-svg" role="img" aria-label="'+esc(o.titulo)+' por mês">';
+    [lo,(lo+hi)/2,hi].forEach(function(t){ s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+y(t)+'" y2="'+y(t)+'" stroke="var(--line)" stroke-width="1"/><text x="'+(pl-5)+'" y="'+(y(t)+3.5)+'" text-anchor="end" font-size="9" style="fill:var(--ink-3)">'+numBR(t,(hi-lo)<6?1:0)+'</text>'; });
+    if (o.meta!=null) s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+y(o.meta)+'" y2="'+y(o.meta)+'" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="4 3"/><text x="'+(W-pr)+'" y="'+(y(o.meta)-4)+'" text-anchor="end" font-size="9" style="fill:var(--ink-2)">meta '+fmtG(o.meta,o.un)+'</text>';
+    var d='', ult=-1; vals.forEach(function(v,i){ if (v==null||isNaN(v)) return; d+=(d?' L':'M')+x(i).toFixed(1)+','+y(v).toFixed(1); ult=i; });
+    s+='<path d="'+d+'" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+    vals.forEach(function(v,i){ if (v==null||isNaN(v)) return; var fora=o.meta!=null&&(o.menor?v>o.meta:v<o.meta);
+      s+='<circle cx="'+x(i)+'" cy="'+y(v)+'" r="'+(i===ult?4.5:3.5)+'" fill="'+(fora?'var(--crit)':'var(--brand)')+'" stroke="var(--surface)" stroke-width="2"/>'; });
+    var passo=n>8?2:1;
+    ms.forEach(function(m,i){ var lbl=MES_AB[+m.slice(5)-1]; if ((n-1-i)%passo===0) s+='<text x="'+x(i)+'" y="'+(H-7)+'" text-anchor="middle" font-size="9" style="fill:var(--ink-3)">'+lbl+'</text>';
+      var v=vals[i], w=n<2?W:(W-pl-pr)/(n-1); s+='<rect x="'+(x(i)-w/2)+'" y="0" width="'+w+'" height="'+H+'" fill="transparent" data-tip="'+esc('<b>'+compLabel(m)+'</b><br>'+o.titulo+': '+fmtG(v,o.un)+(o.extra&&o.extra[i]?'<br>'+o.extra[i]:'')+(o.meta!=null&&v!=null?'<br>'+((o.menor?v<=o.meta:v>=o.meta)?'dentro da meta':'fora da meta'):''))+'"/>'; });
+    if (ult>=0) s+='<text x="'+Math.min(x(ult),W-pr)+'" y="'+(y(vals[ult])-9)+'" text-anchor="'+(ult===n-1?'end':'middle')+'" font-size="10" font-weight="700" style="fill:var(--ink)">'+fmtG(vals[ult],o.un)+'</text>';
+    return s+'</svg>';
+  }
+  function serieKPI(id, ms){ return ms.map(function(m){ var o=kpiValor(id,m); return o?(o.r!=null?o.r:o.n):null; }); }
+  function renderGraficos(){
+    var el=$('graficos'); if (!el) return; var ms=mesesGraficos();
+    if (!ms.length){ el.innerHTML='<div class="empty">Importe planilhas para ver a comparação mês a mês.</div>'; return; }
+    function rs(m){ return state.docs[m]?resumo(state.docs[m].atos):null; }
+    var cards=[
+      {t:'KPI-02 · finalizados no prazo', un:'%', v:ms.map(function(m){ var r=rs(m); return r&&r.n?r.kpi:null; }), meta:null, ir:'fp', ex:ms.map(function(m){ var r=rs(m); return r?r.dentro+' de '+r.n+' registrados':''; })},
+      {t:'KPI-02 comp. · cancelamento', un:'%', v:ms.map(function(m){ var r=rs(m); return r&&r.total?r.N/r.total*100:null; }), ir:'nao', menor:true, ex:ms.map(function(m){ var r=rs(m); return r?r.N+' de '+r.total+' protocolos':''; })},
+      {t:'KPI-01 · inconformidades', un:'%', v:serieKPI('KPI-01',ms), meta:16.5, menor:true, ir:'k1'},
+      {t:'Mediana bruta até o registro', un:'d.u.', v:ms.map(function(m){ var r=rs(m); return r?r.medB:null; }), meta:20, menor:true, ir:'nat', zero:true},
+      {t:'Aprovados na 1ª qualificação', un:'%', v:ms.map(function(m){ var r=rs(m); return r&&r.n?r.prim/r.n*100:null; }), ir:'ex'},
+      {t:'Certidões no prazo', un:'%', v:ms.map(function(m){ if (!state.cert[m]) return null; var c=certCalc(state.cert[m].recs).filter(function(x){return !x.intim;}); return c.length?c.filter(function(x){return x.ok;}).length/c.length*100:null; }), ir:'cer'},
+      {t:'KPI-13 · espera média', un:'min', v:ms.map(function(m){ if (!state.senhas[m]) { var o=kpiValor('KPI-13',m); return o?o.n:null; } var s=senhasResumo(state.senhas[m].L); return s.med!=null?s.med/60:null; }), meta:15, menor:true, ir:'at', zero:true},
+      {t:'Senhas com espera ≥ 10 min', un:'%', v:ms.map(function(m){ if (!state.senhas[m]) return null; var s=senhasResumo(state.senhas[m].L); return s.na?s.a10/s.na*100:null; }), ir:'at', menor:true, zero:true},
+      {t:'KPI-09 · absenteísmo', un:'%', v:serieKPI('KPI-09',ms), meta:4, menor:true, ir:'lanc', zero:true},
+      {t:'KPI-03 · satisfação', un:'', v:serieKPI('KPI-03',ms), meta:80, ir:'lanc'},
+      {t:'KPI-03 comp. · Google', un:'', v:serieKPI('KPI-03 (Comp.)',ms), meta:80, ir:'lanc'},
+      {t:'Volume RI (atos + pesquisas)', un:'', v:ms.map(function(m){ var d=state.docs[m]; return d?d.atos.length+((d.raw&&d.raw.pesquisa)||0):null; }), ir:'nat', zero:true}
+    ];
+    el.innerHTML=cards.filter(function(c){ return c.v.some(function(v){return v!=null&&!isNaN(v);}); }).map(function(c){
+      var idx=-1; c.v.forEach(function(v,i){ if (v!=null&&!isNaN(v)) idx=i; }); var ant=-1; for (var i=idx-1;i>=0;i--){ if (c.v[i]!=null&&!isNaN(c.v[i])){ ant=i; break; } }
+      var v=c.v[idx], dl=ant>=0?v-c.v[ant]:null, bom=dl==null||dl===0?null:(c.menor?dl<0:dl>0);
+      var fora=c.meta!=null?c.v.filter(function(x){ return x!=null&&(c.menor?x>c.meta:x<c.meta); }).length:0;
+      return '<div class="gm-card"><div class="gm-h"><span class="gm-t">'+esc(c.t)+'</span><span class="gm-v">'+fmtG(v,c.un)+'</span></div>'+
+        '<div class="gm-s">'+compLabel(ms[idx]).slice(4)+(dl!=null?' · <span class="'+(bom==null?'':bom?'gm-bom':'gm-mau')+'">'+(dl>0?'▲ ':dl<0?'▼ ':'')+fmtG(Math.abs(dl),c.un==='%'?'pp':c.un)+'</span> vs '+MES_AB[+ms[ant].slice(5)-1]:'')+(c.meta!=null?' · '+(fora?fora+' mês(es) fora da meta':'sempre na meta'):'')+'</div>'+
+        graficoLinha(ms,c.v,{titulo:c.t,un:c.un,meta:c.meta,menor:c.menor,zero:c.zero,extra:c.ex})+'<button type="button" class="lnk gm-ir" data-ir="'+c.ir+'">Ver detalhes →</button></div>';
+    }).join('');
   }
 
   // ——— aba Certidões
@@ -1318,10 +1375,15 @@
     if (th){ var k=th.dataset.k; state.sortNat = state.sortNat.k===k?{k:k,d:-state.sortNat.d}:{k:k,d:k==='nat'?1:-1}; return renderNatTabela(todosAtos()); }
     var tr=t.closest&&t.closest('#tabNat tr.click');
     if (tr){ var n=tr.dataset.nat; state.natSel = state.natSel===n?null:n; state.busca=''; state.filtroFora=false; var A=todosAtos(); renderNatTabela(A); if(state.natSel) renderDetalhe(A.filter(function(a){return a.nat===state.natSel;})); else $('detalhe').innerHTML=''; if(state.natSel){ var d=$('detalhe'); d&&d.scrollIntoView({behavior:'smooth',block:'nearest'}); } return; }
+    var gir=t.closest&&t.closest('[data-ir]'); if (gir) return irAba(gir.dataset.ir);
+    if (t.id==='btnMenu') return menuAbrir(!document.body.classList.contains('menu-aberto'));
+    if (t.id==='menuFundo') return menuAbrir(false);
     var tab=t.closest&&t.closest('.tab');
     if (tab) return irAba(tab.dataset.tab);
   });
-  function irAba(k){ state.aba=k; document.querySelectorAll('.tab').forEach(function(b){ b.setAttribute('aria-selected',b.dataset.tab===k?'true':'false'); });
+  var TITULOS={geral:'Painel geral',nat:'Prazos · por natureza',eta:'Prazos · por etapa',fp:'Prazos · fora do prazo',ex:'Prazos · exigências',nao:'Prazos · cancelados e especiais',k1:'KPI-01 · inconformidades',cer:'Certidões',at:'Atendimento',rel:'Relatórios por pessoa',lanc:'Lançar KPIs no ANOREG+',met:'Como é calculado'};
+  function menuAbrir(sim){ document.body.classList.toggle('menu-aberto',!!sim); $('menuFundo').hidden=!sim; }
+  function irAba(k){ state.aba=k; $('pgGeral').hidden=k!=='geral'; $('pgConteudo').hidden=k==='geral'; $('pgTitulo').textContent=TITULOS[k]||''; menuAbrir(false); window.scrollTo(0,0); if (k==='geral') renderGraficos(); document.querySelectorAll('.tab').forEach(function(b){ b.setAttribute('aria-selected',b.dataset.tab===k?'true':'false'); });
     var MAP={nat:'tabNat',k1:'tabK1',cer:'tabCer',eta:'tabEta',fp:'tabFp',ex:'tabEx',nao:'tabNao',at:'tabAt',lanc:'tabLanc',rel:'tabRel',met:'tabMet'}; Object.keys(MAP).forEach(function(x){ $(MAP[x]).hidden=state.aba!==x; });
     if (k==='rel') renderRel(); if (k==='lanc') renderLanc(); if (k==='at') renderAtend(); }
   document.addEventListener('change',function(e){
@@ -1356,7 +1418,10 @@
     if (e.target.id==='busca'){ state.busca=e.target.value; var pos=e.target.selectionStart; renderDetalhe(todosAtos().filter(function(a){return a.nat===state.natSel;})); var b=$('busca'); b.focus(); b.setSelectionRange(pos,pos); }
     if (e.target.id==='soFora'){ state.filtroFora=e.target.checked; renderDetalhe(todosAtos().filter(function(a){return a.nat===state.natSel;})); }
   });
-  var tip=$('tip');
+  var tip=$('tip'), tipTimer=null;
+  document.addEventListener('touchstart',function(e){ var el=e.target.closest&&e.target.closest('[data-tip]'); if (!el){ tip.hidden=true; return; }
+    var to=e.touches[0]; tip.innerHTML=el.getAttribute('data-tip'); tip.hidden=false; var w=tip.offsetWidth, h=tip.offsetHeight, x=Math.min(Math.max(8,to.clientX-w/2),innerWidth-w-8), y=to.clientY-h-18; if (y<8) y=to.clientY+18;
+    tip.style.left=x+'px'; tip.style.top=y+'px'; clearTimeout(tipTimer); tipTimer=setTimeout(function(){ tip.hidden=true; },3500); },{passive:true});
   document.addEventListener('mousemove',function(e){
     var el=e.target.closest&&e.target.closest('[data-tip]');
     if(!el){ tip.hidden=true; return; }
