@@ -198,6 +198,7 @@ svg text{fill:var(--ink-2);font-family:var(--font)}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:12px}
 tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 details>summary{cursor:pointer}
+.kpied td{vertical-align:middle}.kpied .btn.sm{padding:2px 7px;margin-right:2px}.nowrap{white-space:nowrap}
 tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3px 0 0 var(--brand)}
 </style>
 <style>
@@ -267,9 +268,11 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
   <button class="tab" type="button" data-tab="ex" aria-selected="false">Exigências</button>
   <button class="tab" type="button" data-tab="nao" aria-selected="false">Cancelados e especiais</button>
   <div class="menu-grp">Qualidade</div>
-  <button class="tab" type="button" data-tab="k1" aria-selected="false">KPI-01 · Inconformidades</button>
+  <button class="tab" type="button" data-tab="k1" aria-selected="false">Inconformidades</button>
   <button class="tab" type="button" data-tab="cer" aria-selected="false">Certidões</button>
   <button class="tab" type="button" data-tab="at" aria-selected="false">Atendimento</button>
+  <div class="menu-grp">Outras atribuições</div>
+  <button class="tab" type="button" data-tab="srv" aria-selected="false">RC, RTD, RPJ e demais</button>
   <div class="menu-grp">Pessoas e rotina</div>
   <button class="tab" type="button" data-tab="rel" aria-selected="false">Relatórios por pessoa</button>
   <button class="tab" type="button" data-tab="tri" aria-selected="false">Quem fez · Tri7</button>
@@ -283,7 +286,7 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
     <div class="brand"><div class="mark">RI</div><div><h1>Painel de Prazos RI</h1><small>CRCO · KPI-02 · Art. 205 e Art. 9º §1º da Lei 6.015/73</small></div></div>
     <div class="spacer"></div>
     <div class="ctl">
-      <form id="protForm" class="protf" role="search"><input type="search" id="protIn" inputmode="numeric" placeholder="Protocolo (ex.: 120322)" aria-label="Buscar protocolo"><button class="btn" type="submit">Ver ficha</button></form>
+      <form id="protForm" class="protf" role="search"><input type="search" id="protIn" placeholder="Protocolo ou código (ex.: 120322, N4447)" aria-label="Buscar protocolo ou código"><button class="btn" type="submit">Ver ficha</button></form>
       <label for="selMes" class="hint" style="margin:0">Período</label>
       <select id="selMes" aria-label="Período"></select>
       <button class="btn primary" id="btnImportar" type="button">Importar planilhas</button>
@@ -363,6 +366,7 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
     <div id="tabLanc" hidden></div>
     <div id="tabRel" hidden></div>
     <div id="tabTri" hidden></div>
+    <div id="tabSrv" hidden></div>
     <div id="tabMet" hidden></div>
   </section>
 <p class="rodape">Painel SGQ · CRCO — dados no Supabase com acesso restrito · código em github.com/israelricardomoreira/painel-sgq-crco</p>

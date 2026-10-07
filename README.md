@@ -59,6 +59,8 @@ Em 1 ou 2 minutos o site fica em `https://israelricardomoreira.github.io/painel-
 | Lançar um mês novo | **Importar planilhas**: solte os exports do VHL, o **Relatório de andamentos** do Tri7, inconformidades e senhas, depois **Salvar** |
 | Ver quem deu entrada, redigiu exigência, revisou e gerou os selos | Menu **Quem fez · Tri7** e a ficha do protocolo |
 | Copiar os KPIs para o ANOREG+ | Aba **Lançar KPIs** |
+| Mudar meta, nome ou incluir um KPI | **Lançar KPIs → Editar indicadores** |
+| RC, RTD, RPJ, Intimações, Malote e Arquivo | Menu **Outras atribuições** (prazo legal de cada natureza é preenchido na própria página) |
 | Evidência auditável do mês | Aba **Lançar KPIs → Baixar memória de cálculo (.xlsx)** |
 | Ver como um protocolo foi calculado | Campo **Protocolo** no topo |
 | Backup | **Importar planilhas → Baixar backup (.json)**, uma vez por mês. O site avisa depois de 30 dias |

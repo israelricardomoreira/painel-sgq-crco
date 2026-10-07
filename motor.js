@@ -284,7 +284,39 @@ var Motor = (function(){
     return (doc.rows||[]).map(function(s){ var f=s.split('|'); return {t:f[0],n:f[1],s:ss[+f[2]],u:doc.us[+f[3]],m:+f[4]}; });
   }
 
-  return {processarAndam:processarAndam, codificarAndam:codificarAndam, decodificarAndam:decodificarAndam, andChave:andChave, AND_NOME:AND_NOME, isoMin:isoMin, processar:processar, processarInconf:processarInconf, processarCert:processarCert, codificarCert:codificarCert, decodificarCert:decodificarCert, horasUteis:horasUteis, limiteCert:limiteCert, feriadoSet:feriadoSet, nomearErro:nomearErro, CATS_ERRO:CATS_ERRO, detectar:detectar, codificar:codificar, decodificar:decodificar, criarCalendario:criarCalendario, diaDeIso:diaDeIso, isoDeDia:isoDeDia, codificarLog:codificarLog, decodificarLog:decodificarLog, paraDia:paraDia, semAcento:semAcento, linhas:linhas};
+  // ——— outras atribuições (RC, RTD, RPJ, Intimações, Malote Digital, Arquivo…) a partir do Prazo e Tempo Médio + Produção por Etapa
+  function segDe(v){ if (v==null||v==='') return null; if (typeof v==='number') return Math.round(v*86400); var p=String(v).trim().split(':').map(Number); if (p.length<2||p.some(isNaN)) return null; return p[0]*3600+p[1]*60+(p[2]||0); }
+  function tipoServ(t){ var n=semAcento(t); if (!n || n==='ri' || n==='certidao - ri' || n.indexOf('x ')===0) return null; return String(t).trim(); }
+  function processarServ(prazoRows, etapaRows, SSF){
+    var P=linhas(prazoRows), E=linhas(etapaRows), porCod={}, meses={};
+    E.forEach(function(r){ var c=String(r['codigo']==null?'':r['codigo']).trim(), d=paraDia(r['data execucao'],SSF); if (!c||d==null) return;
+      (porCod[c]=porCod[c]||[]).push({d:d, et:String(r['etapa']||'').trim(), rp:String(r['responsavel']||'').trim(), pz:+r['prazo']||0}); });
+    var vistos={};
+    P.forEach(function(r){
+      var t=tipoServ(r['tipo de documento']); if (!t) return;
+      var c=String(r['codigo']==null?'':r['codigo']).trim(); if (!c || /teste/i.test(c)) return; if (/desabilitada|nao usar/.test(semAcento(r['natureza']))) return;
+      var ing=paraDia(r['ingresso'],SSF), fin=paraDia(r['finalizacao'],SSF); if (ing==null||fin==null) return;
+      var k=t+'|'+c+'|'+fin; if (vistos[k]) return; vistos[k]=1;
+      var ets=(porCod[c]||[]).filter(function(e){ return e.d>=ing && e.d<=fin; }).sort(function(a,b){ return a.d-b.d; });
+      var m=isoDeDia(fin).slice(0,7);
+      (meses[m]=meses[m]||[]).push({t:t, c:c, nat:String(r['natureza']||'').trim()||'(sem natureza)', ing:ing, fin:fin, pv:+r['prazo']||0, tempo:segDe(r['tempo']), ets:ets});
+    });
+    return meses;
+  }
+  function codificarServ(mes, docs, origem){
+    var L={t:[],n:[],e:[],r:[]}, I={t:{},n:{},e:{},r:{}};
+    function id(k,v){ if (!(v in I[k])){ I[k][v]=L[k].length; L[k].push(v); } return I[k][v]; }
+    var rows=docs.map(function(d){ return [id('t',d.t), d.c.replace(/[|;:]/g,'_'), id('n',d.nat), d.ing, d.fin, d.pv, d.tempo==null?'':d.tempo,
+      d.ets.map(function(e){ return id('e',e.et)+':'+id('r',e.rp)+':'+e.d+':'+e.pz; }).join(';')].join('|'); });
+    return {mes:mes, v:1, atualizadoEm:new Date().toISOString(), origem:origem||'', tipos:L.t, nats:L.n, ets:L.e, resps:L.r, rows:rows};
+  }
+  function decodificarServ(doc){
+    return (doc.rows||[]).map(function(s){ var f=s.split('|');
+      return {t:doc.tipos[+f[0]], c:f[1], nat:doc.nats[+f[2]], ing:+f[3], fin:+f[4], pv:+f[5], tempo:f[6]===''?null:+f[6], mes:doc.mes,
+        ets:f[7]?f[7].split(';').map(function(x){ var q=x.split(':'); return {et:doc.ets[+q[0]], rp:doc.resps[+q[1]], d:+q[2], pz:+q[3]}; }):[]}; });
+  }
+
+  return {processarServ:processarServ, codificarServ:codificarServ, decodificarServ:decodificarServ, tipoServ:tipoServ, processarAndam:processarAndam, codificarAndam:codificarAndam, decodificarAndam:decodificarAndam, andChave:andChave, AND_NOME:AND_NOME, isoMin:isoMin, processar:processar, processarInconf:processarInconf, processarCert:processarCert, codificarCert:codificarCert, decodificarCert:decodificarCert, horasUteis:horasUteis, limiteCert:limiteCert, feriadoSet:feriadoSet, nomearErro:nomearErro, CATS_ERRO:CATS_ERRO, detectar:detectar, codificar:codificar, decodificar:decodificar, criarCalendario:criarCalendario, diaDeIso:diaDeIso, isoDeDia:isoDeDia, codificarLog:codificarLog, decodificarLog:decodificarLog, paraDia:paraDia, semAcento:semAcento, linhas:linhas};
 })();
 if (typeof module!=='undefined') module.exports=Motor;
 // MOTOR-FIM ———————————————————————————————————————————————————
