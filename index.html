@@ -336,6 +336,10 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
         <div class="hint" id="backupInfo"></div>
         <div class="ctl" style="margin-top:8px;flex-wrap:wrap"><button class="btn" id="btnBackup" type="button">Baixar backup (.json)</button><button class="btn" id="btnRestaurar" type="button">Restaurar backup</button><input type="file" id="restIn" accept=".json,application/json" hidden><button class="btn" id="btnRecalc" type="button">Recalcular tudo com a regra atual</button></div>
         <div class="hint" style="margin-top:6px">O backup traz tudo (resultados, lançamentos e dados brutos). Guarde fora do Supabase. Recalcular refaz todos os meses com a versão atual do painel, sem reimportar planilhas. Versão: <b id="appVersao"></b></div>
+        <div class="sub-h" style="margin-top:16px">Excluir dados de um mês</div>
+        <div class="hint">Para desfazer uma importação feita sem querer. Escolha o mês e o que tirar. Os registros são <b>arquivados</b> no banco (não somem de vez) e um backup anterior traz tudo de volta.</div>
+        <div class="ctl" style="margin-top:8px"><select id="excMes" aria-label="Mês para excluir"></select></div>
+        <div id="excPrevia" style="margin-top:8px"></div>
       </div>
     </div>
   </section>

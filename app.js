@@ -1389,7 +1389,7 @@
   }
 
   // ——— versão, dados brutos, recálculo, backup e memória de cálculo (site no GitHub + Supabase)
-  var APP_VERSAO='1.6.0';
+  var APP_VERSAO='1.6.2';
   // Dados brutos: só as colunas que o cálculo usa (sem título, solicitante ou nome de parte)
   function brutosMontar(){
     var S=XLSX.SSF, out={};
@@ -1767,6 +1767,48 @@
   }
   function limparArquivos(){ IMP_TIPOS.forEach(function(x){ state.arquivos[x[0]]=[]; state.nomes[x[0]]=[]; }); state.resAnd=null; state.resInc=null; state.resCert=null; state.resultado=null; atualizarChips(); $('previa').innerHTML=''; }
   function abrirImport(){ irAba('imp'); }
+  // ——— excluir os dados de um mês (arquiva no banco; dá para voltar com um backup)
+  var EXC_GRUPOS=[
+    ['ri','Prazos do RI (resultado e linha do tempo)',function(m){ return state.docs[m]?state.docs[m].atos.length+' atos':null; },[['meses'],['logs']],true],
+    ['serv','RC, RTD/PJ, intimações e malote',function(m){ return state.serv[m]?state.serv[m].length+' documentos':null; },[['serv']],true],
+    ['brutos','Dados brutos do VHL (Prazo e Produção por Etapa) — sem isso o mês volta no próximo recálculo',function(m){ return 'prazo e etapas'; },[['brutos','prazo-'],['brutos','etapa-']],true],
+    ['inconf','Inconformidades',function(m){ return state.inconf[m]?state.inconf[m].length+' registros':null; },[['inconf']],true],
+    ['cert','Certidões',function(m){ return state.cert[m]?state.cert[m].recs.length+' certidões':null; },[['cert']],true],
+    ['andam','Andamentos do Tri7',function(m){ return state.andam[m]?state.andam[m].length+' andamentos':null; },[['andam']],true],
+    ['senhas','Senhas',function(m){ return state.senhas[m]?state.senhas[m].L.length+' senhas':null; },[['senhas']],true],
+    ['k9','KPI-09 (Rel. Eventos)',function(m){ return state.k9[m]?state.k9[m].headcount+' colaboradores':null; },[['kpi09']],true],
+    ['kp','Lançamentos de KPIs que você digitou',function(m){ return state.kp[m]?'valores e análises':null; },[['kpis']],false]];
+  function excMeses(){ var o={}; [state.docs,state.serv,state.inconf,state.cert,state.andam,state.senhas,state.k9,state.kp,state.logs].forEach(function(x){ Object.keys(x||{}).forEach(function(m){ if (/^\d{4}-\d{2}$/.test(m)) o[m]=1; }); }); return Object.keys(o).sort().reverse(); }
+  function renderExcluir(){
+    var sel=$('excMes'); if (!sel) return; var ms=excMeses(), atual=sel.value;
+    var html='<option value="">Escolha o mês…</option>'+ms.map(function(m){ return '<option value="'+m+'">'+nomeMes(m)+'</option>'; }).join('');
+    if (sel.innerHTML!==html){ sel.innerHTML=html; sel.value=ms.indexOf(atual)>=0?atual:''; }
+    var m=sel.value, el=$('excPrevia'); if (!m){ el.innerHTML=''; return; }
+    var itens=EXC_GRUPOS.map(function(g){ var q=g[2](m); if (q==null) return ''; return '<label class="lc-chk" style="display:flex;gap:6px;margin:3px 0"><input type="checkbox" data-exc="'+g[0]+'"'+(g[4]?' checked':'')+'> <span>'+esc(g[1])+' <span class="mut">· '+esc(q)+'</span></span></label>'; }).join('');
+    el.innerHTML=itens+'<div class="ctl" style="margin-top:8px"><button class="btn" type="button" id="btnExcluirMes" style="border-color:var(--crit);color:var(--crit)">Excluir dados de '+nomeMes(m)+'</button></div>';
+  }
+  function excluirMes(){
+    var m=$('excMes').value; if (!m||!dbPronto||!podeEscrever) return;
+    var marc=Array.prototype.map.call(document.querySelectorAll('#excPrevia input[data-exc]:checked'),function(i){ return i.dataset.exc; }); if (!marc.length){ toast('Marque o que excluir'); return; }
+    var nomes=EXC_GRUPOS.filter(function(g){ return marc.indexOf(g[0])>=0; }).map(function(g){ return '• '+g[1].split(' — ')[0]; });
+    if (!confirm('Excluir de '+nomeMes(m)+':\n\n'+nomes.join('\n')+'\n\nOs registros ficam arquivados no banco (um backup anterior traz de volta). Continuar?')) return;
+    var alvos=[]; EXC_GRUPOS.forEach(function(g){ if (marc.indexOf(g[0])<0) return; g[3].forEach(function(c){ alvos.push(c[0]+'/'+(c[1]||'')+m); }); });
+    var b=$('btnExcluirMes'); b.disabled=true; b.textContent='Excluindo…'; var p=Promise.resolve();
+    alvos.forEach(function(a){ p=p.then(function(){ return db.doc(a).delete().catch(function(){}); }); });
+    p.then(function(){
+      if (marc.indexOf('ri')>=0){ delete state.docs[m]; delete state.logs[m]; delete state.logCache[m]; }
+      if (marc.indexOf('serv')>=0) delete state.serv[m];
+      if (marc.indexOf('inconf')>=0) delete state.inconf[m];
+      if (marc.indexOf('cert')>=0) delete state.cert[m];
+      if (marc.indexOf('andam')>=0){ delete state.andam[m]; state.andIdx=null; }
+      if (marc.indexOf('senhas')>=0) delete state.senhas[m];
+      if (marc.indexOf('k9')>=0) delete state.k9[m];
+      if (marc.indexOf('kp')>=0) delete state.kp[m];
+      if (state.periodo===m) state.periodo='todos';
+      $('excMes').value=''; render(); renderExcluir(); toast('Dados de '+nomeMes(m)+' excluídos'); })
+     .catch(function(){ toast('Não consegui excluir tudo — tente de novo'); b.disabled=false; });
+  }
+
   function renderFeriados(){
     $('ferLista').innerHTML=state.extras.length?state.extras.slice().sort().map(function(d){ return '<span class="fer">'+fmtData(d)+'<button type="button" data-fer="'+d+'" aria-label="Remover '+fmtData(d)+'">×</button></span>'; }).join(''):'<span class="hint">Nenhum.</span>';
   }
@@ -1829,6 +1871,7 @@
     var ip=t.closest&&t.closest('tr[data-incpessoa]'); if (ip){ state.incFiltroPessoa = state.incFiltroPessoa===ip.dataset.incpessoa?null:ip.dataset.incpessoa; return renderK1(todosAtos()); }
     if (t.dataset && t.dataset.fex){ state.filtroEx=t.dataset.fex; return renderEx(todosAtos()); }
     if (t.id==='btnLimpar') return limparArquivos();
+    if (t.id==='btnExcluirMes') return excluirMes();
     if (t.id==='fecharDet'){ state.natSel=null; return render(); }
     if (t.dataset && t.dataset.fer){ state.extras=state.extras.filter(function(d){return d!==t.dataset.fer;}); return salvarFeriados(); }
     if (t.dataset && t.dataset.del){
@@ -1853,12 +1896,13 @@
   function menuAbrir(sim){ document.body.classList.toggle('menu-aberto',!!sim); $('menuFundo').hidden=!sim; }
   function irAba(k){ if (k==='imp' && !podeEscrever) k='geral'; if (typeof svModo==='function' && svModo()==='cert' && (k==='geral'||SO_SERV.indexOf(k)>=0)) k='cer'; state.aba=k; $('pgGeral').hidden=k!=='geral'; $('pgConteudo').hidden=k==='geral'||k==='imp'; $('importar').hidden=k!=='imp'; $('pgTitulo').textContent=TITULOS[k]||''; menuAbrir(false); window.scrollTo(0,0); if (k==='geral') renderGraficos(); document.querySelectorAll('.tab').forEach(function(b){ b.setAttribute('aria-selected',b.dataset.tab===k?'true':'false'); });
     var MAP={nat:'tabNat',k1:'tabK1',cer:'tabCer',eta:'tabEta',fp:'tabFp',ex:'tabEx',nao:'tabNao',at:'tabAt',tri:'tabTri',lanc:'tabLanc',rel:'tabRel',met:'tabMet'}; Object.keys(MAP).forEach(function(x){ $(MAP[x]).hidden=state.aba!==x; });
-    if (k==='rel') renderRel(); if (k==='tri') renderTri();  if (k==='lanc') renderLanc(); if (k==='at') renderAtend(); }
+    if (k==='rel') renderRel(); if (k==='tri') renderTri(); if (k==='imp') renderExcluir();  if (k==='lanc') renderLanc(); if (k==='at') renderAtend(); }
   document.addEventListener('change',function(e){
     var t=e.target;
     if (t.id==='relSel'){ state.relSel=t.value; return renderRel(); }
     if (t.dataset && t.dataset.kpf==='sentido'){ var mi=t.closest('tr').querySelector('[data-kpf="metaV"]'); if (mi) mi.disabled=t.value==='baseline'; return; }
     if (t.dataset && t.dataset.srvprazo!=null){ var vp=t.value.trim().replace(',','.'); if (vp===''||isNaN(+vp)) state.prazosServ[t.dataset.srvprazo]=null; else state.prazosServ[t.dataset.srvprazo]=Math.max(0,Math.round(+vp)); salvarPrazosServ(); return renderAtr(); }
+    if (t.id==='excMes') return renderExcluir();
     if (t.id==='selAtr'||t.id==='selSub'){ if (t.id==='selAtr') state.sv=t.value; else { state.svSub=state.svSub||{}; state.svSub[svAtual()]=t.value; } state.srvNat=null; state.incFiltroCat=null; state.incFiltroPessoa=null; render(); if (svModo()==='cert') irAba('cer'); else if (state.aba==='cer'&&svModo()!=='ri') irAba('geral'); return; }
     if (t.id==='lancMes'){ state.lancMes=t.value; return renderLanc(); }
     if (t.id==='atMes'){ state.atMes=t.value; return renderAtend(); }
