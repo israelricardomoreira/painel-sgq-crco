@@ -60,7 +60,7 @@ Em 1 ou 2 minutos o site fica em `https://israelricardomoreira.github.io/painel-
 | Ver quem deu entrada, redigiu exigência, revisou e gerou os selos | Menu **Quem fez · Tri7** e a ficha do protocolo |
 | Copiar os KPIs para o ANOREG+ | Aba **Lançar KPIs** |
 | Mudar meta, nome ou incluir um KPI | **Lançar KPIs → Editar indicadores** |
-| Ver RC, RTD, RPJ, Intimações, Malote ou Arquivo | Seletor **Atribuição** no topo (o prazo legal de cada natureza é preenchido em **Por natureza**) |
+| Ver só RI, RC, RTD/PJ, Apoio ou tudo junto | Filtro **Serventia** no topo ("Todas" abre o comparativo) (o prazo legal de cada natureza é preenchido em **Por natureza**) |
 | Evidência auditável do mês | Aba **Lançar KPIs → Baixar memória de cálculo (.xlsx)** |
 | Ver como um protocolo foi calculado | Campo **Protocolo** no topo |
 | Backup | **Importar dados → Baixar backup (.json)**, uma vez por mês. O site avisa depois de 30 dias |

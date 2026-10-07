@@ -198,7 +198,8 @@ svg text{fill:var(--ink-2);font-family:var(--font)}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:12px}
 tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 details>summary{cursor:pointer}
-.atrw{display:inline-flex;align-items:center;gap:6px}.atrw[hidden],.menu .tab[hidden],.menu-grp[hidden]{display:none!important}
+.leg{display:flex;flex-wrap:wrap;gap:12px;font-size:.78rem;color:var(--ink-2);margin-top:4px}.leg i,.dot{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}#selSub[hidden]{display:none}
+.atrw{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;max-width:100%}.atrw select{max-width:100%}.atrw[hidden],.menu .tab[hidden],.menu-grp[hidden]{display:none!important}
 .kpied td{vertical-align:middle}.kpied .btn.sm{padding:2px 7px;margin-right:2px}.nowrap{white-space:nowrap}
 tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3px 0 0 var(--brand)}
 </style>
@@ -288,7 +289,7 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
     <div class="spacer"></div>
     <div class="ctl">
       <form id="protForm" class="protf" role="search"><input type="search" id="protIn" placeholder="Protocolo ou código (ex.: 120322, N4447)" aria-label="Buscar protocolo ou código"><button class="btn" type="submit">Ver ficha</button></form>
-      <span class="atrw"><label for="selAtr" class="hint" style="margin:0">Atribuição</label> <select id="selAtr" aria-label="Atribuição"></select></span>
+      <span class="atrw"><label for="selAtr" class="hint" style="margin:0">Serventia</label> <select id="selAtr" aria-label="Serventia"></select> <select id="selSub" aria-label="O que ver" hidden></select></span>
       <label for="selMes" class="hint" style="margin:0">Período</label>
       <select id="selMes" aria-label="Período"></select>
     </div>
