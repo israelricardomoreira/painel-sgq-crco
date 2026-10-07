@@ -230,8 +230,10 @@ var Motor = (function(){
   }
   function codificarCert(M, origem){
     var us=[], ui={}; function idu(n){ if(!(n in ui)){ ui[n]=us.length; us.push(n);} return ui[n]; }
-    return {mes:M.mes, v:1, atualizadoEm:new Date().toISOString(), origem:origem||'', erros:M.erros, pend:M.pend, usuarios:us,
+    var o={mes:M.mes, v:1, atualizadoEm:new Date().toISOString(), origem:origem||'', erros:M.erros, pend:M.pend, usuarios:us,
       recs:M.recs.map(function(r){ return [r.p,isoMin(r.i),isoMin(r.f),idu(r.u)].join('|'); })};
+    if (M.auto) o.auto=M.auto.filter(function(x,i,a){ return a.indexOf(x)===i; }); // protocolos de certidão com selo gerado pelo próprio Tri7 (automáticas)
+    return o;
   }
   function decodificarCert(doc){
     return doc.recs.map(function(s){ var f=s.split('|'); return {p:f[0],i:minIso(f[1]),f:minIso(f[2]),u:doc.usuarios[+f[3]],mes:doc.mes}; });
@@ -260,7 +262,7 @@ var Motor = (function(){
       if (mi<ini) ini=mi; if (mi>fim) fim=mi;
       if (tipo.indexOf('certid')>=0){ // certidões: pedido -> Selos Gerados
         if (st!=='selos gerados') return;
-        if (u==='TRI7'){ nAuto++; return; } // emitida automaticamente pelo sistema (SAEC), sem ação humana
+        if (u==='TRI7'){ nAuto++; var ma=isoMin(mi).slice(0,7), CA=cert[ma]=cert[ma]||{mes:ma,recs:[],erros:0,pend:0}; (CA.auto=CA.auto||[]).push(num); return; } // emitida automaticamente pelo sistema (SAEC), sem ação humana
         var i=andMin(r['data prot.']); if (i==null) return; nC++;
         var mc=isoMin(mi).slice(0,7), C=cert[mc]=cert[mc]||{mes:mc,recs:[],erros:0,pend:0};
         C.recs.push({p:num,i:i,f:mi,u:u,nat:String(r['natureza titulo']||'').trim()}); return;
