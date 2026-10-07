@@ -48,7 +48,7 @@ Em 1 ou 2 minutos o site fica em `https://israelricardomoreira.github.io/painel-
 ### 6. Primeiro acesso
 1. Entre com e-mail e senha.
 2. Leia o QR code com o Google Authenticator ou o Microsoft Authenticator e digite o código.
-3. Em **Importar planilhas → Restaurar backup**, escolha o arquivo `backup-inicial-painel-sgq.json`. Ele traz todos os dados de junho a outubro/2026. **Esse arquivo não vai para o GitHub.**
+3. Em **Importar dados → Restaurar backup**, escolha o arquivo `backup-inicial-painel-sgq.json`. Ele traz todos os dados de junho a outubro/2026. **Esse arquivo não vai para o GitHub.**
 
 ---
 
@@ -56,15 +56,15 @@ Em 1 ou 2 minutos o site fica em `https://israelricardomoreira.github.io/painel-
 
 | O que | Onde |
 |---|---|
-| Lançar um mês novo | **Importar planilhas**: solte os exports do VHL, o **Relatório de andamentos** do Tri7, inconformidades e senhas, depois **Salvar** |
+| Lançar um mês novo | Menu **Importar dados**: solte os PAINEL-01 a 05 do VHL, o Relatório de andamentos do Tri7 e o Rel. Eventos da folha, depois **Salvar e atualizar o painel** |
 | Ver quem deu entrada, redigiu exigência, revisou e gerou os selos | Menu **Quem fez · Tri7** e a ficha do protocolo |
 | Copiar os KPIs para o ANOREG+ | Aba **Lançar KPIs** |
 | Mudar meta, nome ou incluir um KPI | **Lançar KPIs → Editar indicadores** |
-| RC, RTD, RPJ, Intimações, Malote e Arquivo | Menu **Outras atribuições** (prazo legal de cada natureza é preenchido na própria página) |
+| Ver RC, RTD, RPJ, Intimações, Malote ou Arquivo | Seletor **Atribuição** no topo (o prazo legal de cada natureza é preenchido em **Por natureza**) |
 | Evidência auditável do mês | Aba **Lançar KPIs → Baixar memória de cálculo (.xlsx)** |
 | Ver como um protocolo foi calculado | Campo **Protocolo** no topo |
-| Backup | **Importar planilhas → Baixar backup (.json)**, uma vez por mês. O site avisa depois de 30 dias |
-| Corrigir regra sem reimportar | Depois de atualizar o código: **Importar planilhas → Recalcular tudo com a regra atual** |
+| Backup | **Importar dados → Baixar backup (.json)**, uma vez por mês. O site avisa depois de 30 dias |
+| Corrigir regra sem reimportar | Depois de atualizar o código: **Importar dados → Recalcular tudo com a regra atual** |
 
 ### Memória de cálculo (auditoria)
 O Excel baixado tem uma aba por KPI, com um ato por linha, e a aba **Resumo** com numerador e denominador **em fórmula**.

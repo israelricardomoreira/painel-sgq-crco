@@ -198,6 +198,7 @@ svg text{fill:var(--ink-2);font-family:var(--font)}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:12px}
 tr.tot td{font-weight:700;border-top:2px solid var(--line)}
 details>summary{cursor:pointer}
+.atrw{display:inline-flex;align-items:center;gap:6px}.atrw[hidden],.menu .tab[hidden],.menu-grp[hidden]{display:none!important}
 .kpied td{vertical-align:middle}.kpied .btn.sm{padding:2px 7px;margin-right:2px}.nowrap{white-space:nowrap}
 tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3px 0 0 var(--brand)}
 </style>
@@ -261,7 +262,7 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
 <nav id="menu" class="menu" aria-label="Seções do painel">
   <div class="menu-marca"><div class="mark">RI</div><b>Painel SGQ</b></div>
   <button class="tab" type="button" data-tab="geral" aria-selected="true">Painel geral</button>
-  <div class="menu-grp">Prazos do RI</div>
+  <div class="menu-grp">Prazos</div>
   <button class="tab" type="button" data-tab="nat" aria-selected="false">Por natureza</button>
   <button class="tab" type="button" data-tab="eta" aria-selected="false">Por etapa</button>
   <button class="tab" type="button" data-tab="fp" aria-selected="false">Fora do prazo</button>
@@ -271,25 +272,25 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
   <button class="tab" type="button" data-tab="k1" aria-selected="false">Inconformidades</button>
   <button class="tab" type="button" data-tab="cer" aria-selected="false">Certidões</button>
   <button class="tab" type="button" data-tab="at" aria-selected="false">Atendimento</button>
-  <div class="menu-grp">Outras atribuições</div>
-  <button class="tab" type="button" data-tab="srv" aria-selected="false">RC, RTD, RPJ e demais</button>
   <div class="menu-grp">Pessoas e rotina</div>
   <button class="tab" type="button" data-tab="rel" aria-selected="false">Relatórios por pessoa</button>
   <button class="tab" type="button" data-tab="tri" aria-selected="false">Quem fez · Tri7</button>
   <button class="tab" type="button" data-tab="lanc" aria-selected="false">Lançar KPIs</button>
   <button class="tab" type="button" data-tab="met" aria-selected="false">Como é calculado</button>
+  <div class="menu-grp" id="grpDados">Dados</div>
+  <button class="tab" type="button" data-tab="imp" id="tabImp" aria-selected="false">Importar dados</button>
 </nav>
 <div id="menuFundo" class="menu-fundo" hidden></div>
 <div class="wrap">
   <header class="top">
     <button class="btn menu-btn" id="btnMenu" type="button" aria-label="Abrir menu de seções">☰</button>
-    <div class="brand"><div class="mark">RI</div><div><h1>Painel de Prazos RI</h1><small>CRCO · KPI-02 · Art. 205 e Art. 9º §1º da Lei 6.015/73</small></div></div>
+    <div class="brand"><div class="mark">RI</div><div><h1>Painel SGQ · CRCO</h1><small id="brandSub">CRCO · RI · KPI-02 · Art. 205 e Art. 9º §1º da Lei 6.015/73</small></div></div>
     <div class="spacer"></div>
     <div class="ctl">
       <form id="protForm" class="protf" role="search"><input type="search" id="protIn" placeholder="Protocolo ou código (ex.: 120322, N4447)" aria-label="Buscar protocolo ou código"><button class="btn" type="submit">Ver ficha</button></form>
+      <span class="atrw"><label for="selAtr" class="hint" style="margin:0">Atribuição</label> <select id="selAtr" aria-label="Atribuição"></select></span>
       <label for="selMes" class="hint" style="margin:0">Período</label>
       <select id="selMes" aria-label="Período"></select>
-      <button class="btn primary" id="btnImportar" type="button">Importar planilhas</button>
     </div>
   </header>
 
@@ -298,33 +299,33 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
   <section id="protBox" class="section panel" hidden style="margin-bottom:16px"></section>
 
   <section id="importar" class="section panel" hidden>
-    <div class="sec-h"><h2>Importar planilhas do VHL</h2><span class="note">Os arquivos são lidos no seu navegador; só os resultados ficam salvos</span></div>
+    <div class="sec-h"><h2>Importar dados</h2><span class="note">Solte qualquer planilha aqui: o painel reconhece o tipo e alimenta tudo (RI, RC, RTD, RPJ e demais). Os arquivos são lidos no seu navegador.</span></div>
     <div class="imp-grid">
       <div>
         <div class="drop" id="drop" tabindex="0" role="button" aria-label="Selecionar planilhas">
           <b>Arraste as planilhas aqui</b> ou clique para escolher
-          <div class="hint" style="margin-top:4px">.xls e .xlsx exportados do VHL e do Tri7 — pode mandar mais de um arquivo de cada tipo</div>
+          <div class="hint" style="margin-top:4px">VHL, Tri7 e folha (.xls e .xlsx) — pode mandar várias de uma vez</div>
         </div>
         <input type="file" id="fileIn" accept=".xlsx,.xls" multiple hidden>
         <div class="chips">
-          <span class="chip" id="chipPrazo">Prazo e Tempo Médio</span>
-          <span class="chip" id="chipEtapa">Produção por Etapa</span>
-          <span class="chip" id="chipDemanda">Demanda & Produção (Suspensos)</span>
-          <span class="chip" id="chipInconf">Consulta de inconformidades</span>
-          <span class="chip" id="chipAndam">Relatório de andamentos (Tri7)</span>
-          <span class="chip" id="chipTri7">Andamentos (Tri7) · antiga</span>
+          <span class="chip" id="chipPrazo">PAINEL-01 · Prazo e Tempo Médio</span>
+          <span class="chip" id="chipEtapa">PAINEL-02 · Produção por Etapa</span>
+          <span class="chip" id="chipDemanda">PAINEL-03 · Demanda suspensa</span>
+          <span class="chip" id="chipInconf">PAINEL-04 · Inconformidades</span>
+          <span class="chip" id="chipSenhas">PAINEL-05 · Senhas</span>
+          <span class="chip" id="chipAndam">Tri7 · Relatório de andamentos</span>
+          <span class="chip" id="chipK9">Folha · Rel. Eventos (KPI-09)</span>
+          <span class="chip" id="chipTri7" hidden>Andamentos (Tri7) · antiga</span>
         </div>
         <div id="previa" style="margin-top:14px"></div>
       </div>
       <div>
-        <div class="sub-h">Como exportar</div>
+        <div class="sub-h">Como exportar (todo mês, do 1º ao último dia)</div>
         <ul class="hint" style="padding-left:18px;margin:0">
-          <li><b>Prazo e Tempo Médio</b>: o mês que você quer fechar.</li>
-          <li><b>Produção por Etapa</b>: comece <b>2 meses antes</b> do mês (ex.: para setembro, 01/07 a 30/09). Sem isso, atos que entraram antes ficam sem histórico.</li>
-          <li><b>Demanda & Produção</b>: Exibir = Suspensos, mesmo período da Produção por Etapa. É ela que mostra cancelados e quem teve exigência.</li>
-          <li><b>Consulta de inconformidades</b>: o período que quiser. Pode subir sozinha, sem as outras.</li>
-          <li><b>Andamentos (Tri7)</b>: para as certidões. Suba junto com a Prazo e Tempo Médio do mesmo período, que identifica os pedidos de balcão e o tipo.</li>
-          <li>Pode reimportar um mês a qualquer momento — o painel avisa se a versão salva já é mais completa.</li>
+          <li><b>VHL · Dashboard</b>: exporte os painéis <b>PAINEL-01 Prazo e Tempo Médio</b>, <b>PAINEL-02 Produção por Etapa</b>, <b>PAINEL-03 Demanda suspensa no período</b>, <b>PAINEL-04 Consulta de inconformidades</b> (moderadas) e <b>PAINEL-05 Consulta de senhas</b>. Eles trazem todas as atribuições; não precisa filtrar por RI.</li>
+          <li><b>Tri7 (RI)</b>: Impressão › Movimentação › selecione <b>todos os tipos de pesquisa</b> › "Filtrar pela data do: <b>Protocolo</b>" do primeiro ao último dia do mês › em <b>Lista de andamentos selecionados</b> adicione: 0011 Prenotado · 0504 Prenotado Automaticamente (SAEC/ONR) · 0357 Re-análise · 0019 Selos Gerados · 0328 Recebido para Entrega · 0334 Revisão de Exigência · 0326 Nota de Exigência · Custas Informadas (SAEC/ONR) › Pesquisar › baixe a planilha.</li>
+          <li><b>Folha</b>: Rel. Eventos de Apuração por Período (ciclo 22 a 21), para o KPI-09.</li>
+          <li>Pode soltar tudo junto ou um de cada vez, e reimportar quando quiser: o painel <b>junta</b> com o que já tem e recalcula — nada se perde.</li>
         </ul>
         <div class="sub-h" style="margin-top:14px">Feriados locais</div>
         <div class="hint">Os nacionais (inclusive Carnaval, Sexta-feira Santa e Corpus Christi) já entram automaticamente. Adicione municipais ou dias sem expediente.</div>
@@ -366,7 +367,6 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
     <div id="tabLanc" hidden></div>
     <div id="tabRel" hidden></div>
     <div id="tabTri" hidden></div>
-    <div id="tabSrv" hidden></div>
     <div id="tabMet" hidden></div>
   </section>
 <p class="rodape">Painel SGQ · CRCO — dados no Supabase com acesso restrito · código em github.com/israelricardomoreira/painel-sgq-crco</p>
