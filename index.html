@@ -35,6 +35,12 @@
   --good:#5fc58f; --good-soft:#1b2d23; --warn:#e3b04f; --warn-soft:#30281a; --crit:#ec8a83; --crit-soft:#341f1d;
   --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500; --c5:#d55181; --c6:#008300;
   --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.6); color-scheme:dark; }
+/* v1.9.1: painel de naturezas */
+.nx-box{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.nx-op{cursor:pointer;font:inherit;font-size:.78rem}.nx-op:hover{border-color:var(--brand);color:var(--ink)}
+.nx-grs{display:flex;flex-direction:column;gap:6px}.nx-gr{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px}.nx-gr.on{border-color:var(--good)}
+.nx-dif{font-size:.72rem;font-weight:600;white-space:normal}.nx-dif.real{color:var(--ink)}.nx-dif.acaso,.nx-dif.mut{color:var(--ink-3);font-weight:400}
+table.nx-cmp td,table.nx-cmp th{vertical-align:top}table.nx-cmp th{white-space:normal;min-width:120px;max-width:220px}@media (max-width:640px){table.nx-cmp th{min-width:96px}}
 /* v1.9: gráficos que levam ao dado (drill-down) */
 [data-go]{cursor:pointer}
 rect.hit{fill:transparent}
@@ -68,9 +74,9 @@ svg .fatia[data-go]:hover,svg .seg-b[data-go]:hover{stroke:var(--ink);stroke-wid
 .hb-t{height:12px;background:var(--surface-2);border-radius:4px;overflow:hidden}
 .hb-t i{display:block;height:100%;border-radius:0 4px 4px 0}
 .hb-v{font-variant-numeric:tabular-nums;color:var(--ink);min-width:3.5em;text-align:right}
-.rosca{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-.rosca .vz-svg{width:160px;flex:none}
-.rosca-leg{display:flex;flex-direction:column;gap:6px;font-size:.85rem;flex:1;min-width:140px}
+.rosca{display:flex;flex-direction:column;align-items:stretch;gap:10px}
+.rosca .vz-svg{width:160px;flex:none;margin:0 auto}
+.rosca-leg{display:flex;flex-direction:column;gap:6px;font-size:.85rem;min-width:0}
 .rosca-leg div{display:grid;grid-template-columns:12px 1fr auto auto;gap:6px;align-items:center}
 .rosca-leg .mut{font-size:.75rem}
 tr.rasc td{background:var(--warn-soft)}

@@ -20,7 +20,7 @@
 
   // ——— dados carregados
   // origem do protocolo de RI: natureza "ONR - …" = veio da central (e-protocolo); o resto = balcão
-  function origemAto(a){ return /^onr\b/i.test(String(a.nat||'').trim())?'central':'balcao'; }
+  function origemAto(a){ return /^onr\b/i.test(String(a.natOrig||a.nat||'').trim())?'central':'balcao'; }
   function origOk(a){ var o=state.riOrig||'todas'; return o==='todas'||origemAto(a)===o; }
   function atosDoMes(m){ return state.docs[m]?state.docs[m].atos.filter(origOk):[]; }
   function todosAtos(){
@@ -84,7 +84,7 @@
       return '<div class="etapa-row" data-tip="'+esc('<b>'+lab+'</b><br>'+x+' casos ('+pct(x/n*100)+')')+'"><div class="nm">'+lab+(i===im?' <small>· mais comum</small>':'')+'</div><div class="track"><div class="fill" style="width:'+(x/mx*100).toFixed(1)+'%'+(i===im?'':';opacity:.55')+'"></div></div><div class="vv">'+pct(x/n*100)+'</div></div>'; }).join(''); }
 
   // ——— render
-  function render(){ render0(); if (state.aba==='des') renderDes(); if (state.aba==='vis') renderVis(); }
+  function render(){ aplicarGrupos(); render0(); if (state.aba==='des') renderDes(); if (state.aba==='vis') renderVis(); }
   function render0(){
     renderAtrSelect(); renderSelect(); var atos=todosAtos();
     if (atrAtual()!=='RI'){ if (SO_RI.indexOf(state.aba)>=0 || (svModo()==='todas'&&SO_SERV.indexOf(state.aba)>=0)) irAba('geral'); renderAtr(); renderK1([]); renderAtend(); if (!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#tabRel textarea'))) renderRel(); if (!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#tabLanc input[type=text],#tabLanc textarea'))) renderLanc(); renderMetodo(); return; }
@@ -151,6 +151,7 @@
   var COLS=[['nat','Natureza'],['total','Atos'],['kpi','KPI-02'],['medB','Bruto · mediana / média'],['medL','Líquido · mediana / média'],['iqr','Faixa típica · bruto'],['mEsp','Espera média'],['canc','Cancelados']];
   var MIN_ATOS=10;
   function renderNat(atos){
+    if (state.pgVis.nat){ $('tabNat').innerHTML=visNat(); return; }
     var todas=porNatureza(atos), menores=todas.filter(function(x){return x.total<MIN_ATOS;}).length;
     $('tabNat').innerHTML='<div class="sec-h"><h2>Por natureza do ato</h2><span class="note">Clique numa linha para abrir o detalhe · dias úteis</span></div>'+
       '<div class="search"><input type="search" id="natBusca" placeholder="Buscar natureza (ex.: contrato, escritura, reurb)" value="'+esc(state.natBusca)+'" aria-label="Buscar natureza">'+
@@ -171,7 +172,7 @@
     var h='<div class="tbl-wrap"><table><thead><tr>'+
       COLS.map(function(c){ return '<th data-k="'+c[0]+'" class="'+(s.k===c[0]?'sorted':'')+'">'+c[1]+(s.k===c[0]?(s.d<0?' ↓':' ↑'):'')+'</th>'; }).join('')+'</tr></thead><tbody>';
     linhas.forEach(function(l){
-      h+='<tr class="click'+(state.natSel===l.nat?' sel':'')+'" tabindex="0" data-nat="'+esc(l.nat)+'"><td class="nat">'+esc(l.nat)+'</td><td>'+l.total+'</td><td>'+(l.n?pillKpi(l.kpi):'<span class="pill mute">—</span>')+'</td>'+
+      var gr=grAtivoPorNome(l.nat); h+='<tr class="click'+(state.natSel===l.nat?' sel':'')+'" tabindex="0" data-nat="'+esc(l.nat)+'"><td class="nat">'+esc(l.nat)+(gr?' <span class="pill mute" title="'+esc('Grupo: '+gr.nats.join(' + '))+'">grupo · '+gr.nats.length+' nomes</span>':'')+'</td><td>'+l.total+'</td><td>'+(l.n?pillKpi(l.kpi):'<span class="pill mute">—</span>')+'</td>'+
         '<td data-tip="'+esc('<b>Bruto · '+l.nat+'</b><br>'+estTip(l.eb,' d.u.'))+'">'+f1(l.medB)+' <span class="mut">/ '+f1(l.mB)+'</span></td><td>'+f1(l.medL)+' <span class="mut">/ '+f1(l.mL)+'</span></td><td>'+(l.iqr==null?'<span class="mut" title="Menos de '+MIN_N+' atos">poucos atos</span>':Math.round(l.eb.q1)+' a '+Math.round(l.eb.q3)+' <span class="mut">d.u.</span>')+'</td><td>'+f1(l.mEsp)+'</td>'+
         '<td>'+(l.N?'<span class="cbar"><span style="width:'+Math.min(100,l.canc).toFixed(0)+'%"></span></span>'+pct(l.canc)+' <span class="mut">('+l.N+')</span>':'<span class="mut">0%</span>')+'</td></tr>';
     });
@@ -226,7 +227,7 @@
     var q=state.busca.trim().toLowerCase();
     if (q) lista=lista.filter(function(a){ return a.c.toLowerCase().indexOf(q)>=0; });
     if (state.filtroFora) lista=lista.filter(function(a){ return a.bruto!=null && a.bruto>=a.lim-3; });
-    var h='<div class="detail"><div class="detail-h"><div><div class="sub-h" style="margin:0">Detalhe</div><h3>'+esc(nat)+'</h3></div><button class="btn" type="button" id="fecharDet">Fechar</button></div>'+
+    var h='<div class="detail"><div class="detail-h"><div><div class="sub-h" style="margin:0">Detalhe</div><h3>'+esc(nat)+'</h3>'+(grAtivoPorNome(nat)?'<div class="hint">Grupo formado por: '+grAtivoPorNome(nat).nats.map(esc).join(' + ')+' · desfaça em Por natureza → Visual</div>':'')+'</div><button class="btn" type="button" id="fecharDet">Fechar</button></div>'+
       '<div class="kpis" style="margin-bottom:16px">'+
       kpi('KPI-02',pctK(r.kpi),r.dentro+' de '+r.n+(r.J?' · '+r.J+' justif.':''),'hero')+
       (function(){ var eb=est(r.R.map(function(a){return a.bruto;})); return kpi('Bruto',f1(r.medB)+' <small style="font-size:.9rem">mediana</small>','média '+f1(r.mB)+(eb.moda!=null?' · mais comum '+eb.moda:'')+' · 90% em até '+f1(eb.p90)+' d.u.'+(eb.n<MIN_N?' · poucos atos':'')); })()+
@@ -405,6 +406,13 @@
   // ——— aba Relatórios (o que aparece na tela é o que sai impresso)
   var downloads=null;
   var REL_CSS='@page{size:A4;margin:14mm 12mm}'+
+    '.relsheet{--bg:#fff;--surface:#fff;--surface-2:#f1efeb;--line:#e3dfd8;--ink:#2b2926;--ink-2:#5d5952;--ink-3:#8f897f;--brand:#e8590c;--brand-soft:#fde8da;--crit:#b3362f;--good:#1f7a4d;--c1:#2a78d6;--c2:#eb6834;--c3:#1baf7a;--c4:#eda100;--c5:#e87ba4;--c6:#008300;color-scheme:light;-webkit-print-color-adjust:exact;print-color-adjust:exact}.relsheet *{-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    '.relsheet svg{width:100%;height:auto;display:block}.relsheet svg text{font-family:"Segoe UI",Arial,sans-serif;fill:#5d5952}'+
+    '.relsheet .diaria{background:#fde8da;border-radius:8px;padding:10px 12px;font-size:13px;margin:0 0 10px;break-inside:avoid}'+
+    '.relsheet .rgraf{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.relsheet .rg{border:1px solid #e3dfd8;border-radius:8px;padding:8px 10px;break-inside:avoid;min-width:0}.relsheet .rg.w{grid-column:1/-1}.relsheet .rg b{display:block;font-size:11.5px}.relsheet .rg small{display:block;color:#716a60;font-size:9.5px;margin-bottom:4px}'+
+    '.relsheet .hb{display:flex;flex-direction:column;gap:4px}.relsheet .hb-row{display:grid;grid-template-columns:minmax(80px,40%) 1fr auto;gap:6px;align-items:center;font-size:10.5px}.relsheet .hb-n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#5d5952}.relsheet .hb-t{height:9px;background:#f1efeb;border-radius:3px;overflow:hidden}.relsheet .hb-t i{display:block;height:100%}.relsheet .hb-v{text-align:right;font-variant-numeric:tabular-nums}'+
+    '.relsheet .leg{display:flex;flex-wrap:wrap;gap:10px;font-size:10px;color:#5d5952;margin-top:3px}.relsheet .leg i,.relsheet .dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px}.relsheet .gm-vazio{font-size:10.5px;color:#8f897f;padding:16px 0;text-align:center}'+
+    '@media (max-width:640px){.relsheet .rgraf{grid-template-columns:1fr}}'+
     '.relsheet{font-family:"Segoe UI",Arial,sans-serif;color:#2b2926;font-size:11.5px;background:#fff;max-width:860px;margin:0 auto;padding:26px 28px;line-height:1.45}'+
     '.relsheet header{border-bottom:3px solid #FC6506;padding-bottom:10px;margin-bottom:14px;display:flex;justify-content:space-between;gap:16px;align-items:flex-end;flex-wrap:wrap}'+
     '.relsheet h1{font-size:19px;margin:0 0 3px;color:#2b2926}.relsheet h2{font-size:12px;margin:20px 0 8px;color:#343434;text-transform:uppercase;letter-spacing:.05em;border-left:4px solid #FC6506;padding-left:8px}'+
@@ -432,6 +440,41 @@
         if (v&&v.z) Object.keys(v.z).forEach(function(e){ x.pz[e]=(x.pz[e]||0)+v.z[e]; }); }); });
     return P;
   }
+  // ═════════ v1.9.1: produção média diária (dias ativos) ═════════
+  // Dia ativo = dia útil em que a pessoa teve ao menos 1 execução na Produção por Etapa (dados brutos etapa-AAAA-MM, todas as execuções).
+  // Documentos = códigos distintos que a pessoa trabalhou no mês (mesma regra do total do VHL). Segue o filtro Serventia.
+  function etapasBrutas(){
+    if (state.etB) return state.etB;
+    if (!state.etBCarr && window.nuvem && dbPronto){ state.etBCarr=true;
+      window.nuvem.lerColecao('brutos').then(function(rows){ var E=[], info={};
+        rows.forEach(function(x){ if (x.id.indexOf('prazo-')===0) brutoDecod(x.dados).forEach(function(o){ info[String(o['codigo'])]={t:String(o['tipo de documento']||'').trim(), nat:String(o['natureza']||'').trim()}; }); });
+        rows.forEach(function(x){ if (x.id.indexOf('etapa-')!==0) return; brutoDecod(x.dados).forEach(function(o){ var c=String(o['codigo']==null?'':o['codigo']).trim(), d=Motor.paraDia(o['data execucao'],XLSX.SSF), rp=String(o['responsavel']||'').trim(); if (!c||d==null||!rp) return; var i=info[c]||{}; E.push({c:c,d:d,rp:rp,t:i.t||null,nat:i.nat||''}); }); });
+        state.etB=E; state._pd=null; render(); if (state.aba==='rel') renderRel(); })
+      .catch(function(){ state.etBCarr=false; toast('Não consegui ler as execuções para a média diária'); }); }
+    return null;
+  }
+  function execOk(x){ var modo=svModo(); if (modo==='todas') return true; var t=x.t?semAc(x.t):'';
+    if (!t) return modo==='ri' && /^\d+$/.test(x.c); // protocolo ainda não finalizado: código só de números = RI
+    if (modo==='ri') return t==='ri'; if (modo==='cert') return t==='certidao - ri'; return docOk({t:x.t, nat:x.nat}); }
+  function prodDiaria(){
+    var E=etapasBrutas(); if (!E) return null;
+    var chave=[svModo(),svAtual(),subAtual(),E.length,(state.extras||[]).length].join('|'); if (state._pd&&state._pd.k===chave) return state._pd.v;
+    var fer=Motor.feriadoSet(state.extras), P={};
+    E.forEach(function(x){ if (!execOk(x)) return; var m=Motor.isoDeDia(x.d).slice(0,7), k=semAc(x.rp), p=P[k]=P[k]||{nome:x.rp,m:{}}, q=p.m[m]=p.m[m]||{docs:{},dias:{}};
+      q.docs[x.c]=1; var w=((x.d%7)+7+4)%7; if (w!==0&&w!==6&&!fer[x.d]) q.dias[x.d]=1; });
+    Object.keys(P).forEach(function(k){ Object.keys(P[k].m).forEach(function(m){ var q=P[k].m[m]; q.nd=Object.keys(q.docs).length; q.na=Object.keys(q.dias).length; delete q.docs; delete q.dias; }); });
+    state._pd={k:chave,v:P}; return P;
+  }
+  function mesesProd(){ var o={}; [state.docs,state.serv].forEach(function(x){ Object.keys(x||{}).forEach(function(m){ if (state.periodo==='todos'||state.periodo===m) o[m]=1; }); }); return Object.keys(o).sort(); }
+  function mediaDiaria(k, meses){ var P=prodDiaria(); if (!P) return null; var p=P[k], X=0, Y=0, Z=0;
+    (meses||mesesProd()).forEach(function(m){ Z+=duMes(m); var q=p&&p.m[m]; if (q){ X+=q.nd; Y+=q.na; } });
+    return {X:X, Y:Y, Z:Z, W:Y?X/Y:null}; }
+  function fraseDiaria(r, nMeses){ if (!r) return '<span class="mut">calculando a média diária (lendo as execuções do VHL)…</span>';
+    if (!r.X) return '<span class="mut">Sem execuções na Produção por Etapa nesta serventia e período.</span>';
+    return '<b>'+r.X.toLocaleString('pt-BR')+'</b> documentos em <b>'+r.Y+'</b> dias ativos (de '+r.Z+' dias úteis '+(nMeses>1?'no período':'do mês')+') → média de <b>'+numBR(r.W,1)+'</b> documentos por dia ativo'; }
+  // mediana da equipe por dia ativo no mês (pessoas com 5+ dias ativos)
+  function equipeDiaria(m){ var P=prodDiaria(); if (!P) return null; var v=[]; Object.keys(P).forEach(function(k){ var q=P[k].m[m]; if (q&&q.na>=5) v.push(q.nd/q.na); }); return v.length?mediana(v):null; }
+
   function relDados(){
     var P=prodPessoas(), meses=mesesPeriodo(), recs=incRecs().filter(function(r){ return atrAtual()!=='RI'?incOk(r):(state.incSetor==='todos'||r.t==='RI'); });
     if (atrAtual()!=='RI' && svModo()!=='todas'){ P={}; selDocs().forEach(function(d){ var vist={}; d.ets.forEach(function(x){ if (!x.rp) return; var k=semAc(x.rp), q=P[k]=P[k]||{nome:x.rp,docs:0,et:{},pz:{},mes:{}}; if (!vist[k]){ vist[k]=1; q.docs++; q.mes[d.mes]=(q.mes[d.mes]||0)+1; } q.et[x.et]=(q.et[x.et]||0)+1; q.pz[x.et]=(q.pz[x.et]||0)+x.pz; }); }); }
@@ -464,9 +507,10 @@
     var taxa=p.docs>=MIN_PROD?incProd.length/p.docs*100:null, cer=((D.C[k]||{}).recs)||[];
     var cerCalc=cer.filter(function(c){return !c.intim;}), cerOk=cerCalc.filter(function(c){return c.ok;}).length;
     var totEt=Object.keys(p.et).reduce(function(s,e){return s+p.et[e];},0);
-    var h=cabecalhoRel('Relatório de desempenho — qualidade e produção','<b>'+esc(nome)+'</b> · Período: '+nomePeriodo()+(state.incSetor==='ri'?' · inconformidades só RI':''));
-    h+='<h2>Resumo</h2>'+tilesRel([
-      ['Documentos trabalhados',p.docs||'—','no VHL'],['Execuções de etapa',totEt||'—',Object.keys(p.et).length+' tipos de etapa'],
+    var h=cabecalhoRel('Relatório de desempenho — qualidade e produção','<b>'+esc(nome)+'</b> · Período: '+nomePeriodo()+' · Serventia: '+esc(selNome())+(state.incSetor==='ri'?' · inconformidades só RI':''));
+    var msP=mesesProd(), md=mediaDiaria(k,msP);
+    h+='<h2>Resumo</h2><div class="diaria">'+fraseDiaria(md,msP.length)+'</div>'+tilesRel([
+      (md&&md.X?['Documentos trabalhados',md.X.toLocaleString('pt-BR'),'no VHL · '+esc(selNome())]:['Documentos trabalhados',p.docs||'—','no VHL']),['Execuções de etapa',totEt||'—',Object.keys(p.et).length+' tipos de etapa'],
       ['Taxa de inconformidade',taxa==null?'—':pct(taxa),'média da equipe '+pct(D.taxaEq)+(function(){ var lt=taxa!=null?D.LT[k]:null; return lt?' · '+lt.txt+' (esperado ≈ '+Math.round(lt.esp)+', normal até '+lt.hi+')':''; })()],['Inconformidades',inc.length,(inc.length-ext)+' internas · '+ext+' externas']])+
       (cer.length?'<div style="height:8px"></div>'+tilesRel([['Certidões emitidas',cer.length,'Tri7'],['No prazo',cerCalc.length?pct(cerOk/cerCalc.length*100):'—',cerCalc.length?cerOk+' de '+cerCalc.length:'fluxo de intimação'],['Mediana',fmtH(mediana(cer.map(function(c){return c.hu;}))),'horas úteis'],['Fora do prazo',cerCalc.length-cerOk,'']]):'')+
       (function(){ var t=D.T&&D.T[k]; if (!t) return ''; var a=[], ex=est(t.tEx), rv=est(t.tRv);
@@ -477,9 +521,12 @@
         return a.length?'<div style="height:8px"></div>'+tilesRel(a.slice(0,4))+(a.length>4?'<div style="height:8px"></div>'+tilesRel(a.slice(4)):''):''; })()+
       (taxa==null&&inc.length?'<p class="nota">Taxa não calculada: menos de '+MIN_PROD+' documentos da pessoa no VHL no período.</p>':'');
     // mês a mês
-    if (D.meses.length>1){ h+='<h2>Mês a mês</h2><table><thead><tr><th>Mês</th><th class="n">Documentos</th><th class="n">Inconformidades</th><th class="n">Taxa</th>'+(cer.length?'<th class="n">Certidões</th>':'')+'</tr></thead><tbody>'+
-      D.meses.map(function(m){ var d=p.mes[m]||0, n=inc.filter(function(r){return r.d.slice(0,7)===m;}).length, c=cer.filter(function(x){return x.mes===m;}).length;
-        return '<tr><td>'+nomeMes(m)+'</td><td class="n">'+(d||'—')+'</td><td class="n">'+n+'</td><td class="n">'+(d>=10?pct(n/d*100):'—')+'</td>'+(cer.length?'<td class="n">'+c+'</td>':'')+'</tr>'; }).join('')+'</tbody></table>'; }
+    if (msP.length>1 || D.meses.length>1){ var PDk=(prodDiaria()||{})[k];
+      h+='<h2>Mês a mês</h2><table><thead><tr><th>Mês</th><th class="n">Documentos</th><th class="n">Dias ativos</th><th class="n">Dias úteis</th><th class="n">Por dia ativo</th><th class="n">Equipe (mediana)</th><th class="n">Inconformidades</th><th class="n">Taxa</th>'+(cer.length?'<th class="n">Certidões</th>':'')+'</tr></thead><tbody>'+
+      msP.map(function(m){ var q=PDk&&PDk.m[m], d=q?q.nd:(p.mes[m]||0), n=inc.filter(function(r){return r.d.slice(0,7)===m;}).length, c=cer.filter(function(x){return x.mes===m;}).length, eq=equipeDiaria(m);
+        return '<tr><td>'+nomeMes(m)+'</td><td class="n">'+(d||'—')+'</td><td class="n">'+(q?q.na:'—')+'</td><td class="n">'+duMes(m)+'</td><td class="n"><b>'+(q&&q.na?numBR(q.nd/q.na,1):'—')+'</b></td><td class="n">'+(eq==null?'—':numBR(eq,1))+'</td><td class="n">'+n+'</td><td class="n">'+(d>=10?pct(n/d*100):'—')+'</td>'+(cer.length?'<td class="n">'+c+'</td>':'')+'</tr>'; }).join('')+'</tbody></table>'+
+      '<p class="nota">Dia ativo = dia útil em que a pessoa teve ao menos uma execução na Produção por Etapa do VHL. Por dia ativo = documentos ÷ dias ativos (quem tirou férias tem a média só dos dias trabalhados). Equipe = mediana das pessoas com 5+ dias ativos no mês.</p>'; }
+    h+=relGraficos(k, D, p, inc);
     // produção por etapa com tempo
     var ets=Object.keys(p.et).sort(function(a,b){return p.et[b]-p.et[a];});
     h+='<h2>Produção por etapa</h2>'+(ets.length?'<table><thead><tr><th>Etapa</th><th class="n">Execuções</th><th class="n">%</th><th class="n">Dias úteis na etapa (média)</th><th class="n">Média da equipe</th><th class="n">Meta</th></tr></thead><tbody>'+
@@ -498,17 +545,40 @@
       '<div class="ass"><div>Gestor(a) responsável</div><div>'+esc(nome)+' — ciência em ___/___/______</div></div>';
     return h;
   }
+  // gráficos do relatório individual (tela e arquivo impresso)
+  function relGraficos(k, D, p, inc){
+    var msP=mesesProd(), PDk=(prodDiaria()||{})[k], g=[];
+    function card(t,sub,corpo,w){ return '<div class="rg'+(w?' w':'')+'"><b>'+esc(t)+'</b>'+(sub?'<small>'+sub+'</small>':'')+corpo+'</div>'; }
+    var nome=D.pessoas[k];
+    if (msP.length>1){
+      g.push(card('Documentos por mês','documentos trabalhados no VHL',gLinhas(msP,[{nome:nome,cor:'var(--c1)',v:msP.map(function(m){ var q=PDk&&PDk.m[m]; return q?q.nd:(p.mes[m]||null); }),extra:msP.map(function(m){ var q=PDk&&PDk.m[m]; return q?q.na+' dias ativos':''; })}],{titulo:'Documentos por mês',zero:true,area:true,irMes:'rel',W:420,H:200})));
+      if (PDk) g.push(card('Média por dia ativo','dela × mediana da equipe',gLinhas(msP,[{nome:String(nome).split(' ')[0],cor:'var(--c1)',v:msP.map(function(m){ var q=PDk.m[m]; return q&&q.na?q.nd/q.na:null; }),extra:msP.map(function(m){ var q=PDk.m[m]; return q?q.nd+' docs em '+q.na+' dias':''; })},{nome:'Equipe',cor:'var(--c2)',tracejado:true,v:msP.map(equipeDiaria)}],{titulo:'Média por dia ativo',zero:true,irMes:'rel',W:420,H:200})));
+    }
+    var ets=Object.keys(p.et||{}).sort(function(a,b){ return p.et[b]-p.et[a]; }).slice(0,10);
+    if (ets.length) g.push(card('Execuções por etapa','as 10 etapas que mais fez',gBarrasH(ets.map(function(e){ var med=p.pz&&p.pz[e]!=null?p.pz[e]/p.et[e]:null, eq=D.eqE[e]?D.eqZ[e]/D.eqE[e]:null; return {nome:e, v:p.et[e], extra:(med!=null?'média '+numBR(med,1)+' d.u. na etapa':'')+(eq!=null?' · equipe '+numBR(eq,1):'')}; }))));
+    if (svModo()!=='cert'){ var X=desExecs(), ms=mesesPeriodo().concat(Object.keys(state.serv)).filter(function(m,i,a){ return a.indexOf(m)===i&&(state.periodo==='todos'||state.periodo===m); }), cel={};
+      X.forEach(function(x){ if (x.k!==k||x.dv==null||ms.indexOf(x.m)<0) return; (cel[x.et]=cel[x.et]||[]).push(x.dv); });
+      var ek=Object.keys(cel).filter(function(e){ return cel[e].length>=5; }).sort(function(a,b){ return cel[b].length-cel[a].length; }).slice(0,10);
+      if (ek.length) g.push(card('Tempo na etapa × equipe','d.u. a mais (+) ou a menos (−) que a equipe na mesma etapa e natureza · 5+ execuções',gBarrasH(ek.map(function(e){ var d=media(cel[e]); return {nome:e, v:Math.round(d*100)/100, cor:d>DES_MIN_DIF?'var(--c2)':'var(--c1)', extra:cel[e].length+' execuções'}; }).sort(function(a,b){ return b.v-a.v; }))));
+      if (X.length){ var J=desJanelas(X), P=desPessoas(X,J).filter(function(q){ return q.k===k; })[0]; if (P&&P.an.length) g.push(card('Carta de controle · '+nomeMes(J.agora),'desvio por mês × linha normal dela (faixa cinza); ponto vermelho = fora da faixa',desCarta(P,J,'rel'),true)); }
+    }
+    if (inc.length){ var pc={}; inc.forEach(function(r){ var c=catDe(r); (pc[c]=pc[c]||[]).push(r); });
+      g.push(card('Inconformidades por tipo',inc.length+' registros no período',gBarrasH(Object.keys(pc).sort(function(a,b){ return pc[b].length-pc[a].length; }).slice(0,10).map(function(c){ return {nome:c, v:pc[c].length, cor:'var(--c2)', go:goLista(nome+' · '+c,'inc',pc[c])}; })))); }
+    return g.length?'<h2>Gráficos</h2><div class="rgraf">'+g.join('')+'</div>':'';
+  }
   function corpoGeral(D){
     var k1=kpi1Mes(todosAtos(), incTodos()), recs=[]; Object.keys(D.I).forEach(function(k){ recs=recs.concat(D.I[k].recs); });
     var cr=certCalc(certRecs()).filter(function(c){return !c.intim;}), cok=cr.filter(function(c){return c.ok;}).length;
     var linhas=Object.keys(D.pessoas).map(function(k){ var p=D.P[k]||{docs:0,et:{}}, inc=((D.I[k]||{}).recs)||[], ip=inc.filter(function(r){ return !!state.docs[r.d.slice(0,7)]; }).length, ext=inc.filter(function(r){return grupoDe(r)==='E';}).length, c=((D.C[k]||{}).recs)||[];
-      var t=(D.T||{})[k]||{}; return {lt:D.LT[k],nome:D.pessoas[k],docs:p.docs,ex:Object.keys(p.et).reduce(function(s,e){return s+p.et[e];},0),inc:inc.length,ext:ext,taxa:p.docs>=MIN_PROD?ip/p.docs*100:null,cert:c.length,ent:(t.PN||0)+(t.PA||0),rex:t.REx||0,sg:t.SG||0}; })
+      var t=(D.T||{})[k]||{}, md=mediaDiaria(k); return {md:md,lt:D.LT[k],nome:D.pessoas[k],docs:p.docs,ex:Object.keys(p.et).reduce(function(s,e){return s+p.et[e];},0),inc:inc.length,ext:ext,taxa:p.docs>=MIN_PROD?ip/p.docs*100:null,cert:c.length,ent:(t.PN||0)+(t.PA||0),rex:t.REx||0,sg:t.SG||0}; })
       .sort(function(a,b){ return b.docs-a.docs; });
     var h=cabecalhoRel('Relatório geral — qualidade e produção da equipe','Período: '+nomePeriodo()+(state.incSetor==='ri'?' · inconformidades só RI':''));
     h+='<h2>Indicadores</h2>'+tilesRel([['KPI-01',pct(k1.k),k1.c+' de '+k1.n+' atos RI'],['KPI-01 complementar',pct(k1.ke),'erro externo'],['Taxa da equipe',pct(D.taxaEq),'inconformidades ÷ documentos'],['Certidões no prazo',cr.length?pctK(cok/cr.length*100):'—',cr.length?cok+' de '+cr.length:'']]);
-    h+='<h2>Por pessoa</h2><table><thead><tr><th>Pessoa</th><th class="n">Documentos</th><th class="n">Execuções</th><th class="n">Inconf.</th><th class="n">Taxa</th><th>Leitura</th><th class="n">Externas</th><th class="n">Certidões</th><th class="n">Entradas</th><th class="n">Exig. redigidas</th><th class="n">Registros</th></tr></thead><tbody>'+
-      linhas.map(function(x){ var lt=x.taxa!=null?x.lt:null; return '<tr><td>'+esc(x.nome)+'</td><td class="n">'+(x.docs||'—')+'</td><td class="n">'+(x.ex||'—')+'</td><td class="n">'+x.inc+'</td><td class="n">'+(x.taxa==null?'—':pct(x.taxa))+'</td><td class="'+(lt&&lt.sig==='acima'?'acima':lt&&lt.sig==='abaixo'?'bom':'')+'">'+(lt?lt.txt:'—')+'</td><td class="n">'+(x.ext||'')+'</td><td class="n">'+(x.cert||'')+'</td><td class="n">'+(x.ent||'')+'</td><td class="n">'+(x.rex||'')+'</td><td class="n">'+(x.sg||'')+'</td></tr>'; }).join('')+'</tbody></table>'+
-      '<p class="nota">Entradas, exigências redigidas (que viraram nota) e registros (selos gerados) vêm do Tri7. Taxa = inconformidades ÷ documentos trabalhados no VHL, só com '+MIN_PROD+'+ documentos no período. Leitura: "acima" ou "abaixo do esperado" só quando a pessoa foge, com 95% de confiança, da faixa normal para o volume dela (já contando a variação natural entre funções).</p>';
+    h+='<h2>Por pessoa</h2><table><thead><tr><th>Pessoa</th><th class="n">Documentos</th><th class="n">Dias ativos</th><th class="n">Por dia ativo</th><th class="n">Execuções</th><th class="n">Inconf.</th><th class="n">Taxa</th><th>Leitura</th><th class="n">Externas</th><th class="n">Certidões</th><th class="n">Entradas</th><th class="n">Exig. redigidas</th><th class="n">Registros</th></tr></thead><tbody>'+
+      linhas.map(function(x){ var lt=x.taxa!=null?x.lt:null; return '<tr><td>'+esc(x.nome)+'</td><td class="n">'+(x.docs||'—')+'</td><td class="n">'+(x.md&&x.md.Y?x.md.Y+' <span style="color:#8f897f">de '+x.md.Z+'</span>':'—')+'</td><td class="n"><b>'+(x.md&&x.md.W!=null?numBR(x.md.W,1):'—')+'</b></td><td class="n">'+(x.ex||'—')+'</td><td class="n">'+x.inc+'</td><td class="n">'+(x.taxa==null?'—':pct(x.taxa))+'</td><td class="'+(lt&&lt.sig==='acima'?'acima':lt&&lt.sig==='abaixo'?'bom':'')+'">'+(lt?lt.txt:'—')+'</td><td class="n">'+(x.ext||'')+'</td><td class="n">'+(x.cert||'')+'</td><td class="n">'+(x.ent||'')+'</td><td class="n">'+(x.rex||'')+'</td><td class="n">'+(x.sg||'')+'</td></tr>'; }).join('')+'</tbody></table>'+
+      '<p class="nota">'+(prodDiaria()?'Dias ativos = dias úteis com ao menos uma execução no VHL (de quantos dias úteis teve o período); por dia ativo = documentos dessa serventia ÷ dias ativos. ':'Média por dia ativo ainda carregando. ')+'Entradas, exigências redigidas (que viraram nota) e registros (selos gerados) vêm do Tri7. Taxa = inconformidades ÷ documentos trabalhados no VHL, só com '+MIN_PROD+'+ documentos no período. Leitura: "acima" ou "abaixo do esperado" só quando a pessoa foge, com 95% de confiança, da faixa normal para o volume dela (já contando a variação natural entre funções).</p>';
+    var ld=linhas.filter(function(x){ return x.md&&x.md.Y>=5; }).sort(function(a,b){ return b.md.W-a.md.W; });
+    if (ld.length) h+='<h2>Produção média por dia ativo</h2><div class="rg">'+gBarrasH(ld.map(function(x){ return {nome:x.nome, v:Math.round(x.md.W*10)/10, extra:x.md.X+' documentos em '+x.md.Y+' dias ativos (de '+x.md.Z+' dias úteis)', go:goPessoa(x.nome)}; }))+'</div><p class="nota">Só pessoas com 5 ou mais dias ativos no período.</p>';
     h+='<h2>Erros mais frequentes</h2>'+(recs.length?tabErros(recs):'<p class="nota">Nenhuma inconformidade no período.</p>');
     // etapas da equipe
     var ets=Object.keys(D.eqE).sort(function(a,b){return D.eqE[b]-D.eqE[a];}).slice(0,15);
@@ -1338,7 +1408,7 @@
     $('secTendencia').hidden=true;
     $('kpis').innerHTML=D.length?servTiles(D):'<div class="panel empty" style="grid-column:1/-1"><b>Sem documentos de '+esc(selNome())+' no período</b>Escolha outro mês ou importe o Prazo e Tempo Médio em <b>Importar dados</b>.</div>';
     $('graficos').innerHTML=servGraficosHTML();
-    $('tabNat').innerHTML=servNatHTML(D); $('tabEta').innerHTML=servEtapaHTML(D); $('tabFp').innerHTML=servFpHTML(D);
+    $('tabNat').innerHTML=state.pgVis.nat?visNat():servNatHTML(D); $('tabEta').innerHTML=servEtapaHTML(D); $('tabFp').innerHTML=servFpHTML(D);
   }
 
   // ficha de documento das outras atribuições
@@ -1412,7 +1482,7 @@
   }
 
   // ——— versão, dados brutos, recálculo, backup e memória de cálculo (site no GitHub + Supabase)
-  var APP_VERSAO='1.9.0';
+  var APP_VERSAO='1.9.1';
   // Dados brutos: só as colunas que o cálculo usa (sem título, solicitante ou nome de parte)
   function brutosMontar(){
     var S=XLSX.SSF, out={};
@@ -1490,17 +1560,17 @@
     var nF=fl.length+1;
     // KPI-02
     var l2=R.map(function(a,i){ var r=i+2, j=justDe(a);
-      return [a.c, a.nat, xData(a.ing), xData(a.reg), a.bruto, xF('IF(D'+r+'="","",NETWORKDAYS(C'+r+',D'+r+',Feriados!$A$2:$A$'+nF+')-1)'), xF('IF(F'+r+'="","sem Revisão Oficial (Prazo do VHL)",IF(E'+r+'=F'+r+',"OK","DIFERENTE"))'), a.lim, j?(MOT_JUST[j.motivo]||j.motivo):'', xF('IF(OR(E'+r+'<=H'+r+',I'+r+'<>""),1,0)')]; });
+      return [a.c, a.natOrig||a.nat, xData(a.ing), xData(a.reg), a.bruto, xF('IF(D'+r+'="","",NETWORKDAYS(C'+r+',D'+r+',Feriados!$A$2:$A$'+nF+')-1)'), xF('IF(F'+r+'="","sem Revisão Oficial (Prazo do VHL)",IF(E'+r+'=F'+r+',"OK","DIFERENTE"))'), a.lim, j?(MOT_JUST[j.motivo]||j.motivo):'', xF('IF(OR(E'+r+'<=H'+r+',I'+r+'<>""),1,0)')]; });
     XLSX.utils.book_append_sheet(wb, xFolha(['Protocolo','Natureza','Ingresso','Registro (última Revisão Oficial)','Dias úteis (painel)','Dias úteis (Excel)','Confere?','Limite (d.u.)','Justificativa','Dentro do prazo'], l2, [11,40,11,14,10,10,14,8,30,10]), 'KPI-02');
     resumo.push(['KPI-02','Finalizados na vigência da prenotação', xF("SUM('KPI-02'!J2:J"+(nR+1)+')'), xF("COUNTA('KPI-02'!A2:A"+(nR+1)+')'), 'Aba KPI-02: um ato registrado por linha. "Dias úteis (Excel)" refaz a conta com NETWORKDAYS e a aba Feriados.']);
     // KPI-02 complementar
     var SITX={R:'Registrado',N:'Não registrado (cancelado/devolvido)',E:'Abertura + outros (especial)',I:'Sem histórico'};
-    var lc=atos.map(function(a){ return [a.c, a.nat, SITX[a.cat]||a.cat, a.cat==='N'?(MOTIVOS[a.motivo]||''):'', a.cat==='N'?1:0]; });
+    var lc=atos.map(function(a){ return [a.c, a.natOrig||a.nat, SITX[a.cat]||a.cat, a.cat==='N'?(MOTIVOS[a.motivo]||''):'', a.cat==='N'?1:0]; });
     XLSX.utils.book_append_sheet(wb, xFolha(['Protocolo','Natureza','Situação','Motivo','Não registrado'], lc, [11,40,30,40,12]), 'KPI-02 Comp');
     resumo.push(['KPI-02 (Comp.)','Protocolos cancelados', xF("SUM('KPI-02 Comp'!E2:E"+(atos.length+1)+')'), xF("COUNTA('KPI-02 Comp'!A2:A"+(atos.length+1)+')'), 'Aba KPI-02 Comp: todos os protocolos arquivados no mês.']);
     // KPI-01
     var todos=incTodos(), porCod={}; todos.forEach(function(r){ if (r.t==='RI') porCod[r.c]=(porCod[r.c]||0)+1; });
-    var l1=R.map(function(a,i){ return [a.c, a.nat, porCod[a.c]||0, xF('IF(C'+(i+2)+'>0,1,0)')]; });
+    var l1=R.map(function(a,i){ return [a.c, a.natOrig||a.nat, porCod[a.c]||0, xF('IF(C'+(i+2)+'>0,1,0)')]; });
     XLSX.utils.book_append_sheet(wb, xFolha(['Protocolo','Natureza','Inconformidades RI ligadas ao protocolo','Teve inconformidade'], l1, [11,40,18,14]), 'KPI-01');
     var incMes=(state.inconf[m]||[]).filter(function(r){return r.t==='RI';});
     var lf=incMes.map(function(r){ return [xData(r.d), r.c, grupoDe(r)==='E'?'Externo':'Interno', catDe(r), r.o]; });
@@ -1634,6 +1704,7 @@
     if (a.t==='prot'){ $('protIn').value=a.c; return fichaProtocolo(a.c); }
     if (a.t==='mes'){ state.periodo=a.m; state.lancMes=a.m; render(); return irAba(a.aba||state.aba, true); }
     if (a.t==='nat'){
+      if (state.pgVis.nat){ state.nx.sel=natsDe(a.nat); state.nx.modo='juntar'; }
       if (a.key) state.srvNat=a.key; else { state.natSel=a.nat; state.busca=''; state.filtroFora=false; }
       render(); irAba('nat', true);
       setTimeout(function(){ var d=a.key?document.querySelector('#tabNat tr.sel'):$('detalhe'); if (d&&d.scrollIntoView) d.scrollIntoView({behavior:'smooth',block:a.key?'center':'start'}); },60); return; }
@@ -1650,9 +1721,10 @@
     inc:[['Data',function(r){ return fmtData(r.d); }],['Documento',function(r){ return protLink(r.c)+' <span class="mut">'+esc(r.t)+'</span>'; }],['Pessoa',function(r){ return esc(r.r); },'tl'],['Tipo',function(r){ return grupoDe(r)==='E'?'<span class="pill crit">Externo</span>':'Interno'; }],['Erro',function(r){ return esc(catDe(r)); },'tl'],['Observação',function(r){ return esc(r.o); },'tl obs']],
     senhas:[['Dia',function(s){ return fmtData(s.dia); }],['Emissão',function(s){ return hhmm(s.g); }],['Chamada',function(s){ return hhmm(s.c); }],['Fila',function(s){ return esc(s.fila)+(s.pri?' <span class="pill warn">prioritária</span>':''); },'tl'],['Espera',function(s){ return fmtMS(s.e); }],['Atendimento',function(s){ return fmtMS(s.t); }],['Atendente',function(s){ return esc(s.at||'—'); },'tl']],
     cert:[['Pedido',function(c){ return esc(c.p); }],['Origem',function(c){ return esc(c.origem); }],['Tipo',function(c){ return esc(c.tipo); },'tl'],['Entrada',function(c){ return fmtMin(c.i); }],['Conclusão',function(c){ return fmtMin(c.f); }],['Horas úteis',function(c){ return fmtH(c.hu); }],['Prazo',function(c){ return c.intim?'<span class="mut">intimação</span>':fmtLim(c.lim)+' '+(c.ok?'<span class="pill good">ok</span>':'<span class="pill crit">acima</span>'); }],['Gerou o selo',function(c){ return esc(c.u||'—'); },'tl']],
-    cods:[['Pedido',function(x){ return esc(x); }]]
+    cods:[['Pedido',function(x){ return esc(x); }]],
+    prots:[['Protocolo',function(x){ return protLink(x); }]]
   };
-  function goCodigo(tipo,x){ return tipo==='cods'?x:tipo==='cert'?x.p:tipo==='senhas'?null:x.c; }
+  function goCodigo(tipo,x){ return tipo==='cods'||tipo==='prots'?x:tipo==='cert'?x.p:tipo==='senhas'?null:x.c; }
   // ordem da lista: os casos mais demorados primeiro (inconformidades: as mais recentes)
   var LISTA_ORD={atos:function(a){ return a.bruto==null?-1:a.bruto; }, docs:function(d){ return servDu(d); }, senhas:function(x){ return x.e==null?-1:x.e; }, cert:function(c){ return c.hu; }};
   function goListaHTML(a){
@@ -1789,9 +1861,16 @@
       s+='<line x1="'+X(g.wl).toFixed(1)+'" x2="'+X(g.wh).toFixed(1)+'" y1="'+cy+'" y2="'+cy+'" style="stroke:var(--ink-3)" pointer-events="none"/>';
       s+='<rect x="'+X(e.q1).toFixed(1)+'" y="'+(cy-8)+'" width="'+Math.max(2,X(e.q3)-X(e.q1)).toFixed(1)+'" height="16" rx="3" style="fill:'+g.cor+';fill-opacity:.3;stroke:'+g.cor+'" pointer-events="none"/>';
       s+='<line x1="'+X(e.mediana).toFixed(1)+'" x2="'+X(e.mediana).toFixed(1)+'" y1="'+(cy-8)+'" y2="'+(cy+8)+'" style="stroke:'+g.cor+'" stroke-width="3" pointer-events="none"/>';
-      var fora=g.pts.filter(function(p){ return p.v>g.wh||p.v<g.wl; }), cort=fora.filter(function(p){ return p.v>xmax; }), vis=fora.filter(function(p){ return p.v<=xmax; }).sort(function(a,b){ return a.v-b.v; }), occ={};
-      vis.slice(0,400).forEach(function(p){ var px=Math.round(X(p.v)), k=occ[px]=(occ[px]||0)+1, dy=[0,-6,6,-11,11][Math.min(k-1,4)];
-        s+='<circle class="pt" cx="'+X(p.v).toFixed(1)+'" cy="'+(cy+dy)+'" r="3.4" style="fill:var(--ink-3)" stroke="var(--surface)" stroke-width="1" data-tip="'+esc(p.tip||(esc(g.nome)+'<br>'+numBR(p.v,1)+' '+un))+'"'+goAttr(p.go)+'/>'; });
+      var fora=g.pts.filter(function(p){ return p.v>g.wh||p.v<g.wl; }), cort=fora.filter(function(p){ return p.v>xmax; }), vis=fora.filter(function(p){ return p.v<=xmax; }).sort(function(a,b){ return a.v-b.v; }), bal={};
+      // um ponto por valor (casos a menos de 5 px juntam): maior quando junta mais casos; 1 caso abre a ficha, vários abrem a lista
+      var inteiro=g.pts.every(function(p){ return p.v%1===0; }), step=inteiro?1:passo/5, pxS=X(step)-X(0), rMax=Math.max(3.6,Math.min(9,pxS/2-0.5));
+      vis.forEach(function(p){ var kx=Math.round(p.v/step); (bal[kx]=bal[kx]||[]).push(p); });
+      Object.keys(bal).forEach(function(kx){ var L=bal[kx], n=L.length, v0=L[0].v, v1=L[n-1].v, fx=function(v){ return numBR(v,v%1?1:0); }, faixa=v0===v1?fx(v0):fx(v0)+' a '+fx(v1);
+        var r=n===1?Math.min(3.6,rMax):Math.min(rMax,3.6+Math.sqrt(n)*1.2), xm=X(media(L.map(function(p){ return p.v; })));
+        var tipB=n===1?(L[0].tip||(esc(g.nome)+'<br>'+fx(v0)+' '+un)):'<b>'+n+' casos com '+faixa+' '+un+'</b><br>'+esc(g.nome)+'<br>'+L.slice(0,6).map(function(p){ return esc(p.lab||fx(p.v)); }).join('<br>')+(n>6?'<br>… e mais '+(n-6):'');
+        var acB=n===1?L[0].go:(o.tipoLista&&L[0].item?goLista(g.nome+' · '+faixa+' '+un,o.tipoLista,L.map(function(p){ return p.item; })):null);
+        s+='<circle class="pt" cx="'+xm.toFixed(1)+'" cy="'+cy+'" r="'+r.toFixed(1)+'" style="fill:var(--ink-3)" stroke="var(--surface)" stroke-width="1.5" data-tip="'+esc(tipB)+'"'+goAttr(acB)+'/>';
+        if (n>1&&pxS>=15) s+='<text x="'+xm.toFixed(1)+'" y="'+(cy-r-2).toFixed(1)+'" text-anchor="middle" font-size="9" font-weight="700" style="fill:var(--ink-2)" pointer-events="none">'+n+'</text>'; });
       if (cort.length){ var xe=W-pr+8, tipC='<b>'+cort.length+(cort.length===1?' caso':' casos')+' acima de '+numBR(xmax,dec)+' '+un+'</b> (fora do eixo)<br>'+cort.slice().sort(function(a,b){ return b.v-a.v; }).slice(0,10).map(function(p){ return p.lab||numBR(p.v,1)+' '+un; }).join('<br>')+(cort.length>10?'<br>…':'');
         var acC=cort.length===1?cort[0].go:(o.tipoLista&&cort[0].item?goLista(g.nome+' · acima de '+numBR(xmax,dec)+' '+un,o.tipoLista,cort.map(function(p){ return p.item; })):null);
         s+='<path d="M'+xe+','+(cy-5)+' l7,5 l-7,5 z" style="fill:var(--ink-2)" pointer-events="none"/><text x="'+(xe+10)+'" y="'+(cy+3.5)+'" font-size="10" font-weight="700" style="fill:var(--ink-2)" pointer-events="none">'+cort.length+' &gt; '+numBR(xmax,dec)+'</text>';
@@ -1804,7 +1883,7 @@
   function mesDeDia(d){ return new Date(d*864e5).toISOString().slice(0,7); }
   // cada execução de etapa (VHL · Produção por Etapa): pessoa, etapa, natureza, mês da execução e dias úteis que o documento ficou na etapa
   function desExecs(){
-    var modo=svModo(), chave=[modo,svAtual(),subAtual(),state.riOrig||'todas',Object.keys(state.docs).length,Object.keys(state.logs).length,Object.keys(state.serv).length,state.andVer||0].join('|');
+    var modo=svModo(), chave=[modo,svAtual(),subAtual(),state.riOrig||'todas',state.grVer,Object.keys(state.docs).length,Object.keys(state.logs).length,Object.keys(state.serv).length,state.andVer||0].join('|');
     if (state._desX&&state._desX.k===chave) return state._desX.v;
     var X=[];
     // mês = mês de finalização do ato (o mesmo critério do resto do painel): assim um mês não perde os atos que ainda estavam em andamento
@@ -1840,7 +1919,7 @@
     return V;
   }
   function desPessoas(X, J){
-    var P={}, VOL=desVolume(X); X.forEach(function(x){ var p=P[x.k]=P[x.k]||{k:x.k,nome:x.nome,ag:[],an:[],agAll:0,porMes:{},dvMes:{}}; p.porMes[x.m]=(p.porMes[x.m]||0)+1;
+    var P={}, VOL=desVolume(X), PD=prodDiaria(); X.forEach(function(x){ var p=P[x.k]=P[x.k]||{k:x.k,nome:x.nome,ag:[],an:[],agAll:0,porMes:{},dvMes:{}}; p.porMes[x.m]=(p.porMes[x.m]||0)+1;
       if (x.dv!=null) (p.dvMes[x.m]=p.dvMes[x.m]||[]).push(x.dv);
       if (x.m===J.agora){ p.agAll++; if (x.dv!=null) p.ag.push(x.dv); } else if (J.antes.indexOf(x.m)>=0 && x.dv!=null) p.an.push(x.dv); });
     var duAg=duMes(J.agora);
@@ -1848,7 +1927,10 @@
       p.vsEq=zMedia(p.ag); p.lEq=leitura(p.vsEq,p.ag.length,'mais lento que a equipe','mais rápido que a equipe');
       p.ritmo=zWelch(p.ag,p.an); p.lRi=p.an.length<MIN_N?{txt:'sem histórico',cls:'mut'}:leitura(p.ritmo,p.ag.length,'reduziu o ritmo','acelerou');
       var vm=VOL[k]||{}, vAg=vm[J.agora]||0, mesesAntes=J.antes.filter(function(m){ return vm[m]; }), taxa=mesesAntes.length>=2?mesesAntes.reduce(function(s,m){ return s+vm[m]/Math.max(1,duMes(m)); },0)/mesesAntes.length:null;
-      p.vAg=vAg; p.volAg=vAg/Math.max(1,duAg); p.volAn=taxa; var lam=taxa!=null?taxa*duAg:null;
+      p.vAg=vAg; p.volAg=vAg/Math.max(1,duAg); p.volAn=taxa; var lam=taxa!=null?taxa*duAg:null; p.porDiaAtivo=false;
+      // com as execuções do VHL: documentos por DIA ATIVO (férias e afastamento não derrubam a média), comparado com a média dela por dia ativo
+      var PDp=PD&&PD[k]; if (PD){ var q=PDp&&PDp.m[J.agora]; p.dAg=q?q.na:0; p.vAg=q?q.nd:0; p.duAg=duAg; p.porDiaAtivo=true; p.volAg=p.dAg?p.vAg/p.dAg:0;
+        var an=J.antes.filter(function(m){ var x=PDp&&PDp.m[m]; return x&&x.na>=3; }); taxa=an.length>=2?media(an.map(function(m){ return PDp.m[m].nd/PDp.m[m].na; })):null; p.volAn=taxa; lam=taxa!=null?taxa*p.dAg:null; vAg=p.vAg; }
       p.lVol=lam==null||lam<MIN_N?{txt:'—',cls:'mut'}:((vAg-lam)/Math.sqrt(lam)<=-2&&vAg<lam*0.7)?{txt:'abaixo do normal',cls:'acima'}:((vAg-lam)/Math.sqrt(lam)>=2&&vAg>lam*1.3)?{txt:'acima do normal',cls:'bom'}:{txt:'normal',cls:''};
       return p; }).filter(function(p){ return p.agAll>0; }).sort(function(a,b){ return b.agAll-a.agAll; });
   }
@@ -1862,30 +1944,33 @@
     // por pessoa
     var alertas=P.filter(function(p){ return p.lRi.cls==='acima'||p.lVol.cls==='acima'; });
     h+='<div class="sub-h" style="margin-top:18px">Por pessoa · '+esc(nomeMes(J.agora))+'</div>';
-    if (alertas.length) h+='<div class="banner warn" style="margin:0 0 10px">'+alertas.map(function(p){ return '<b>'+esc(p.nome)+'</b>: '+[p.lRi.cls==='acima'?'tempo por execução acima da linha normal dela ('+fDif(p.ritmo&&p.ritmo.dif)+')':'',p.lVol.cls==='acima'?'volume abaixo do normal ('+numBR(p.volAg,1)+' por dia útil, normal '+numBR(p.volAn,1)+')':''].filter(Boolean).join(' e '); }).join(' · ')+'. Antes de concluir, confira férias, afastamento ou mudança de função.</div>';
-    h+='<div class="tbl-wrap"><table class="tleft"><thead><tr><th>Pessoa</th><th class="num">Execuções</th><th class="num" title="'+(svModo()==='ri'?'Documentos trabalhados no VHL':'Execuções')+' por dia útil do mês">Por dia útil</th><th>Volume × normal dela</th><th class="num" title="Média de (tempo dela − tempo da equipe na mesma etapa e natureza)">× equipe</th><th>Leitura</th><th class="num" title="Desvio médio nos meses anteriores">Linha normal</th><th>Ritmo</th></tr></thead><tbody>'+
+    if (alertas.length) h+='<div class="banner warn" style="margin:0 0 10px">'+alertas.map(function(p){ return '<b>'+esc(p.nome)+'</b>: '+[p.lRi.cls==='acima'?'tempo por execução acima da linha normal dela ('+fDif(p.ritmo&&p.ritmo.dif)+')':'',p.lVol.cls==='acima'?'volume abaixo do normal ('+numBR(p.volAg,1)+' por dia '+(p.porDiaAtivo?'ativo':'útil')+', normal '+numBR(p.volAn,1)+')':''].filter(Boolean).join(' e '); }).join(' · ')+'. Antes de concluir, confira férias, afastamento ou mudança de função.</div>';
+    h+='<div class="tbl-wrap"><table class="tleft"><thead><tr><th>Pessoa</th><th class="num">Execuções</th>'+(prodDiaria()?'<th class="num" title="Dias úteis com ao menos 1 execução no VHL, de quantos dias úteis teve o mês">Dias ativos</th><th class="num" title="Documentos trabalhados ÷ dias ativos">Docs por dia ativo</th>':'<th class="num" title="'+(svModo()==='ri'?'Documentos trabalhados no VHL':'Execuções')+' por dia útil do mês">Por dia útil</th>')+'<th>Volume × normal dela</th><th class="num" title="Média de (tempo dela − tempo da equipe na mesma etapa e natureza)">× equipe</th><th>Leitura</th><th class="num" title="Desvio médio nos meses anteriores">Linha normal</th><th>Ritmo</th></tr></thead><tbody>'+
       P.map(function(p){ var nl=p.an.length?media(p.an):null, ag=p.ag.length?media(p.ag):null;
-        return '<tr class="click'+(state.desSel===p.k?' sel':'')+'" data-dessel="'+esc(p.k)+'"><td>'+esc(p.nome)+'</td><td class="num">'+p.agAll+'</td><td class="num">'+numBR(p.volAg,1)+'</td><td class="'+p.lVol.cls+'">'+p.lVol.txt+(p.volAn!=null?' <span class="mut">('+numBR(p.volAn,1)+')</span>':'')+'</td><td class="num">'+fDif(ag)+'</td><td class="'+p.lEq.cls+'">'+p.lEq.txt+'</td><td class="num">'+fDif(nl)+'</td><td class="'+p.lRi.cls+'">'+p.lRi.txt+'</td></tr>'; }).join('')+'</tbody></table></div>'+
-      '<p class="hint">Desvio = dias úteis da pessoa na etapa − média da equipe na mesma etapa e natureza. Negativo é mais rápido. Clique numa pessoa para ver a carta de controle dela.</p>';
+        return '<tr class="click'+(state.desSel===p.k?' sel':'')+'" data-dessel="'+esc(p.k)+'"><td>'+esc(p.nome)+'</td><td class="num">'+p.agAll+'</td>'+(p.porDiaAtivo?'<td class="num">'+p.dAg+' <span class="mut">de '+p.duAg+'</span></td><td class="num" title="'+esc(p.vAg+' documentos em '+p.dAg+' dias ativos')+'"><b>'+numBR(p.volAg,1)+'</b></td>':'<td class="num">'+numBR(p.volAg,1)+'</td>')+'<td class="'+p.lVol.cls+'">'+p.lVol.txt+(p.volAn!=null?' <span class="mut">('+numBR(p.volAn,1)+')</span>':'')+'</td><td class="num">'+fDif(ag)+'</td><td class="'+p.lEq.cls+'">'+p.lEq.txt+'</td><td class="num">'+fDif(nl)+'</td><td class="'+p.lRi.cls+'">'+p.lRi.txt+'</td></tr>'; }).join('')+'</tbody></table></div>'+
+      '<p class="hint">Desvio = dias úteis da pessoa na etapa − média da equipe na mesma etapa e natureza. Negativo é mais rápido. '+(prodDiaria()?'Dia ativo = dia útil com ao menos 1 execução no VHL; "Volume × normal dela" compara os documentos por dia ativo do mês com a média dela por dia ativo nos meses anteriores, então férias não viram queda de volume. ':'(Carregando as execuções para a média por dia ativo…) ')+'Clique numa pessoa para ver a carta de controle dela.</p>';
     var sel=P.filter(function(p){ return p.k===state.desSel; })[0]; if (sel) h+=desPessoaHTML(sel,X,J);
     el.innerHTML=h;
   }
-  function desPessoaHTML(p, X, J){
+  function desCarta(p, J, irMes){
     var ms=J.ms.filter(function(m){ return m<=J.agora; }).slice(-12), base=p.an, eb=zMedia(base), cen=eb?eb.m:null, sd=eb?eb.sd:null;
     var serie=ms.map(function(m){ var v=p.dvMes[m]; return v&&v.length>=3?media(v):null; }), nM=ms.map(function(m){ return (p.dvMes[m]||[]).length; });
-    var larg=function(i){ return Math.max(DES_MIN_DIF,2*sd/Math.sqrt(nM[i])); };
-    var bl=ms.map(function(m,i){ return cen!=null&&nM[i]>=3?cen-larg(i):null; }), bh=ms.map(function(m,i){ return cen!=null&&nM[i]>=3?cen+larg(i):null; });
+    var lb=function(i){ return Math.max(DES_MIN_DIF,2*sd/Math.sqrt(nM[i])); };
+    var bl=ms.map(function(m,i){ return cen!=null&&nM[i]>=3?cen-lb(i):null; }), bh=ms.map(function(m,i){ return cen!=null&&nM[i]>=3?cen+lb(i):null; });
     var alerta=serie.map(function(v,i){ return v!=null&&bh[i]!=null&&(v>bh[i]||v<bl[i]); });
+    return gLinhas(ms,[{nome:p.nome,cor:'var(--c1)',v:serie,alerta:alerta,extra:nM.map(function(n){ return n+' execuções'; })}],{titulo:'Carta de controle',un:'d.u.',irMes:irMes,banda:cen!=null?{lo:bl,hi:bh}:null,ref:[{v:0,nome:'equipe'}].concat(cen!=null?[{v:cen,nome:'linha normal'}]:[])});
+  }
+  function desPessoaHTML(p, X, J){
     var h='<div class="sub-h" style="margin-top:18px">'+esc(p.nome)+' · carta de controle</div><div class="vz-grid">';
-    h+=vzCard('Desvio por mês × linha normal','faixa cinza = variação normal dela; ponto vermelho = fora da faixa',gLinhas(ms,[{nome:p.nome,cor:'var(--c1)',v:serie,alerta:alerta,extra:nM.map(function(n){ return n+' execuções'; })}],{titulo:'Carta de controle',un:'d.u.',irMes:'des',banda:cen!=null?{lo:bl,hi:bh}:null,ref:[{v:0,nome:'equipe'}].concat(cen!=null?[{v:cen,nome:'linha normal'}]:[])}),'vz-wide');
+    h+=vzCard('Desvio por mês × linha normal','faixa cinza = variação normal dela; ponto vermelho = fora da faixa',desCarta(p,J,'des'),'vz-wide');
     // por etapa: dela × equipe (box plot)
     var me=X.filter(function(x){ return x.k===p.k&&(x.m===J.agora||J.antes.indexOf(x.m)>=0); }), cnt={}; me.forEach(function(x){ cnt[x.et]=(cnt[x.et]||0)+1; });
     var top=Object.keys(cnt).sort(function(a,b){ return cnt[b]-cnt[a]; }).slice(0,5), g=[];
     top.forEach(function(et){ var dela=me.filter(function(x){ return x.et===et; }), nats={}; dela.forEach(function(x){ nats[x.nat]=1; });
       var eq=X.filter(function(x){ return x.et===et&&x.k!==p.k&&nats[x.nat]&&(x.m===J.agora||J.antes.indexOf(x.m)>=0); });
-      var ptE=function(x){ return {v:x.pz, lab:x.c+' · '+x.pz+' d.u.', go:x.c?{t:'prot',c:x.c}:null, tip:'<b>Protocolo '+esc(x.c||'—')+'</b><br>'+esc(x.nome)+' · '+esc(et)+'<br>'+esc(x.nat)+'<br>'+x.pz+' d.u. na etapa'+(x.esp!=null?' · equipe '+numBR(x.esp,1):'')}; };
+      var ptE=function(x){ return {v:x.pz, item:x.c, lab:x.c+' · '+x.pz+' d.u.', go:x.c?{t:'prot',c:x.c}:null, tip:'<b>Protocolo '+esc(x.c||'—')+'</b><br>'+esc(x.nome)+' · '+esc(et)+'<br>'+esc(x.nat)+'<br>'+x.pz+' d.u. na etapa'+(x.esp!=null?' · equipe '+numBR(x.esp,1):'')}; };
       var et2=et.length>22?et.slice(0,21)+'…':et; g.push({nome:et2+' · dela',cor:'var(--c1)',pts:dela.map(ptE),sub:dela.length+' execuções'}); g.push({nome:et2+' · equipe',cor:'var(--c2)',pts:eq.map(ptE),sub:eq.length+' execuções (mesmas naturezas)'}); });
-    h+=vzCard('Dias úteis na etapa · dela × equipe','últimos '+(J.antes.length+1)+' meses, mesmas naturezas',gBox(g,{un:'d.u.',pl:230}),'vz-wide');
+    h+=vzCard('Dias úteis na etapa · dela × equipe','últimos '+(J.antes.length+1)+' meses, mesmas naturezas',gBox(g,{un:'d.u.',pl:230,tipoLista:'prots'}),'vz-wide');
     // tabela etapa × natureza
     var cel={}; me.filter(function(x){ return x.dv!=null; }).forEach(function(x){ var k=x.et+'|'+x.nat, c=cel[k]=cel[k]||{et:x.et,nat:x.nat,v:[],e:[]}; c.v.push(x.pz); c.e.push(x.esp); });
     var cl=Object.keys(cel).map(function(k){ return cel[k]; }).sort(function(a,b){ return b.v.length-a.v.length; }).slice(0,15);
@@ -1949,6 +2034,7 @@
       var all=certCalc(certRecs()), hum=all.filter(function(x){ return x.u&&!/^tri7$/i.test(x.u); }), auto=[], temAuto=false;
       Object.keys(state.cert).forEach(function(m){ if (state.periodo==='todos'||state.periodo===m){ var rw=state.cert[m].raw||{}; if (rw.auto){ temAuto=true; auto=auto.concat(rw.auto); } } });
       if (all.length){
+        cards.push(vzCard('Certidões · de onde vêm',per+' · balcão × central',certOrigemRosca(all)));
         if (temAuto) cards.push(vzCard('Certidões · quem fez',per,gRosca([{nome:'Escreventes',v:hum.length,cor:'var(--c1)',go:goLista('Certidões feitas por escreventes','cert',hum)},{nome:'Automáticas (Tri7)',v:auto.length,cor:'var(--c2)',go:goLista('Certidões automáticas (Tri7)','cods',auto)}],{titulo:'Certidões'})));
         var pc={}; hum.forEach(function(x){ pc[x.u]=(pc[x.u]||0)+1; });
         cards.push(vzCard('Certidões por escrevente','quem gerou o selo · clique para o relatório individual',gBarrasH(Object.keys(pc).sort(function(a,b){ return pc[b]-pc[a]; }).slice(0,10).map(function(k){ return {nome:k,v:pc[k],go:goPessoa(k)}; }))));
@@ -2060,9 +2146,12 @@
   function visCer(){
     var all=certCalc(certRecs()), hum=all.filter(function(x){ return x.u&&!/^tri7$/i.test(x.u); }), C=all.filter(function(x){ return !x.intim; }), per=nomePeriodo(), cards=[];
     if (!all.length) return '<div class="empty">Sem certidões no período.</div>';
-    var auto=[], temAuto=false; Object.keys(state.cert).sort().forEach(function(m){ if (state.periodo!=='todos'&&state.periodo!==m) return; var r=state.cert[m].raw||{}; if (r.auto){ temAuto=true; auto=auto.concat(r.auto); } });
+    var AP=certAutoPeriodo(), auto=AP.L, temAuto=AP.tem;
+    cards.push(vzCard('De onde vêm os pedidos',per+' · balcão × central · clique na fatia para listar',certOrigemRosca(all)));
+    var Bt={}; all.filter(function(x){ return x.origem==='Balcão'; }).forEach(function(x){ (Bt[x.tipo]=Bt[x.tipo]||[]).push(x); }); var btk=Object.keys(Bt).sort(function(a,b){ return Bt[b].length-Bt[a].length; });
+    cards.push(vzCard('Balcão · por tipo de certidão',per+' · clique na fatia para listar',gRosca(btk.slice(0,5).map(function(k,i){ return {nome:k,v:Bt[k].length,cor:CAT[i],go:goLista('Balcão · '+k,'cert',Bt[k])}; }).concat(btk.length>5?[{nome:'Outros tipos',v:btk.slice(5).reduce(function(s2,k){ return s2+Bt[k].length; },0),cor:'var(--c6)',go:goLista('Balcão · outros tipos','cert',[].concat.apply([],btk.slice(5).map(function(k){ return Bt[k]; })))}]:[]),{titulo:'Balcão por tipo',sub:'balcão'})));
+    var om=certOrigemMensal(); if (om) cards.push(vzCard('Fluxo por mês · balcão × central','colunas empilhadas · clique no segmento para listar',om,'vz-wide'));
     if (temAuto) cards.push(vzCard('Quem fez as certidões',per,gRosca([{nome:'Escreventes',v:hum.length,cor:'var(--c1)',go:goLista('Certidões feitas por escreventes','cert',hum)},{nome:'Automáticas (Tri7)',v:auto.length,cor:'var(--c2)',go:goLista('Certidões automáticas (Tri7)','cods',auto)}],{titulo:'Quem fez',sub:'certidões'})));
-    else cards.push(vzCard('Quem fez as certidões',per,'<div class="gm-vazio">Reimporte o Relatório de andamentos do Tri7 para contar as automáticas.</div>'));
     var pc={}; hum.forEach(function(x){ (pc[x.u]=pc[x.u]||[]).push(x); });
     cards.push(vzCard('Certidões por escrevente','quem gerou o selo · clique para o relatório individual',gBarrasH(Object.keys(pc).sort(function(a,b){ return pc[b].length-pc[a].length; }).slice(0,12).map(function(k){ var L=pc[k].filter(function(x){ return !x.intim; }), ok=L.filter(function(x){ return x.ok; }).length; return {nome:k, v:pc[k].length, extra:L.length?pct(ok/L.length*100)+' no prazo':'fluxo de intimação', go:goPessoa(k)}; }))));
     cards.push(vzCard('Horas úteis até a certidão','balcão × central · pontos = pedidos fora do padrão (clique no fim da linha para listar os que passam do eixo)',certBox(C),'vz-wide'));
@@ -2090,6 +2179,129 @@
     return visGrade(cards);
   }
 
+  // ═════════ v1.9.1: painel de naturezas — juntar, comparar e grupos salvos (Por natureza → Visual) ═════════
+  // Grupo salvo (config/naturezas): {id, nome, nats:[nomes originais], ativo}. Grupo ativo substitui os nomes originais nas outras páginas;
+  // o nome original fica em a.natOrig (balcão × central, memória de cálculo e registros salvos continuam pelo original). Reversível.
+  state.nx={sel:[], modo:'juntar', busca:''}; state.natGr={grupos:[]}; state._grM={}; state.grVer=0;
+  function grMapa(){ var m={}; (state.natGr.grupos||[]).forEach(function(g){ if (g.ativo) g.nats.forEach(function(n){ m[n]=g.nome; }); }); return m; }
+  function grDefinir(grupos){ state.natGr.grupos=grupos||[]; state._grM=grMapa(); state.grVer++; state._desX=null; }
+  function grAtivoPorNome(nome){ return (state.natGr.grupos||[]).filter(function(g){ return g.ativo&&g.nome===nome; })[0]||null; }
+  function natsDe(nome){ var g=grAtivoPorNome(nome); return g?g.nats.slice():[nome]; }
+  function aplicarGrupos(){ var v=state.grVer, M=state._grM;
+    Object.keys(state.docs).forEach(function(k){ var d=state.docs[k]; if (d._grV===v) return; d.atos.forEach(function(a){ if (a.natOrig===undefined) a.natOrig=a.nat; a.nat=M[a.natOrig]||a.natOrig; }); d._grV=v; });
+    Object.keys(state.serv).forEach(function(k){ var L=state.serv[k]; if (L._grV===v) return; L.forEach(function(d){ if (d.natOrig===undefined) d.natOrig=d.nat; d.nat=M[d.natOrig]||d.natOrig; }); L._grV=v; }); }
+  function grSalvar(msg){ grDefinir(state.natGr.grupos);
+    if (dbPronto&&podeEscrever) db.doc('config/naturezas').set({grupos:state.natGr.grupos, em:new Date().toISOString()}).then(function(){ toast(msg||'Grupos salvos'); }).catch(function(){ toast('Não consegui salvar os grupos'); });
+    else toast((msg||'Grupos alterados')+' (só nesta sessão)'); render(); }
+
+  // estatística das comparações: Mann-Whitney (tempos) e teste z de duas proporções (percentuais) · 95%, mínimo de 10 casos em cada lado
+  function phi(z){ var t=1/(1+0.2316419*Math.abs(z)), d=0.3989423*Math.exp(-z*z/2), p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274)))); return z>0?1-p:p; }
+  function mannWhitney(a,b){ var n1=a.length, n2=b.length; if (n1<MIN_N||n2<MIN_N) return null;
+    var all=a.map(function(v){ return [v,0]; }).concat(b.map(function(v){ return [v,1]; })).sort(function(x,y){ return x[0]-y[0]; }), N=all.length, R1=0, tie=0, i=0;
+    while (i<N){ var j=i; while (j+1<N&&all[j+1][0]===all[i][0]) j++; var rk=(i+j)/2+1, t=j-i+1; tie+=t*t*t-t; for (var q=i;q<=j;q++) if (all[q][1]===0) R1+=rk; i=j+1; }
+    var U=R1-n1*(n1+1)/2, mu=n1*n2/2, sg=Math.sqrt(n1*n2/12*((N+1)-tie/(N*(N-1)))); if (!sg) return {z:0,p:1}; var z=(U-mu)/sg; return {z:z, p:2*(1-phi(Math.abs(z)))}; }
+  function zProp(k1,n1,k2,n2){ if (n1<MIN_N||n2<MIN_N) return null; var p=(k1+k2)/(n1+n2), se=Math.sqrt(p*(1-p)*(1/n1+1/n2)); if (!se) return {z:0,p:1}; var z=(k2/n2-k1/n1)/se; return {z:z, p:2*(1-phi(Math.abs(z)))}; }
+  function leituraTeste(t){ return !t?{txt:'poucos casos',cls:'mut'}:t.p<0.05?{txt:'diferença real',cls:'real'}:{txt:'pode ser acaso',cls:'acaso'}; }
+
+  // itens da serventia do topo: RI = protocolos (todosAtos), demais = documentos finalizados
+  function nxRI(){ return atrAtual()==='RI'; }
+  function nxItens(){ return nxRI()?todosAtos():selDocs().filter(function(d){ return svDe(d.t)!=='Apoio'; }); }
+  function nxNat(x){ return x.natOrig||x.nat; }
+  function nxDias(x){ return nxRI()?(x.cat==='R'?x.bruto:null):servDu(x); }
+  function nxPrazo(x){ return nxRI()?(x.cat==='R'?ok(x):null):servOk(x); }
+  function nxMetricas(L){ var ri=nxRI(), dias=L.map(nxDias).filter(function(v){ return v!=null; }), pz=L.map(nxPrazo).filter(function(v){ return v!=null; });
+    var m={n:L.length, dias:dias, e:est(dias), pz:[pz.filter(Boolean).length,pz.length]};
+    if (ri){ var R=L.filter(function(a){ return a.cat==='R'; }), RN=L.filter(function(a){ return a.cat==='R'||a.cat==='N'; });
+      m.R=R.length; m.exig=[R.filter(function(a){ return a.nex>0; }).length,R.length]; m.canc=[L.filter(function(a){ return a.cat==='N'; }).length,L.length]; m.cen=[RN.filter(function(a){ return origemAto(a)==='central'; }).length,RN.length]; }
+    return m; }
+  function pp(x){ return x[1]?x[0]/x[1]*100:null; }
+
+  function nxOpsHTML(cont){
+    var q=semAc(state.nx.busca), ks=Object.keys(cont).filter(function(n){ return !q||semAc(n).indexOf(q)>=0; }).sort(function(a,b){ return cont[b]-cont[a]; }), mx=q?60:24;
+    return (ks.length?ks.slice(0,mx).map(function(n){ var on=state.nx.sel.indexOf(n)>=0; return '<button type="button" class="chip nx-op'+(on?' ok':'')+'" data-nxnat="'+esc(n)+'" aria-pressed="'+on+'">'+(on?'✓ ':'+ ')+esc(n)+' <span class="mut">'+cont[n]+'</span></button>'; }).join(''):'<span class="hint">Nenhuma natureza com esse nome no período.</span>')+
+      (ks.length>mx?'<span class="hint">+ '+(ks.length-mx)+' naturezas. Refine a busca.</span>':'');
+  }
+  function visNat(){
+    var itens=nxItens(), cont={}; itens.forEach(function(x){ var n=nxNat(x); cont[n]=(cont[n]||0)+1; });
+    var S=state.nx, sel=S.sel, grs=state.natGr.grupos||[];
+    var h='<p class="vis-dica">Escolha uma ou várias naturezas (os nomes originais do '+(nxRI()?'VHL':'VHL nesta serventia')+'). <b>Juntar</b> trata a seleção como um ato só; <b>Comparar</b> mostra cada uma lado a lado e diz se a diferença é real (95% de confiança, 10+ casos de cada lado). Segue a Serventia e o Período do topo.</p>';
+    h+='<div class="nx-box"><div class="search" style="margin:0 0 8px"><input type="search" id="nxBusca" placeholder="Pesquisar natureza (ex.: contrato, escritura, onr)" value="'+esc(S.busca)+'" aria-label="Pesquisar natureza">'+
+      '<div class="seg" role="group" aria-label="Modo"><button type="button" class="segb" data-nxmodo="juntar" aria-pressed="'+(S.modo==='juntar')+'">Juntar</button><button type="button" class="segb" data-nxmodo="comparar" aria-pressed="'+(S.modo==='comparar')+'">Comparar</button></div></div>'+
+      '<div class="chips" id="nxOps" style="margin:0 0 10px">'+nxOpsHTML(cont)+'</div>'+
+      '<div class="sub-h" style="margin:8px 0 4px">Selecionadas ('+sel.length+')</div><div class="chips" style="margin:0">'+(sel.length?sel.map(function(n,i){ return '<span class="chip ok"><i class="dot" style="background:'+(S.modo==='comparar'&&i<6?CAT[i]:'var(--good)')+'"></i>'+esc(n)+' <span class="mut">'+(cont[n]||0)+'</span> <button type="button" class="lnk" data-nxrm="'+esc(n)+'" aria-label="Tirar '+esc(n)+'">✕</button></span>'; }).join('')+'<button type="button" class="btn sm" data-nxlimpar="1">Limpar</button>':'<span class="hint">Nenhuma. Clique nas naturezas acima.</span>')+'</div>';
+    // grupos salvos
+    h+='<div class="sub-h" style="margin:14px 0 4px">Grupos salvos</div>'+(grs.length?'<div class="nx-grs">'+grs.map(function(g){ return '<div class="nx-gr'+(g.ativo?' on':'')+'"><div><b>'+esc(g.nome)+'</b>'+(g.ativo?' <span class="pill good">ativo nas outras páginas</span>':'')+'<div class="mut" style="font-size:.78rem">'+g.nats.map(esc).join(' + ')+'</div></div><div class="ctl"><button type="button" class="btn sm" data-nxabrir="'+esc(g.id)+'">Abrir</button>'+(podeEscrever?'<button type="button" class="btn sm'+(g.ativo?'':' primary')+'" data-nxativar="'+esc(g.id)+'">'+(g.ativo?'Desfazer nas outras páginas':'Usar como uma natureza só')+'</button><button type="button" class="btn sm" data-nxexcluir="'+esc(g.id)+'">Excluir</button>':'')+'</div></div>'; }).join('')+'</div>':'<p class="hint" style="margin:0">Nenhum grupo salvo.</p>')+
+      (podeEscrever&&sel.length>=2?'<div class="ctl" style="margin-top:8px"><input type="text" id="nxNome" class="mini" style="width:280px" placeholder="Nome do grupo (ex.: Contrato (balcão + central))" aria-label="Nome do grupo"><button type="button" class="btn sm primary" data-nxsalvar="1">Salvar a seleção como grupo</button></div>':'')+'</div>';
+    if (!sel.length) return h+'<div class="empty" style="margin-top:14px"><b>Escolha ao menos uma natureza</b>Pesquise pelo nome e clique para incluir.</div>';
+    var por={}; sel.forEach(function(n){ por[n]=[]; }); itens.forEach(function(x){ var n=nxNat(x); if (por[n]) por[n].push(x); });
+    return h+(S.modo==='comparar'?(sel.length<2?'<div class="empty" style="margin-top:14px"><b>Escolha duas ou mais para comparar</b>Ou volte para Juntar.</div>':nxComparar(sel.slice(0,6),por)+(sel.length>6?'<p class="hint">Comparando as 6 primeiras selecionadas.</p>':'')):nxJuntar(sel,[].concat.apply([],sel.map(function(n){ return por[n]; }))));
+  }
+
+  function nxJuntar(sel, L){
+    var ri=nxRI(), m=nxMetricas(L), e=m.e, nome=sel.length>1?sel.length+' naturezas juntas':sel[0], cards=[];
+    var ms=Object.keys(state.docs).concat(Object.keys(state.serv)).filter(function(x,i,a){ return a.indexOf(x)===i; }).sort().slice(-12), porM={}; L.forEach(function(x){ (porM[x.mes]=porM[x.mes]||[]).push(x); });
+    var h='<div class="sub-h" style="margin-top:16px">'+esc(nome)+(sel.length>1?' <span class="mut" style="text-transform:none;letter-spacing:0">('+sel.map(esc).join(' + ')+')</span>':'')+'</div><div class="kpis" style="margin-bottom:12px">'+
+      kpi(ri?'Protocolos':'Documentos',m.n.toLocaleString('pt-BR'),ri?m.R+' registrados':'finalizados no período','hero')+
+      kpi('Mediana',e.n?numBR(e.mediana,1)+' <small style="font-size:.9rem">d.u.</small>':'—',e.n?'média '+numBR(e.media,1)+(e.moda!=null?' · mais comum '+e.moda+' ('+pct(e.modaPct)+')':'')+' · 90% em até '+numBR(e.p90,1)+(e.n<MIN_N?' · poucos casos':''):'')+
+      kpi('No prazo',m.pz[1]?pct(pp(m.pz)):'—',m.pz[1]?m.pz[0]+' de '+m.pz[1]:(ri?'':'defina o prazo em Por natureza'))+
+      (ri?kpi('Com exigência',pct(pp(m.exig)),m.exig[0]+' de '+m.exig[1]+' registrados')+kpi('Cancelados',pct(pp(m.canc)),m.canc[0]+' de '+m.canc[1],m.canc[0]?'canc':'')+kpi('Pela central (ONR)',pct(pp(m.cen)),m.cen[0]+' central · '+(m.cen[1]-m.cen[0])+' balcão'):'')+'</div>';
+    cards.push(vzCard('Volume por mês','clique no mês para ver só ele',gLinhas(ms,[{nome:'Volume',cor:'var(--c1)',v:ms.map(function(x){ return (porM[x]||[]).length||null; })}],{titulo:'Volume',area:true,zero:true,irMes:'nat'}),'vz-wide'));
+    cards.push(vzCard('Mediana de dias úteis por mês','dias úteis do ingresso ao '+(ri?'registro':'fim'),gLinhas(ms,[{nome:'Mediana',cor:'var(--c1)',v:ms.map(function(x){ var v=(porM[x]||[]).map(nxDias).filter(function(y){ return y!=null; }); return v.length?mediana(v):null; })},{nome:'P90',cor:'var(--c2)',tracejado:true,v:ms.map(function(x){ var v=est((porM[x]||[]).map(nxDias).filter(function(y){ return y!=null; })); return v.n?v.p90:null; })}],{titulo:'Mediana por mês',un:'d.u.',zero:true,irMes:'nat',ref:ri?[{v:20,nome:'20 d.u.'}]:[]}),'vz-wide'));
+    var comD=L.filter(function(x){ return nxDias(x)!=null; });
+    cards.push(vzCard('Distribuição dos dias','histograma · clique na coluna para listar',gHisto(comD.map(nxDias),{un:'d.u.',passo:1,max:ri?30:undefined,lim:ri?20:undefined,xl:'dias úteis',itens:comD,tipoLista:ri?'atos':'docs',nomeLista:nome}),'vz-wide'));
+    // tempo por etapa
+    var et={}; if (ri) L.forEach(function(a){ if (a.cat!=='R') return; (a.etapas||[]).forEach(function(p){ var x=et[p[0]]=et[p[0]]||{s:0,n:0}; x.s+=p[1]; x.n++; }); });
+    else L.forEach(function(d){ d.ets.forEach(function(p){ var x=et[p.et]=et[p.et]||{s:0,n:0}; x.s+=p.pz; x.n++; }); });
+    var ek=Object.keys(et).sort(function(a,b){ return et[b].s-et[a].s; }).slice(0,10);
+    if (ek.length) cards.push(vzCard('Onde o tempo vai · por etapa','média de dias úteis na etapa · as 10 que somam mais tempo',gBarrasH(ek.map(function(k){ return {nome:k, v:Math.round(et[k].s/et[k].n*10)/10, extra:et[k].n+' passagens · '+et[k].s+' d.u. no total'}; }),{un:'d.u.'})));
+    if (ri){ var R=L.filter(function(a){ return a.cat==='R'; }), E0=R.filter(function(a){ return !a.nex; }), E1=R.filter(function(a){ return a.nex===1; }), E2=R.filter(function(a){ return a.nex>=2; });
+      cards.push(vzCard('Exigências','registrados · clique na fatia para listar',gRosca([{nome:'Sem exigência',v:E0.length,cor:'var(--c3)',go:goLista(nome+' · sem exigência','atos',E0)},{nome:'1 exigência',v:E1.length,cor:'var(--c4)',go:goLista(nome+' · 1 exigência','atos',E1)},{nome:'2 ou mais',v:E2.length,cor:'var(--c2)',go:goLista(nome+' · 2 ou mais exigências','atos',E2)}],{titulo:'Exigências',centro:pct(R.length?E0.length/R.length*100:null),sub:'1ª qualificação'})));
+      var RN=L.filter(function(a){ return a.cat==='R'||a.cat==='N'; }), Bc=RN.filter(function(a){ return origemAto(a)!=='central'; }), Cc=RN.filter(function(a){ return origemAto(a)==='central'; });
+      cards.push(vzCard('Balcão × central','clique na fatia para listar',gRosca([{nome:'Balcão',v:Bc.length,cor:'var(--c1)',go:goLista(nome+' · balcão','atos',Bc)},{nome:'Central (ONR)',v:Cc.length,cor:'var(--c2)',go:goLista(nome+' · central','atos',Cc)}],{titulo:'Origem'})));
+      var N=L.filter(function(a){ return a.cat==='N'; }), O=L.filter(function(a){ return a.cat==='E'||a.cat==='I'; });
+      cards.push(vzCard('Situação','clique na fatia para listar',gRosca([{nome:'Registrados',v:R.length,cor:'var(--c1)',go:goLista(nome+' · registrados','atos',R)},{nome:'Cancelados',v:N.length,cor:'var(--c2)',go:goLista(nome+' · cancelados','atos',N)},{nome:'Especiais / sem histórico',v:O.length,cor:'var(--c4)',go:goLista(nome+' · especiais','atos',O)}],{titulo:'Situação',centro:pct(L.length?N.length/L.length*100:null),sub:'cancelados'}))); }
+    // quem trabalha nelas
+    var pes={}; L.forEach(function(x){ var ev=ri?nxEventos(x):x.ets.map(function(e){ return {rp:e.rp,pz:e.pz}; }); var vist={}; ev.forEach(function(e){ if (!e.rp) return; var q=pes[e.rp]=pes[e.rp]||{n:0,docs:0,pz:0}; q.n++; q.pz+=e.pz; if (!vist[e.rp]){ vist[e.rp]=1; q.docs++; } }); });
+    var pk=Object.keys(pes).sort(function(a,b){ return pes[b].n-pes[a].n; }).slice(0,12);
+    if (pk.length) cards.push(vzCard('Quem trabalha nelas','execuções de etapa no VHL · clique para o relatório individual',gBarrasH(pk.map(function(k){ return {nome:k, v:pes[k].n, extra:pes[k].docs+' documentos · média '+numBR(pes[k].pz/pes[k].n,1)+' d.u. por etapa', go:goPessoa(k)}; }))));
+    // inconformidades ligadas pelo código
+    var cods={}; L.forEach(function(x){ cods[String(x.c).toUpperCase()]=1; }); var inc=incTodos().filter(function(r){ return cods[String(r.c).toUpperCase()]&&(ri?r.t==='RI':incOk(r)); });
+    if (inc.length){ var pc={}, com={}; inc.forEach(function(r){ var c=catDe(r); (pc[c]=pc[c]||[]).push(r); com[String(r.c).toUpperCase()]=1; });
+      cards.push(vzCard('Inconformidades ligadas',inc.length+' registros · '+pct(Object.keys(com).length/L.length*100)+' dos '+(ri?'protocolos':'documentos')+' tiveram ao menos 1 · clique para listar',gBarrasH(Object.keys(pc).sort(function(a,b){ return pc[b].length-pc[a].length; }).slice(0,10).map(function(c){ return {nome:c, v:pc[c].length, cor:'var(--c2)', go:goLista(nome+' · '+c,'inc',pc[c])}; })))); }
+    return h+'<div class="vz-grid">'+cards.join('')+'</div>';
+  }
+  // execuções de etapa de um protocolo (linha do tempo salva em logs)
+  function nxEventos(a){ var L=logDe(a.c, a.mes); return L?L.ev:[]; }
+
+  function nxComparar(sel, por){
+    var ri=nxRI(), M=sel.map(function(n){ return nxMetricas(por[n]); }), ref=M[0];
+    function difDias(i){ var t=mannWhitney(ref.dias,M[i].dias), d=(M[i].e.n&&ref.e.n)?M[i].e.mediana-ref.e.mediana:null; return {t:t,d:d}; }
+    function cel(v,dif){ return '<td class="num">'+v+(dif?'<div class="nx-dif '+dif.cls+'">'+dif.txt+'</div>':'')+'</td>'; }
+    function difP(i,campo){ var a=ref[campo], b=M[i][campo]; if (!a||!b||!a[1]||!b[1]) return null; var t=zProp(a[0],a[1],b[0],b[1]), d=pp(b)-pp(a), l=leituraTeste(t); return {cls:l.cls, txt:(d>0?'+':'')+numBR(d,1)+' p.p. · '+l.txt}; }
+    var linhas=[
+      ['Volume',function(m){ return m.n.toLocaleString('pt-BR'); },null],
+      ['Média (d.u.)',function(m){ return m.e.n?numBR(m.e.media,1):'—'; },null],
+      ['Mediana (d.u.)',function(m){ return m.e.n?'<b>'+numBR(m.e.mediana,1)+'</b>':'—'; },function(i){ var x=difDias(i); if (x.d==null) return null; var l=leituraTeste(x.t); return {cls:l.cls, txt:(x.d>0?'+':'')+numBR(x.d,1)+' d.u. · '+l.txt}; }],
+      ['Mais comum (moda)',function(m){ return m.e.moda!=null?m.e.moda+' <span class="mut">('+pct(m.e.modaPct)+')</span>':'—'; },null],
+      ['90% em até (P90)',function(m){ return m.e.n?numBR(m.e.p90,1):'—'; },null],
+      ['No prazo',function(m){ return m.pz[1]?pct(pp(m.pz)):'—'; },function(i){ return difP(i,'pz'); }]];
+    if (ri) linhas.push(['Com exigência',function(m){ return pct(pp(m.exig)); },function(i){ return difP(i,'exig'); }],['Cancelados',function(m){ return pct(pp(m.canc)); },function(i){ return difP(i,'canc'); }],['Pela central (ONR)',function(m){ return pct(pp(m.cen)); },function(i){ return difP(i,'cen'); }]);
+    var h='<div class="sub-h" style="margin-top:16px">Comparação · referência: '+esc(sel[0])+'</div><div class="tbl-wrap"><table class="nx-cmp"><thead><tr><th class="tleft">Indicador</th>'+sel.map(function(n,i){ return '<th><i class="dot" style="background:'+CAT[i]+'"></i>'+esc(n)+(i?'':' <span class="mut">(ref.)</span>')+'</th>'; }).join('')+'</tr></thead><tbody>'+
+      linhas.map(function(l){ return '<tr><td class="tleft">'+l[0]+'</td>'+M.map(function(m,i){ return cel(l[1](m), i&&l[2]?l[2](i):null); }).join('')+'</tr>'; }).join('')+'</tbody></table></div>';
+    // frases
+    var fr=sel.slice(1).map(function(n,i){ var x=difDias(i+1); if (x.d==null) return ''; var l=leituraTeste(x.t); return '<li><b>'+esc(n)+'</b>: mediana '+numBR(M[i+1].e.mediana,1)+' d.u. × <b>'+esc(sel[0])+'</b>: '+numBR(ref.e.mediana,1)+' d.u. → '+(x.d>0?'+':'')+numBR(x.d,1)+' d.u. <span class="nx-dif '+l.cls+'">'+l.txt+'</span></li>'; }).filter(Boolean);
+    if (fr.length) h+='<ul class="hint" style="margin:8px 0 0;padding-left:18px">'+fr.join('')+'</ul>';
+    h+='<p class="hint">"Diferença real" = o teste confirma com 95% de confiança (Mann-Whitney para os dias, teste de proporções para os %), com 10 ou mais casos de cada lado. "Pode ser acaso" = a diferença existe nos números, mas cabe na variação normal.</p>';
+    var cards=[], ms=Object.keys(state.docs).concat(Object.keys(state.serv)).filter(function(x,i,a){ return a.indexOf(x)===i; }).sort().slice(-12);
+    cards.push(vzCard('Dias úteis · lado a lado','box plot · cada ponto junta os casos fora do padrão de um valor (clique para listar)',gBox(sel.map(function(n,i){ var L=por[n].filter(function(x){ return nxDias(x)!=null; }); return {nome:n, cor:CAT[i], sub:L.length+(ri?' registrados':' documentos'), pts:L.map(function(x){ return ri?ptAto(x,x.bruto):ptDoc(x,servDu(x)); })}; }),{un:'d.u.',ref:ri?20:null,pl:220,tipoLista:ri?'atos':'docs'}),'vz-wide'));
+    var porM=sel.map(function(n){ var o={}; por[n].forEach(function(x){ (o[x.mes]=o[x.mes]||[]).push(x); }); return o; });
+    cards.push(vzCard('Mediana de dias úteis por mês','linhas sobrepostas · clique no mês para ver só ele',gLinhas(ms,sel.map(function(n,i){ return {nome:n, cor:CAT[i], v:ms.map(function(m){ var v=(porM[i][m]||[]).map(nxDias).filter(function(y){ return y!=null; }); return v.length>=3?mediana(v):null; }), extra:ms.map(function(m){ return (porM[i][m]||[]).length+' no mês'; })}; }),{titulo:'Mediana por mês',un:'d.u.',zero:true,irMes:'nat',ref:ri?[{v:20,nome:'20 d.u.'}]:[]}),'vz-wide'));
+    cards.push(vzCard('Volume por mês','linhas sobrepostas',gLinhas(ms,sel.map(function(n,i){ return {nome:n, cor:CAT[i], v:ms.map(function(m){ return (porM[i][m]||[]).length||null; })}; }),{titulo:'Volume por mês',zero:true,irMes:'nat'}),'vz-wide'));
+    cards.push(vzCard('No prazo','% de cada natureza no período',gBarrasH(sel.map(function(n,i){ return {nome:n, v:M[i].pz[1]?Math.round(pp(M[i].pz)*10)/10:0, cor:CAT[i], extra:M[i].pz[0]+' de '+M[i].pz[1], go:goLista(n+' · fora do prazo',ri?'atos':'docs',por[n].filter(function(x){ return nxPrazo(x)===false; }))}; }),{un:'%'})));
+    if (ri) cards.push(vzCard('Com exigência','% dos registrados',gBarrasH(sel.map(function(n,i){ return {nome:n, v:Math.round((pp(M[i].exig)||0)*10)/10, cor:CAT[i], extra:M[i].exig[0]+' de '+M[i].exig[1], go:goLista(n+' · com exigência','atos',por[n].filter(function(a){ return a.cat==='R'&&a.nex>0; }))}; }),{un:'%'})));
+    return h+'<div class="vz-grid" style="margin-top:12px">'+cards.join('')+'</div>';
+  }
+
   // ——— aba Certidões
   var INTIM_RX=/diligencia|decurso|intimac|edital|publicac|notificac/;
   function certTipoMap(){ var m={}; Object.keys(state.docs).forEach(function(k){ var r=state.docs[k].raw||{}, ct=r.certTipos, cn=r.certNats||[]; if (ct) ct.split(';').forEach(function(x){ if(!x) return; var q=x.split(':'); m[q[0]]=cn[+q[1]]; }); }); return m; }
@@ -2107,6 +2319,21 @@
   function fmtLim(l){ var d=state.cfg.expFim-state.cfg.expIni; if (l===d) return '1 dia útil'; if (l===5*d) return '5 dias úteis'; return fmtH(l)+' úteis'; }
   function fmtH(h){ if (h==null) return '—'; if (h<1) return Math.round(h*60)+' min'; return f1(h)+' h'; }
   // certidões automáticas (selo gerado pelo usuário TRI7) × feitas por escreventes (quem gerou o selo)
+  // de onde vêm os pedidos de certidão: balcão × central (escrevente) × central automática (selo do usuário TRI7)
+  function certAutoPeriodo(){ var auto=[], tem=false; Object.keys(state.cert).sort().forEach(function(m){ if (state.periodo!=='todos'&&state.periodo!==m) return; var r=state.cert[m].raw||{}; if (r.auto){ tem=true; auto=auto.concat(r.auto); } }); return {L:auto, tem:tem}; }
+  function certOrigemRosca(all){
+    var B=all.filter(function(x){ return x.origem==='Balcão'; }), O=all.filter(function(x){ return x.origem!=='Balcão'; }), A=certAutoPeriodo(), tot=B.length+O.length+A.L.length;
+    var partes=[{nome:'Balcão',v:B.length,cor:'var(--c1)',go:goLista('Certidões pedidas no balcão','cert',B)},{nome:'Central · escrevente',v:O.length,cor:'var(--c2)',go:goLista('Certidões da central feitas por escrevente','cert',O)}];
+    if (A.tem) partes.push({nome:'Central · automática',v:A.L.length,cor:'var(--c4)',go:goLista('Certidões da central emitidas automaticamente (Tri7)','cods',A.L)});
+    return gRosca(partes,{titulo:'Origem das certidões',centro:pct(tot?(O.length+A.L.length)/tot*100:null),sub:'pela central'})+(A.tem?'':'<p class="hint" style="margin:6px 0 0">Sem a contagem das automáticas: reimporte o Relatório de andamentos do Tri7. A central aparece só com as feitas por escrevente.</p>');
+  }
+  function certOrigemMensal(){
+    var ms=Object.keys(state.cert).sort().slice(-12); if (ms.length<2) return '';
+    var temA=ms.some(function(m){ return certAutoMes(m)!=null; }), C=ms.map(function(m){ return certCalc(state.cert[m].recs); });
+    var ser=[{nome:'Balcão',cor:'var(--c1)',v:C.map(function(L){ return L.filter(function(x){ return x.origem==='Balcão'; }).length; })},{nome:'Central · escrevente',cor:'var(--c2)',v:C.map(function(L){ return L.filter(function(x){ return x.origem!=='Balcão'; }).length; })}];
+    if (temA) ser.push({nome:'Central · automática',cor:'var(--c4)',v:ms.map(function(m){ return certAutoMes(m)||0; })});
+    return graficoBarras(ms,ser,{titulo:'Certidões por origem e mês',goMes:function(m){ return goMes(m,'cer'); },goSeg:function(m,i,se){ var L=C[i]; return se.nome==='Balcão'?goLista('Balcão · '+nomeMes(m),'cert',L.filter(function(x){ return x.origem==='Balcão'; })):se.nome==='Central · escrevente'?goLista('Central · escrevente · '+nomeMes(m),'cert',L.filter(function(x){ return x.origem!=='Balcão'; })):goLista('Central · automática · '+nomeMes(m),'cods',(state.cert[m].raw||{}).auto||[]); }});
+  }
   function certAutoMes(m){ var r=state.cert[m]&&state.cert[m].raw; return r&&r.auto?r.auto.length:null; }
   function certAutoresHTML(all){
     var ms=Object.keys(state.cert).sort().filter(function(m){ return state.periodo==='todos'||state.periodo===m; });
@@ -2142,6 +2369,7 @@
       kpi('Inteiro teor no balcão',pct(pc(Bit)),'prazo de 4 h úteis · '+Bit.length+' pedidos',pc(Bit)!=null&&pc(Bit)<95?'canc':'')+
       kpi('Fora do cálculo',String(I),'certidões do fluxo de intimação (prazo corre do pagamento)')+
       kpi('Erros de validação',String(erros),'geração automática que falhou')+'</div>';
+    var omT=certOrigemMensal(); h+='<div class="sub-h">De onde vêm os pedidos</div><div class="two" style="margin-bottom:14px"><div>'+certOrigemRosca(all)+'</div><div>'+(omT||'<p class="hint">Importe mais de um mês para ver o fluxo mensal.</p>')+'</div></div>';
     h+=certAutoresHTML(all);
     // por origem e tipo
     var g={}; C.forEach(function(x){ var k=x.origem+'|'+x.tipo; (g[k]=g[k]||[]).push(x); });
@@ -2167,7 +2395,7 @@
   }
   function salvarCfg(){ if (dbPronto&&podeEscrever) db.doc('config/geral').set({feriadosExtras:state.extras, expIni:state.cfg.expIni, expFim:state.cfg.expFim, intim:state.cfg.intim||null, k1met:state.cfg.k1met||'novo'}).catch(function(){ toast('Não consegui salvar a configuração'); }); }
 
-  function avDoc(a,res,ob){ return res?{codigo:a.c,mes:a.mes,natureza:a.nat,exigencias:a.nex,resultado:res,obs:ob,em:new Date().toISOString()}:null; }
+  function avDoc(a,res,ob){ return res?{codigo:a.c,mes:a.mes,natureza:a.natOrig||a.nat,exigencias:a.nex,resultado:res,obs:ob,em:new Date().toISOString()}:null; }
   function gravarLote(itens){ // itens: [{a, dados}] — grava tudo de uma vez e redesenha uma vez só
     var feitos=[];
     itens.forEach(function(it){ var id=idDoc(it.a.c); if (it.dados==null) delete state.aval[id]; else state.aval[id]=it.dados; delete state.avDraft[it.a.c]; feitos.push(it); });
@@ -2204,6 +2432,8 @@
     var meses=Object.keys(state.docs).sort().reverse();
     $('tabMet').innerHTML='<div class="metodo">'+
       '<h3>Gráficos que levam ao dado</h3>Todo gráfico é clicável (cursor de mão e realce ao passar o mouse; no celular, o 1º toque mostra a dica e o 2º abre). Natureza → página Por natureza com ela aberta. Mês → o Período muda para aquele mês. Fatia, coluna ou barra de um grupo → lista dos itens logo abaixo do gráfico, com os mais demorados primeiro e o botão "Voltar ao gráfico". Pessoa → relatório individual. Ponto de um protocolo (casos fora do padrão nos box plots) → ficha do protocolo. Quando o clique leva a outra página, o botão "← Voltar ao gráfico" no rodapé devolve ao lugar de onde você saiu. Nos box plots, o eixo vai até o maior caso; se um caso estiver muito acima dos outros, o eixo é cortado e o fim da linha mostra quantos passam (ex.: "3 &gt; 30"), com a lista ao clicar. Inconformidades, Atendimento, Certidões e Cancelados têm a chave <b>Tabela | Visual</b> no título (o navegador lembra a escolha).'+
+      '<h3>Produção média diária</h3>Como o Oficial avalia: <b>X documentos em Y dias ativos (de Z dias úteis) → W documentos por dia ativo</b>. Dia ativo = dia útil (sem sábado, domingo e feriado) em que a pessoa teve ao menos uma execução na Produção por Etapa do VHL. Documentos = códigos distintos trabalhados no mês. Vem dos dados brutos de todas as execuções (inclusive de protocolos ainda não finalizados), então férias e afastamentos não derrubam a média, mas o relatório mostra quantos dias foram. Segue o filtro Serventia: protocolo ainda sem finalização com código só de números conta como RI. Equipe = mediana das pessoas com 5+ dias ativos no mês. No Desempenho, "Volume × normal dela" compara os documentos por dia ativo do mês com a média dela por dia ativo nos meses anteriores.'+
+      '<h3>Naturezas: juntar e comparar</h3>Em Por natureza → Visual: escolha uma ou várias naturezas pelos nomes originais do VHL. <b>Juntar</b> trata a seleção como um ato só. <b>Comparar</b> mostra cada uma lado a lado contra a primeira escolhida (referência): a diferença só é chamada de "real" quando o teste confirma com 95% de confiança e há 10+ casos de cada lado (Mann-Whitney para os dias, teste de duas proporções para os %). Um grupo salvo pode ser usado como uma natureza só nas outras páginas: o grupo substitui os nomes originais nas tabelas, gráficos e relatórios, mas balcão × central, memória de cálculo, justificativas e avaliações continuam pelo nome original, e os KPIs lançados não mudam. "Desfazer" devolve os nomes originais na hora.'+
       '<h3>Desempenho (ritmo e linha normal)</h3>Cada execução de etapa no VHL (Produção por Etapa) é comparada com a média da equipe <b>na mesma etapa e na mesma natureza</b>, sem contar a própria pessoa. A diferença é o <b>desvio</b> (negativo = mais rápido). A <b>linha normal</b> da pessoa é o desvio médio dela nos até 6 meses anteriores. "Reduziu o ritmo" só aparece quando o mês atual difere da linha normal com 95% de confiança <b>e</b> por pelo menos '+numBR(DES_MIN_DIF,1)+' d.u. por execução. O volume compara documentos trabalhados por dia útil com a média dela nos meses anteriores (alerta abaixo de 70% do normal). O mês de cada execução é o mês de finalização do ato, igual ao resto do painel. Etapas sempre feitas no mesmo dia ficam fora porque não mostram ritmo. Um mês muito menor que os anteriores é tratado como incompleto quando o período é "Todos". Antes de concluir, confira férias, afastamento ou mudança de função.'+
       '<h3>Como lemos os números</h3><b>Média</b> é o número do KPI (é o que a ficha técnica define). <b>Mediana</b> é o caso típico — metade fica abaixo, metade acima — e não é puxada por poucos casos extremos. <b>Moda</b> (“mais comum”) só aparece em contagens inteiras, como dias úteis; em tempo de relógio usamos a <b>faixa mais comum</b>. <b>90% em até</b> (P90) mostra o risco: o que acontece com os piores 10%. <b>Faixa típica</b> é onde está a metade central dos casos — larga quer dizer processo imprevisível. Com menos de '+MIN_N+' casos o painel avisa “poucos” e não tira conclusão.'+
       '<h3>Comparação justa entre pessoas</h3><b>Inconformidades:</b> cada pessoa é comparada com a faixa normal para o volume de documentos dela, já contando que funções diferentes erram em ritmos diferentes (funil com sobredispersão). Só aparece “acima” ou “abaixo do esperado” com 95% de confiança — o resto é variação normal. <b>Atendimento:</b> o tempo é comparado com a mediana da equipe <i>na mesma fila</i>, e só vira ponto de atenção quando a diferença é consistente (teste do sinal, menos de 5% de chance de ser acaso, 10+ atendimentos). “≈” marca diferença que pode ser acaso.'+
@@ -2411,7 +2641,7 @@
       var row=t.closest('tr'), a=atoPorCod(row.dataset.cod); if(!a) return;
       if (t.dataset.justSalvar){ var mot=row.querySelector('select').value, obs=row.querySelector('input').value.trim();
         if (mot==='outro' && !obs){ toast('Descreva o motivo na observação'); row.querySelector('input').focus(); return; }
-        return gravar('justificativas',a,{codigo:a.c,mes:a.mes,natureza:a.nat,motivo:mot,obs:obs,em:new Date().toISOString()}); }
+        return gravar('justificativas',a,{codigo:a.c,mes:a.mes,natureza:a.natOrig||a.nat,motivo:mot,obs:obs,em:new Date().toISOString()}); }
       if (t.dataset.justRm) return gravar('justificativas',a,null);
       var res=row.querySelector('select').value, ob=row.querySelector('input').value.trim();
       return gravarLote([{a:a,dados:avDoc(a,res,ob)}]);
@@ -2453,6 +2683,22 @@
       db.doc('meses/'+m).delete().then(function(){ delete state.docs[m]; render(); toast('Mês excluído'); }).catch(function(){ t.disabled=false; toast('Não consegui excluir'); });
       return;
     }
+    if (t.dataset && t.dataset.nxnat!=null){ var nn=t.dataset.nxnat, ix=state.nx.sel.indexOf(nn); if (ix>=0) state.nx.sel.splice(ix,1); else state.nx.sel.push(nn); return render(); }
+    if (t.dataset && t.dataset.nxrm!=null){ state.nx.sel=state.nx.sel.filter(function(x){ return x!==t.dataset.nxrm; }); return render(); }
+    if (t.dataset && t.dataset.nxlimpar){ state.nx.sel=[]; return render(); }
+    if (t.dataset && t.dataset.nxmodo){ state.nx.modo=t.dataset.nxmodo; return render(); }
+    if (t.dataset && t.dataset.nxabrir){ var ga=(state.natGr.grupos||[]).filter(function(g){ return g.id===t.dataset.nxabrir; })[0]; if (ga){ state.nx.sel=ga.nats.slice(); state.nx.modo='juntar'; render(); } return; }
+    if (t.dataset && t.dataset.nxsalvar){ var nm=($('nxNome').value||'').trim(), G=state.natGr.grupos||[], todosN={};
+      Object.keys(state.docs).forEach(function(m){ state.docs[m].atos.forEach(function(a){ todosN[a.natOrig||a.nat]=1; }); }); Object.keys(state.serv).forEach(function(m){ state.serv[m].forEach(function(d){ todosN[d.natOrig||d.nat]=1; }); });
+      if (!nm){ toast('Dê um nome ao grupo'); $('nxNome').focus(); return; }
+      if (G.some(function(g){ return g.nome===nm; })){ toast('Já existe um grupo com esse nome'); return; }
+      if (todosN[nm] && state.nx.sel.indexOf(nm)<0){ toast('Esse nome já é de uma natureza do VHL: escolha outro'); return; }
+      G.push({id:'g'+Date.now().toString(36), nome:nm, nats:state.nx.sel.slice(), ativo:false, em:new Date().toISOString()}); state.natGr.grupos=G; return grSalvar('Grupo "'+nm+'" salvo'); }
+    if (t.dataset && t.dataset.nxativar){ var gg=(state.natGr.grupos||[]).filter(function(g){ return g.id===t.dataset.nxativar; })[0]; if (!gg) return;
+      if (!gg.ativo){ var conf=(state.natGr.grupos||[]).filter(function(g){ return g.ativo&&g.id!==gg.id&&g.nats.some(function(n){ return gg.nats.indexOf(n)>=0; }); })[0]; if (conf){ toast('Uma das naturezas já está no grupo ativo "'+conf.nome+'"'); return; }
+        if (!confirm('Usar "'+gg.nome+'" como uma natureza só nas outras páginas?\n\n'+gg.nats.join(' + ')+'\n\nOs KPIs lançados não mudam. Dá para desfazer a qualquer momento.')) return; }
+      gg.ativo=!gg.ativo; return grSalvar(gg.ativo?'"'+gg.nome+'" agora vale como uma natureza só':'"'+gg.nome+'" desfeito: os nomes originais voltaram'); }
+    if (t.dataset && t.dataset.nxexcluir){ var ge=(state.natGr.grupos||[]).filter(function(g){ return g.id===t.dataset.nxexcluir; })[0]; if (!ge||!confirm('Excluir o grupo "'+ge.nome+'"? As naturezas originais não mudam.')) return; state.natGr.grupos=state.natGr.grupos.filter(function(g){ return g!==ge; }); return grSalvar('Grupo excluído'); }
     var seg=t.closest&&t.closest('.segb');
     if (seg){ state.natTodas=seg.dataset.todas==='1'; return renderNat(todosAtos()); }
     var th=t.closest&&t.closest('#tabNat th');
@@ -2465,7 +2711,7 @@
     var tab=t.closest&&t.closest('.tab');
     if (tab){ state.voltar=null; $('btnVoltar').hidden=true; return irAba(tab.dataset.tab); }
   });
-  var PG_VIS={k1:1,at:1,cer:1,nao:1};
+  var PG_VIS={k1:1,at:1,cer:1,nao:1,nat:1};
   function pgVisLer(){ try{ return JSON.parse(localStorage.getItem('crco-pgvis')||'{}')||{}; }catch(e){ return {}; } }
   state.pgVis=pgVisLer();
   function pgVisDef(aba,on){ state.pgVis[aba]=on; try{ localStorage.setItem('crco-pgvis',JSON.stringify(state.pgVis)); }catch(e){} pgVisSw(); render(); }
@@ -2515,6 +2761,7 @@
     if (e.target.dataset && e.target.dataset.fb && state.relSel!=='__geral'){ var kf=chaveFeedback(state.relSel), o=state.feedback[kf]=Object.assign({},state.feedback[kf]||{}); o[e.target.dataset.fb]=e.target.value; return; }
     if (e.target.dataset && e.target.dataset.usr!=null){ var lg=e.target.dataset.usr, nv=e.target.value.trim(); clearTimeout(state.usrT); state.usrT=setTimeout(function(){ if (nv) state.usr[lg]=nv; else delete state.usr[lg]; salvarUsr(); },900); return; }
     if (e.target.id==='buscaEx'){ state.buscaEx=e.target.value; var p2=e.target.selectionStart; renderEx(todosAtos()); var bx=$('buscaEx'); bx.focus(); bx.setSelectionRange(p2,p2); return; }
+    if (e.target.id==='nxBusca'){ state.nx.busca=e.target.value; var cn={}; nxItens().forEach(function(x){ var n=nxNat(x); cn[n]=(cn[n]||0)+1; }); var op=$('nxOps'); if (op) op.innerHTML=nxOpsHTML(cn); return; }
     if (e.target.id==='natBusca'){ state.natBusca=e.target.value; renderNatTabela(todosAtos()); return; }
     if (e.target.id==='busca'){ state.busca=e.target.value; var pos=e.target.selectionStart; renderDetalhe(todosAtos().filter(function(a){return a.nat===state.natSel;})); var b=$('busca'); b.focus(); b.setSelectionRange(pos,pos); }
     if (e.target.id==='soFora'){ state.filtroFora=e.target.checked; renderDetalhe(todosAtos().filter(function(a){return a.nat===state.natSel;})); }
@@ -2563,6 +2810,7 @@
     db.collection('feedback').onSnapshot(function(snap){ var m={}; snap.docs.forEach(function(d){ m[d.id]=d.data(); }); Object.assign(state.feedback,m); if (state.aba==='rel' && !document.activeElement.matches('#tabRel textarea')) renderRel(); }, function(){});
     db.doc('config/usuarios').get().then(function(s){ if (s.exists){ var u=s.data(); state.usr=Object.assign({},u.map||{}); if (state.aba==='tri') renderTri(); } }).catch(function(){});
     db.doc('config/prazos').get().then(function(s){ state.prazosServ=Object.assign({},PRAZOS_PADRAO,s.exists?(s.data().map||{}):{}); render(); }).catch(function(){});
+    db.doc('config/naturezas').get().then(function(s){ if (s.exists){ grDefinir(s.data().grupos||[]); render(); } }).catch(function(){});
     db.doc('config/kpis').get().then(function(s){ if (s.exists){ state.kpiCat=s.data(); catAplicar(state.kpiCat); render(); } }).catch(function(){});
     db.collection('serv').onSnapshot(function(snap){ snap.docs.forEach(function(d){ var x=d.data(); if (x&&x.rows) state.serv[x.mes||d.id]=Motor.decodificarServ(x); }); render(); if (state.protSel) fichaProtocolo(state.protSel); }, function(){});
     db.collection('andam').onSnapshot(function(snap){ snap.docs.forEach(function(d){ var x=d.data(); if (x&&x.rows) state.andam[x.mes||d.id]=Motor.decodificarAndam(x); }); state.andIdx=null; atualizarAuto(); if (state.aba==='tri') renderTri(); if (state.protSel) fichaProtocolo(state.protSel); }, function(){});
