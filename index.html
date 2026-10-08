@@ -35,6 +35,25 @@
   --good:#5fc58f; --good-soft:#1b2d23; --warn:#e3b04f; --warn-soft:#30281a; --crit:#ec8a83; --crit-soft:#341f1d;
   --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500; --c5:#d55181; --c6:#008300;
   --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.6); color-scheme:dark; }
+/* v1.9: gráficos que levam ao dado (drill-down) */
+[data-go]{cursor:pointer}
+rect.hit{fill:transparent}
+rect.hit[data-go]:hover{fill:var(--ink);fill-opacity:.07}
+svg .pt[data-go]:hover{stroke:var(--ink);stroke-width:2.5}
+svg .fatia[data-go]:hover,svg .seg-b[data-go]:hover{stroke:var(--ink);stroke-width:1.5;filter:brightness(1.08)}
+.hb-row[data-go]{border-radius:6px;padding:1px 4px;margin:0 -4px}
+.hb-row[data-go]:hover{background:var(--surface-2)}
+.hb-row[data-go]:hover .hb-n,.rosca-leg div[data-go]:hover span,.hm th[data-go]:hover{color:var(--ink);text-decoration:underline}
+.hm td[data-go]:hover{outline:2px solid var(--ink);outline-offset:-2px}
+.hm th.hm-r{text-align:left;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;padding-right:8px}
+#tip .tip-go{margin-top:5px;padding-top:4px;border-top:1px solid rgba(127,127,127,.45);font-weight:600}
+.go-lista{background:var(--surface);border:2px solid var(--brand);border-radius:12px;padding:12px 14px;margin:0 0 14px;min-width:0;box-shadow:var(--shadow)}
+.go-h{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.go-lista td.obs{min-width:260px;white-space:normal}
+.btn-voltar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(64px + env(safe-area-inset-bottom,0px));z-index:35;box-shadow:var(--shadow)}
+.btn-voltar[hidden]{display:none}
+.pg-h{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px}.pg-h .pg-tit{margin:0}
+.vis-dica{font-size:.8rem;color:var(--ink-3);margin:0 0 10px}
 /* v1.8: modo visual, desempenho, rascunhos de avaliação */
 .vz-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:14px;margin:0 0 14px}
 .vz-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0;box-shadow:var(--shadow)}
@@ -389,7 +408,7 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
   </div>
 
   <section class="section panel" id="pgConteudo" hidden>
-    <h2 class="pg-tit" id="pgTitulo"></h2>
+    <div class="pg-h"><h2 class="pg-tit" id="pgTitulo"></h2><div id="pgVisSw"></div></div>
     <div id="tabNat" hidden></div>
     <div id="tabK1" hidden></div>
     <div id="tabCer" hidden></div>
@@ -408,6 +427,7 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
 <p class="rodape">Painel SGQ · CRCO — dados no Supabase com acesso restrito · código em github.com/israelricardomoreira/painel-sgq-crco</p>
 </div>
 </div>
+<button id="btnVoltar" class="btn primary btn-voltar" type="button" hidden>← Voltar ao gráfico</button>
 <div id="tip" hidden></div>
 
 

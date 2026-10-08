@@ -136,7 +136,7 @@
         var v=d[q[0]]; if (v==null) return; var x=cx+(q[2]<0?-bw-1:1), yy=y(v), h=Math.max(1,y(0)-yy);
         s+='<path d="M'+x+','+y(0)+' V'+(yy+3)+' q0,-3 3,-3 h'+(bw-6)+' q3,0 3,3 V'+y(0)+' Z" fill="'+q[1]+'"/>';
       });
-      s+='<rect x="'+(cx-cw/2)+'" y="'+pt+'" width="'+cw+'" height="'+(H-pt-pb)+'" fill="transparent" data-tip="'+esc('<b>'+nomeMes(d.m)+'</b><br>KPI-02: '+pctK(d.k)+' ('+d.n+' registrados)<br>Cancelados: '+pct(d.c)+' ('+d.N+')<br>Mediana bruta: '+f1(d.b)+' d.u.<br>Mediana líquida: '+f1(d.l)+' d.u.')+'"/>';
+      s+=hitRect(cx-cw/2,pt,cw,H-pt-pb,'<b>'+nomeMes(d.m)+'</b><br>KPI-02: '+pctK(d.k)+' ('+d.n+' registrados)<br>Cancelados: '+pct(d.c)+' ('+d.N+')<br>Mediana bruta: '+f1(d.b)+' d.u.<br>Mediana líquida: '+f1(d.l)+' d.u.',goMes(d.m,'nat'));
       s+='<text x="'+cx+'" y="'+(H-10)+'" text-anchor="middle" font-size="12">'+nomeMes(d.m)+'</text>';
       s+='<text x="'+cx+'" y="16" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--ink)">'+pctK(d.k)+'</text><text x="'+cx+'" y="32" text-anchor="middle" font-size="11" style="fill:var(--crit)">canc. '+pct(d.c)+'</text>';
     });
@@ -206,14 +206,15 @@
   function histograma(R){
     var vals=R.map(function(a){return a.bruto;}).filter(function(x){return x!=null;});
     if (!vals.length) return '';
-    var mx=Math.max(26,Math.max.apply(null,vals)), cont=new Array(mx+1).fill(0);
-    vals.forEach(function(v){ cont[v]++; });
+    var mx=Math.max(26,Math.max.apply(null,vals)), cont=new Array(mx+1).fill(0), its=cont.map(function(){ return []; });
+    R.forEach(function(a){ if (a.bruto!=null){ cont[a.bruto]++; its[a.bruto].push(a); } });
     var top=Math.max.apply(null,cont), W=560, H=170, pl=28, pr=8, pt=12, pb=26, bw=(W-pl-pr)/(mx+1);
     var y=function(v){ return pt+(H-pt-pb)*(1-v/top); };
     var s='<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="max-width:'+W+'px" role="img" aria-label="Distribuição de dias úteis brutos">';
     s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+y(0)+'" y2="'+y(0)+'" stroke="var(--line)"/>';
     cont.forEach(function(c,i){ if(!c) return; var x=pl+i*bw+1, yy=y(c);
-      s+='<rect x="'+x+'" y="'+yy+'" width="'+Math.max(1,bw-2)+'" height="'+Math.max(1,y(0)-yy)+'" rx="2" fill="'+(i>25?'var(--crit)':i>20?'var(--warn)':'var(--s-bruto)')+'" data-tip="'+esc(i+' dias úteis: '+c+' ato(s)')+'"/>'; });
+      s+='<rect x="'+x+'" y="'+yy+'" width="'+Math.max(1,bw-2)+'" height="'+Math.max(1,y(0)-yy)+'" rx="2" fill="'+(i>25?'var(--crit)':i>20?'var(--warn)':'var(--s-bruto)')+'" pointer-events="none"/>'+
+        hitRect(x-1,pt,bw,y(0)-pt,i+' dias úteis: '+c+' ato(s)',goLista(i+' dias úteis'+(state.natSel?' · '+state.natSel:''),'atos',its[i])); });
     [20,25].forEach(function(l){ var x=pl+(l+1)*bw; s+='<line x1="'+x+'" x2="'+x+'" y1="'+pt+'" y2="'+y(0)+'" stroke="var(--ink)" stroke-dasharray="3 3"/><text x="'+(x+3)+'" y="'+(pt+10)+'" font-size="10">'+l+' d.u.</text>'; });
     for (var t=0;t<=mx;t+=5){ s+='<text x="'+(pl+t*bw+bw/2)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10">'+t+'</text>'; }
     return s+'</svg>';
@@ -252,6 +253,7 @@
   }
 
   function renderNao(atos){
+    if (state.pgVis.nao){ $('tabNao').innerHTML=visNao(atos); return; }
     var N=atos.filter(function(a){return a.cat==='N';}), E=atos.filter(function(a){return a.cat==='E';}), I=atos.filter(function(a){return a.cat==='I';});
     var porMot={}; N.forEach(function(a){ porMot[a.motivo]=(porMot[a.motivo]||0)+1; });
     var porNat={}, totNat={}; N.forEach(function(a){ porNat[a.nat]=(porNat[a.nat]||0)+1; }); atos.forEach(function(a){ totNat[a.nat]=(totNat[a.nat]||0)+1; });
@@ -345,6 +347,7 @@
   function renderK1(atos){
     var todos=incTodos();
     if (!todos.length){ $('tabK1').innerHTML='<div class="empty"><b>Nenhuma inconformidade importada</b>Solte o PAINEL-04 Consulta de inconformidades do VHL em Importar dados.</div>'; return; }
+    if (state.pgVis.k1){ $('tabK1').innerHTML=visK1(atos); return; }
     var k=kpi1Mes(atos, todos), A=atrAtual();
     var recs=incRecs().filter(function(r){ return A!=='RI'?incOk(r):(state.incSetor==='todos' || r.t==='RI'); });
     var ext=recs.filter(function(r){return grupoDe(r)==='E';}).length;
@@ -855,6 +858,7 @@
     var per=state.periodo||'todos';
     if (per!=='todos' && ms.indexOf(per)<0){ el.innerHTML='<div class="empty"><b>Sem senhas importadas em '+nomeMes(per)+'</b>Escolha outro mês no Período, no topo, ou importe a Consulta de senhas desse mês.</div>'; return; }
     var Ltodas=senhasLista(per), L=Ltodas.filter(senhaOk), R=senhasResumo(L), D=senhasDias(L), nd=D.length;
+    if (state.pgVis.at){ el.innerHTML=visAtend(L); return; }
     var h='<div class="sec-h"><h2>Atendimento · tempo de espera</h2><span class="note">Fonte: VHL · Consulta de senhas. Espera = da emissão da senha à chamada no guichê. KPI-13 = média da espera das senhas chamadas.</span></div>'+
       '<div class="search"><span class="chip ok">'+(per==='todos'?'Todos os meses ('+ms.length+')':compLabel(per))+'</span>'+      '<span class="hint" style="margin:0">'+R.n.toLocaleString('pt-BR')+' senhas · '+nd+' dias com atendimento</span></div>';
     h+='<div class="kpis" style="margin:4px 0 16px">'+
@@ -876,7 +880,7 @@
     // mapa de calor
     var met=state.atMet||'esp', horas=[], cel={}, cntDw={};
     D.forEach(function(x){ cntDw[x.dw]=(cntDw[x.dw]||0)+1; });
-    L.forEach(function(s){ var hr=Math.floor(s.g/3600), k=s.dw+'_'+hr; var c=cel[k]=cel[k]||{n:0,es:[],a10:0}; c.n++; if (s.c!=null&&s.e!=null){ c.es.push(s.e); if (s.e>=600) c.a10++; } if (horas.indexOf(hr)<0) horas.push(hr); });
+    L.forEach(function(s){ var hr=Math.floor(s.g/3600), k=s.dw+'_'+hr; var c=cel[k]=cel[k]||{n:0,es:[],a10:0,L:[]}; c.n++; c.L.push(s); if (s.c!=null&&s.e!=null){ c.es.push(s.e); if (s.e>=600) c.a10++; } if (horas.indexOf(hr)<0) horas.push(hr); });
     horas.sort(function(a,b){return a-b;}); horas=horas.filter(function(hr){ var t=0; [1,2,3,4,5].forEach(function(dw){ t+=(cel[dw+'_'+hr]||{n:0}).n; }); return t>=Math.max(5,nd*0.2); });
     function valor(c,dw){ if (!c||!c.n) return null; if (met==='vol') return c.n/(cntDw[dw]||1); if (met==='a10') return c.es.length?c.a10/c.es.length*100:null; return c.es.length?c.es.reduce(function(a,b){return a+b;},0)/c.es.length/60:null; }
     var vals=[]; [1,2,3,4,5].forEach(function(dw){ horas.forEach(function(hr){ var v=valor(cel[dw+'_'+hr],dw); if (v!=null) vals.push(v); }); });
@@ -888,7 +892,7 @@
       '<div class="tbl-wrap"><table class="hm"><thead><tr><th></th>'+horas.map(function(hr){ return '<th>'+hr+'h</th>'; }).join('')+'</tr></thead><tbody>'+
       [1,2,3,4,5].map(function(dw){ return '<tr><th>'+DSEM[dw]+'</th>'+horas.map(function(hr){ var c=cel[dw+'_'+hr], v=valor(c,dw), b=bin(v);
         var tip='<b>'+DSEM[dw]+' · '+hr+'h–'+(hr+1)+'h</b><br>'+(c?c.n+' senhas no período ('+numBR(c.n/(cntDw[dw]||1),1)+' por dia)<br>Espera média: '+(c.es.length?fmtMS(c.es.reduce(function(a,x){return a+x;},0)/c.es.length):'—')+'<br>≥ 10 min: '+c.a10:'sem senhas');
-        return '<td class="hmc b'+b+'" style="'+(b>=0?'background:color-mix(in srgb, var(--brand) '+MIX[b]+'%, var(--surface))':'')+'" data-tip="'+esc(tip)+'">'+rot(v)+'</td>'; }).join('')+'</tr>'; }).join('')+
+        return '<td class="hmc b'+b+'" style="'+(b>=0?'background:color-mix(in srgb, var(--brand) '+MIX[b]+'%, var(--surface))':'')+'" data-tip="'+esc(tip)+'"'+goAttr(c?goLista(DSEM[dw]+' '+hr+'h · senhas','senhas',c.L):null)+'>'+rot(v)+'</td>'; }).join('')+'</tr>'; }).join('')+
       '</tbody></table></div><p class="hint">Quanto mais escuro, pior. Use para escala de guichê e horário de almoço: as células escuras com muitas senhas por dia são onde um guichê a mais rende mais.</p>';
     // dias com gatilho
     var G=D.filter(function(x){return x.gat;}).sort(function(a,b){ return b.a10-a.a10 || b.pico-a.pico || (b.mx||0)-(a.mx||0); });
@@ -1234,13 +1238,13 @@
       {t:'Finalizados', un:'', v:ms.map(function(m){ return PM[m].length; }), zero:true},
       {t:'Mediana até finalizar', un:'d.u.', v:ms.map(function(m){ var x=est(PM[m].map(servDu)); return x.n?x.mediana:null; }), zero:true, menor:true},
       {t:'90% finalizados em até', un:'d.u.', v:ms.map(function(m){ var x=est(PM[m].map(servDu)); return x.n?x.p90:null; }), zero:true, menor:true},
-      {t:'No prazo', un:'%', v:ms.map(function(m){ var c=PM[m].filter(function(d){ return servPrazo(d)!=null; }); return c.length?c.filter(servOk).length/c.length*100:null; })},
+      {t:'No prazo', un:'%', ir:'fp', v:ms.map(function(m){ var c=PM[m].filter(function(d){ return servPrazo(d)!=null; }); return c.length?c.filter(servOk).length/c.length*100:null; })},
       {t:'Tempo de atuação (mediana)', un:'min', v:ms.map(function(m){ var x=est(PM[m].map(function(d){ return d.tempo; }).filter(function(v){ return v>0; })); return x.n?x.mediana/60:null; }), zero:true},
-      {t:'Inconformidades registradas', un:'', v:ms.map(function(m){ return incM[m]||0; }), zero:true, menor:true}
+      {t:'Inconformidades registradas', un:'', ir:'k1', v:ms.map(function(m){ return incM[m]||0; }), zero:true, menor:true}
     ];
     return cards.filter(function(c){ return c.v.some(function(v){ return v!=null; }); }).map(function(c){
       var idx=-1; c.v.forEach(function(v,i){ if (v!=null) idx=i; });
-      return '<div class="gm-card"><div class="gm-h"><span class="gm-t">'+esc(c.t)+'</span><span class="gm-v">'+fmtG(c.v[idx],c.un)+'</span></div><div class="gm-s">'+compLabel(ms[idx]).slice(4)+'</div>'+graficoLinha(ms,c.v,{titulo:c.t,un:c.un,zero:c.zero,menor:c.menor})+'</div>'; }).join('');
+      return '<div class="gm-card"><div class="gm-h"><span class="gm-t">'+esc(c.t)+'</span><span class="gm-v">'+fmtG(c.v[idx],c.un)+'</span></div><div class="gm-s">'+compLabel(ms[idx]).slice(4)+'</div>'+graficoLinha(ms,c.v,{titulo:c.t,un:c.un,zero:c.zero,menor:c.menor,ir:c.ir||'nat'})+'</div>'; }).join('');
   }
   function servNatHTML(D){
     var N={}; D.forEach(function(d){ var k=d.t+'|'+d.nat, x=N[k]=N[k]||{t:d.t,nat:d.nat,docs:[]}; x.docs.push(d); });
@@ -1287,18 +1291,21 @@
     senhasLista(state.periodo).forEach(function(s){ var sv=FILA_SV[semAc(s.fila)]; if (!sv) return; var x=L(sv); x.senhas++; if (s.c!=null&&s.e!=null) x.esp.push(s.e); });
     return ['RI','RI-bal','RI-cen','RI-intim','RC','RTD/PJ'].filter(function(s){ return linhas[s]; }).map(function(s){ return linhas[s]; });
   }
-  function graficoBarras(ms, series, o){ // barras empilhadas por mês
+  function graficoBarras(ms, series, o){ // barras empilhadas por mês · o.goMes(m,i) clique na coluna · o.goSeg(m,i,serie) clique no segmento
     var W=640, H=220, pl=36, pr=10, pt=20, pb=26, n=ms.length; if (!n) return '';
     var tot=ms.map(function(m,i){ return series.reduce(function(s,x){ return s+(x.v[i]||0); },0); }), mx=Math.max(1,Math.max.apply(null,tot)), bw=(W-pl-pr)/n*0.68;
     var y=function(v){ return pt+(H-pt-pb)*(1-v/mx); }, s='<svg viewBox="0 0 '+W+' '+H+'" class="gm-svg" role="img" aria-label="'+esc(o.titulo)+'">';
     [0,mx/2,mx].forEach(function(t){ s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+y(t)+'" y2="'+y(t)+'" stroke="var(--line)"/><text x="'+(pl-5)+'" y="'+(y(t)+3.5)+'" text-anchor="end" font-size="10" style="fill:var(--ink-3)">'+Math.round(t)+(o.pct?'%':'')+'</text>'; });
-    ms.forEach(function(m,i){ var x=pl+(W-pl-pr)*(i+0.5)/n-bw/2, acc=0, tip='<b>'+compLabel(m)+'</b>';
-      series.forEach(function(se){ var v=se.v[i]||0; if (!v) return; var pc=tot[i]?v/tot[i]*100:0, hgt=y(acc)-y(acc+v); tip+='<br>'+esc(se.nome)+': '+v+' ('+numBR(pc,1)+'%)';
-        s+='<rect x="'+x.toFixed(1)+'" y="'+y(acc+v).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+hgt.toFixed(1)+'" style="fill:'+se.cor+'"/>';
+    ms.forEach(function(m,i){ var x=pl+(W-pl-pr)*(i+0.5)/n-bw/2, acc=0, tip='<b>'+compLabel(m)+'</b>', acM=o.goMes?o.goMes(m,i):null;
+      series.forEach(function(se){ var v=se.v[i]||0; if (v) tip+='<br>'+esc(se.nome)+': '+v+' ('+numBR(tot[i]?v/tot[i]*100:0,1)+'%)'; });
+      tip+='<br>Total: '+tot[i];
+      s+=hitRect(x-bw*0.2,pt,bw*1.4,H-pt-pb,tip,acM); // coluna inteira (atrás dos segmentos)
+      series.forEach(function(se){ var v=se.v[i]||0; if (!v) return; var pc=tot[i]?v/tot[i]*100:0, hgt=y(acc)-y(acc+v);
+        s+='<rect class="seg-b" x="'+x.toFixed(1)+'" y="'+y(acc+v).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+Math.max(0,hgt-1).toFixed(1)+'" style="fill:'+se.cor+'" data-tip="'+esc('<b>'+compLabel(m)+' · '+esc(se.nome)+'</b><br>'+v+' de '+tot[i]+' ('+numBR(pc,1)+'%)')+'"'+goAttr(o.goSeg?o.goSeg(m,i,se):acM)+'/>';
         if (hgt>=13 && bw>=26) s+='<text x="'+(x+bw/2).toFixed(1)+'" y="'+(y(acc+v)+hgt/2+3.5).toFixed(1)+'" text-anchor="middle" font-size="10" font-weight="700" style="fill:#fff" pointer-events="none">'+Math.round(pc)+'%</text>';
         acc+=v; });
-      s+='<text x="'+(x+bw/2).toFixed(1)+'" y="'+(y(tot[i])-4).toFixed(1)+'" text-anchor="middle" font-size="10" font-weight="700" style="fill:var(--ink-2)">'+tot[i]+'</text>';
-      s+='<rect x="'+x.toFixed(1)+'" y="'+pt+'" width="'+bw.toFixed(1)+'" height="'+(H-pt-pb)+'" fill="transparent" data-tip="'+esc(tip+'<br>Total: '+tot[i])+'"/><text x="'+(x+bw/2).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10" style="fill:var(--ink-3)">'+MES_AB[+m.slice(5)-1]+'</text>'; });
+      s+='<text x="'+(x+bw/2).toFixed(1)+'" y="'+(y(tot[i])-4).toFixed(1)+'" text-anchor="middle" font-size="10" font-weight="700" style="fill:var(--ink-2)" pointer-events="none">'+tot[i]+'</text>';
+      s+='<text x="'+(x+bw/2).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10" style="fill:var(--ink-3)" pointer-events="none">'+MES_AB[+m.slice(5)-1]+'</text>'; });
     return s+'</svg><div class="leg">'+series.map(function(se){ return '<span><i style="background:'+se.cor+'"></i>'+esc(se.nome)+'</span>'; }).join('')+'</div>';
   }
   function renderComparativo(){
@@ -1313,8 +1320,8 @@
       return '<div class="tbl-wrap" style="margin-top:8px"><table><thead><tr><th class="tleft">Mês</th>'+series.map(function(x){ return '<th><span class="dot" style="background:'+x.cor+'"></span>'+esc(x.nome)+'</th>'; }).join('')+'<th>Total</th></tr></thead><tbody>'+
         ms.map(function(m,i){ var t=series.reduce(function(a,x){ return a+(x.v[i]||0); },0); return '<tr><td class="tleft">'+nomeMes(m)+'</td>'+series.map(function(x){ var v=x.v[i]||0; return '<td class="num" data-tip="'+esc(x.nome+': '+v+' de '+t)+'">'+(t?pct(v/t*100):'—')+' <span class="mut">'+v+'</span></td>'; }).join('')+'<td class="num"><b>'+t+'</b></td></tr>'; }).join('')+
         '<tr class="tot"><td class="tleft">Período</td>'+T.map(function(v){ return '<td class="num">'+(tt?pct(v/tt*100):'—')+' <span class="mut">'+v+'</span></td>'; }).join('')+'<td class="num">'+tt+'</td></tr></tbody></table></div>'; }
-    h+='<div class="gm-card" style="grid-column:1/-1"><div class="gm-h"><span class="gm-t">Produção por serventia · documentos finalizados por mês (sem certidões) · % = participação no mês</span></div>'+graficoBarras(ms,ser,{titulo:'Produção por serventia'})+tabPct(ser)+'</div>';
-    if (cer.length) h+='<div class="gm-card" style="grid-column:1/-1"><div class="gm-h"><span class="gm-t">Certidões emitidas por mês · % = participação no mês</span></div>'+graficoBarras(ms,cer,{titulo:'Certidões por serventia'})+tabPct(cer)+'</div>';
+    h+='<div class="gm-card" style="grid-column:1/-1"><div class="gm-h"><span class="gm-t">Produção por serventia · documentos finalizados por mês (sem certidões) · % = participação no mês</span></div>'+graficoBarras(ms,ser,{titulo:'Produção por serventia',goMes:function(m){ return goMes(m,'geral'); },goSeg:function(m,i,se){ return {t:'sv',sv:/^RI/.test(se.nome)?'RI':se.nome,sub:se.nome==='RI · Intimações'?'intim':se.nome==='RI · Protocolos'?'reg':undefined,m:m}; }})+tabPct(ser)+'</div>';
+    if (cer.length) h+='<div class="gm-card" style="grid-column:1/-1"><div class="gm-h"><span class="gm-t">Certidões emitidas por mês · % = participação no mês</span></div>'+graficoBarras(ms,cer,{titulo:'Certidões por serventia',goMes:function(m){ return goMes(m,'geral'); },goSeg:function(m,i,se){ return {t:'sv',sv:se.nome,sub:'cert',m:m}; }})+tabPct(cer)+'</div>';
     // Malote: só controle de quantos foram cadastrados no mês (não é produção de serventia)
     var mal={}; Object.keys(state.serv).forEach(function(m){ state.serv[m].forEach(function(d){ if (d.t!=='Malote Digital') return; var mi=Motor.isoDeDia(d.ing).slice(0,7); mal[mi]=(mal[mi]||0)+1; }); });
     var malV=ms.map(function(m){ return mal[m]||0; });
@@ -1405,7 +1412,7 @@
   }
 
   // ——— versão, dados brutos, recálculo, backup e memória de cálculo (site no GitHub + Supabase)
-  var APP_VERSAO='1.8.0';
+  var APP_VERSAO='1.9.0';
   // Dados brutos: só as colunas que o cálculo usa (sem título, solicitante ou nome de parte)
   function brutosMontar(){
     var S=XLSX.SSF, out={};
@@ -1555,7 +1562,7 @@
       s+='<circle cx="'+x(i)+'" cy="'+y(v)+'" r="'+(i===ult?4.5:3.5)+'" fill="'+(fora?'var(--crit)':'var(--brand)')+'" stroke="var(--surface)" stroke-width="2"/>'; });
     var passo=n>8?2:1;
     ms.forEach(function(m,i){ var lbl=MES_AB[+m.slice(5)-1]; if ((n-1-i)%passo===0) s+='<text x="'+x(i)+'" y="'+(H-7)+'" text-anchor="middle" font-size="9" style="fill:var(--ink-3)">'+lbl+'</text>';
-      var v=vals[i], w=n<2?W:(W-pl-pr)/(n-1); s+='<rect x="'+(x(i)-w/2)+'" y="0" width="'+w+'" height="'+H+'" fill="transparent" data-tip="'+esc('<b>'+compLabel(m)+'</b><br>'+o.titulo+': '+fmtG(v,o.un)+(o.extra&&o.extra[i]?'<br>'+o.extra[i]:'')+(o.meta!=null&&v!=null?'<br>'+((o.menor?v<=o.meta:v>=o.meta)?'dentro da meta':'fora da meta'):''))+'"/>'; });
+      var v=vals[i], w=n<2?W:(W-pl-pr)/(n-1); s+=hitRect(x(i)-w/2,0,w,H,'<b>'+compLabel(m)+'</b><br>'+o.titulo+': '+fmtG(v,o.un)+(o.extra&&o.extra[i]?'<br>'+o.extra[i]:'')+(o.meta!=null&&v!=null?'<br>'+((o.menor?v<=o.meta:v>=o.meta)?'dentro da meta':'fora da meta'):''),o.ir&&v!=null?goMes(m,o.ir):null); });
     if (ult>=0) s+='<text x="'+Math.min(x(ult),W-pr)+'" y="'+(y(vals[ult])-9)+'" text-anchor="'+(ult===n-1?'end':'middle')+'" font-size="10" font-weight="700" style="fill:var(--ink)">'+fmtG(vals[ult],o.un)+'</text>';
     return s+'</svg>';
   }
@@ -1584,12 +1591,92 @@
       var fora=c.meta!=null?c.v.filter(function(x){ return x!=null&&(c.menor?x>c.meta:x<c.meta); }).length:0;
       return '<div class="gm-card"><div class="gm-h"><span class="gm-t">'+esc(c.t)+'</span><span class="gm-v">'+fmtG(v,c.un)+'</span></div>'+
         '<div class="gm-s">'+compLabel(ms[idx]).slice(4)+(dl!=null?' · <span class="'+(bom==null?'':bom?'gm-bom':'gm-mau')+'">'+(dl>0?'▲ ':dl<0?'▼ ':'')+fmtG(Math.abs(dl),c.un==='%'?'pp':c.un)+'</span> vs '+MES_AB[+ms[ant].slice(5)-1]:'')+(c.meta!=null?' · '+(fora?fora+' mês(es) fora da meta':'sempre na meta'):'')+'</div>'+
-        graficoLinha(ms,c.v,{titulo:c.t,un:c.un,meta:c.meta,menor:c.menor,zero:c.zero,extra:c.ex})+'<button type="button" class="lnk gm-ir" data-ir="'+c.ir+'">Ver detalhes →</button></div>';
+        graficoLinha(ms,c.v,{titulo:c.t,un:c.un,meta:c.meta,menor:c.menor,zero:c.zero,extra:c.ex,ir:c.ir})+'<button type="button" class="lnk gm-ir" data-ir="'+c.ir+'">Ver detalhes →</button></div>';
     }).join('');
+  }
+
+  // ═════════ drill-down: todo elemento de gráfico leva ao dado de origem (v1.9) ═════════
+  // goAttr(ação) devolve os atributos data-go/data-goh; o clique é tratado em goExec. Ações:
+  //   {t:'nat', nat, key?}  natureza (key = "tipo|natureza" nas outras atribuições) → Por natureza com ela aberta
+  //   {t:'mes', m, aba}     muda o Período para o mês e abre a página
+  //   {t:'lista', titulo, tipo, itens}  lista abaixo do gráfico (tipo: atos, docs, inc, senhas, cert, cods)
+  //   {t:'pessoa', nome}    relatório individual        {t:'prot', c}  ficha do protocolo
+  //   {t:'des', k}          desempenho da pessoa        {t:'sv', sv, m?}  só aquela serventia
+  var GO={}, goN=0;
+  function goAttr(a){ if (!a) return ''; var id=++goN; GO[id]=a;
+    if (goN%5000===0) Object.keys(GO).forEach(function(k){ if (+k<goN-60000) delete GO[k]; });
+    return ' data-go="'+id+'" data-goh="'+esc(goDica(a))+'"'; }
+  function goDica(a){ var n=a.itens?a.itens.length:0;
+    return a.t==='nat'?'abrir a natureza em Por natureza':a.t==='mes'?'ver '+nomeMes(a.m)+(a.aba&&TITULOS[a.aba]?' em '+TITULOS[a.aba]:''):a.t==='lista'?'listar '+(n===1?'o item':'os '+n.toLocaleString('pt-BR')+' itens'):
+      a.t==='pessoa'?'abrir o relatório de '+String(a.nome).split(' ')[0]:a.t==='prot'?'abrir a ficha':a.t==='des'?'ver o desempenho da pessoa':a.t==='sv'?'ver só '+a.sv:'abrir'; }
+  function goMes(m,aba){ return {t:'mes',m:m,aba:aba}; }
+  function goLista(titulo,tipo,itens){ return itens&&itens.length?{t:'lista',titulo:titulo,tipo:tipo,itens:itens}:null; }
+  function goPessoa(nome){ return nome?{t:'pessoa',nome:nome}:null; }
+  // natureza: no RI abre o detalhe; nas outras atribuições abre a linha "tipo|natureza" mais comum
+  function goNatRI(nat){ return {t:'nat',nat:nat}; }
+  function goNatServ(nat, docs){ var c={}; (docs||[]).forEach(function(d){ if (d.nat===nat) c[d.t]=(c[d.t]||0)+1; }); var t=Object.keys(c).sort(function(a,b){ return c[b]-c[a]; })[0]; return t?{t:'nat',nat:nat,key:t+'|'+nat}:null; }
+  // ponto de um protocolo (box plot, lista): dica com código, natureza e dias, clique abre a ficha
+  function ptAto(a, v){ return {v:v, item:a, lab:a.c+' · '+v+' d.u.', go:{t:'prot',c:a.c},
+    tip:'<b>Protocolo '+esc(a.c)+'</b><br>'+esc(a.nat)+'<br>'+v+' dias úteis'+(a.cat==='R'?' · limite '+a.lim+(a.reing?' (reingresso)':''):'')}; }
+  function ptDoc(d, v){ return {v:v, item:d, lab:d.c+' · '+v+' d.u.', go:{t:'prot',c:d.c}, tip:'<b>'+esc(d.t)+' '+esc(d.c)+'</b><br>'+esc(d.nat)+'<br>'+v+' dias úteis'}; }
+  function hitRect(x,y,w,h,tip,acao){ return '<rect class="hit" x="'+(+x).toFixed(1)+'" y="'+(+y).toFixed(1)+'" width="'+Math.max(0,+w).toFixed(1)+'" height="'+Math.max(0,+h).toFixed(1)+'" fill="transparent"'+(tip?' data-tip="'+esc(tip)+'"':'')+goAttr(acao)+'/>'; }
+
+  // "voltar ao gráfico": guarda onde a pessoa estava antes de o clique levar para outra página
+  function goGuardar(){ state.voltar={aba:state.aba, periodo:state.periodo, sv:state.sv, svSub:Object.assign({},state.svSub||{}), riOrig:state.riOrig, natSel:state.natSel, srvNat:state.srvNat, relSel:state.relSel, desSel:state.desSel, y:window.scrollY}; var b=$('btnVoltar'); if (b) b.hidden=false; }
+  function goVoltar(){ var v=state.voltar; if (!v) return; state.voltar=null; var b=$('btnVoltar'); if (b) b.hidden=true;
+    ['periodo','sv','svSub','riOrig','natSel','srvNat','relSel','desSel'].forEach(function(k){ state[k]=v[k]; });
+    state.protSel=null; $('protBox').hidden=true; render(); irAba(v.aba, true); setTimeout(function(){ window.scrollTo(0,v.y); },40); }
+  function goExec(el){
+    var a=GO[el.dataset.go]; if (!a){ toast('Gráfico desatualizado: toque de novo'); return; }
+    $('tip').hidden=true;
+    if (a.t==='lista') return goListaAbrir(a, el);
+    goGuardar();
+    if (a.t==='prot'){ $('protIn').value=a.c; return fichaProtocolo(a.c); }
+    if (a.t==='mes'){ state.periodo=a.m; state.lancMes=a.m; render(); return irAba(a.aba||state.aba, true); }
+    if (a.t==='nat'){
+      if (a.key) state.srvNat=a.key; else { state.natSel=a.nat; state.busca=''; state.filtroFora=false; }
+      render(); irAba('nat', true);
+      setTimeout(function(){ var d=a.key?document.querySelector('#tabNat tr.sel'):$('detalhe'); if (d&&d.scrollIntoView) d.scrollIntoView({behavior:'smooth',block:a.key?'center':'start'}); },60); return; }
+    if (a.t==='pessoa'){ var k=semAc(a.nome); state.relSel=k; irAba('rel', true); if (state.relSel!==k) toast(a.nome+' não aparece nos relatórios deste período e serventia'); return; }
+    if (a.t==='des'){ state.desSel=a.k; return irAba('des', true); }
+    if (a.t==='sv'){ state.sv=a.sv; if (a.sub){ state.svSub=state.svSub||{}; state.svSub[a.sv]=a.sub; } if (a.m) state.periodo=a.m; state.srvNat=null; render(); return irAba('geral', true); }
+  }
+  // lista de itens abaixo do gráfico clicado
+  function sitAto(a){ if (a.cat==='R') return a.dentro?'<span class="pill good">no prazo</span>':justDe(a)?'<span class="pill good">justificado</span>':'<span class="pill crit">acima do prazo</span>';
+    if (a.cat==='N') return '<span class="pill mute">'+esc(MOTIVOS[a.motivo]||'cancelado')+'</span>'; return '<span class="pill mute">'+esc(SIT[a.cat]||a.cat)+'</span>'; }
+  var LISTA_COLS={
+    atos:[['Código',function(a){ return protLink(a.c); }],['Natureza',function(a){ return esc(a.nat); },'tl'],['Ingresso',function(a){ return fmtData(a.ing); }],['Registro / saída',function(a){ return fmtData(a.reg||a.fin); }],['Dias úteis',function(a){ return a.bruto==null?'—':a.bruto; }],['Limite',function(a){ return a.cat==='R'?a.lim:'—'; }],['Exigências',function(a){ return a.nex||''; }],['Situação',sitAto]],
+    docs:[['Código',function(d){ return protLink(d.c); }],['Tipo',function(d){ return esc(d.t); }],['Natureza',function(d){ return esc(d.nat); },'tl'],['Ingresso',function(d){ return fmtData(Motor.isoDeDia(d.ing)); }],['Finalização',function(d){ return fmtData(Motor.isoDeDia(d.fin)); }],['Dias úteis',function(d){ return servDu(d); }],['Prazo',function(d){ var p=servPrazo(d); return p==null?'—':p; }],['Situação',function(d){ var ok=servOk(d); return ok==null?'':ok?'<span class="pill good">no prazo</span>':'<span class="pill crit">acima</span>'; }]],
+    inc:[['Data',function(r){ return fmtData(r.d); }],['Documento',function(r){ return protLink(r.c)+' <span class="mut">'+esc(r.t)+'</span>'; }],['Pessoa',function(r){ return esc(r.r); },'tl'],['Tipo',function(r){ return grupoDe(r)==='E'?'<span class="pill crit">Externo</span>':'Interno'; }],['Erro',function(r){ return esc(catDe(r)); },'tl'],['Observação',function(r){ return esc(r.o); },'tl obs']],
+    senhas:[['Dia',function(s){ return fmtData(s.dia); }],['Emissão',function(s){ return hhmm(s.g); }],['Chamada',function(s){ return hhmm(s.c); }],['Fila',function(s){ return esc(s.fila)+(s.pri?' <span class="pill warn">prioritária</span>':''); },'tl'],['Espera',function(s){ return fmtMS(s.e); }],['Atendimento',function(s){ return fmtMS(s.t); }],['Atendente',function(s){ return esc(s.at||'—'); },'tl']],
+    cert:[['Pedido',function(c){ return esc(c.p); }],['Origem',function(c){ return esc(c.origem); }],['Tipo',function(c){ return esc(c.tipo); },'tl'],['Entrada',function(c){ return fmtMin(c.i); }],['Conclusão',function(c){ return fmtMin(c.f); }],['Horas úteis',function(c){ return fmtH(c.hu); }],['Prazo',function(c){ return c.intim?'<span class="mut">intimação</span>':fmtLim(c.lim)+' '+(c.ok?'<span class="pill good">ok</span>':'<span class="pill crit">acima</span>'); }],['Gerou o selo',function(c){ return esc(c.u||'—'); },'tl']],
+    cods:[['Pedido',function(x){ return esc(x); }]]
+  };
+  function goCodigo(tipo,x){ return tipo==='cods'?x:tipo==='cert'?x.p:tipo==='senhas'?null:x.c; }
+  // ordem da lista: os casos mais demorados primeiro (inconformidades: as mais recentes)
+  var LISTA_ORD={atos:function(a){ return a.bruto==null?-1:a.bruto; }, docs:function(d){ return servDu(d); }, senhas:function(x){ return x.e==null?-1:x.e; }, cert:function(c){ return c.hu; }};
+  function goListaHTML(a){
+    var C=LISTA_COLS[a.tipo]||LISTA_COLS.atos, n=a.itens.length, cod=goCodigo(a.tipo,a.itens[0])!=null, f=LISTA_ORD[a.tipo];
+    var L=a.itens.slice(); if (f) L.sort(function(x,y){ return f(y)-f(x); }); else if (a.tipo==='inc') L.sort(function(x,y){ return x.d<y.d?1:x.d>y.d?-1:0; });
+    return '<div class="go-h"><div><div class="sub-h" style="margin:0">Lista do gráfico</div><b>'+esc(a.titulo)+'</b> <span class="mut">· '+n.toLocaleString('pt-BR')+(n===1?' item':' itens')+'</span></div>'+
+      '<div class="ctl"><button class="btn sm primary" type="button" data-golvoltar="1">← Voltar ao gráfico</button>'+(cod?'<button class="btn sm" type="button" data-golcopiar="1">Copiar códigos</button>':'')+'<button class="btn sm" type="button" data-golfechar="1" aria-label="Fechar a lista">✕</button></div></div>'+
+      '<div class="tbl-wrap" style="max-height:460px;overflow:auto"><table class="tleft"><thead><tr>'+C.map(function(c){ return '<th>'+c[0]+'</th>'; }).join('')+'</tr></thead><tbody>'+
+      L.slice(0,500).map(function(x){ return '<tr>'+C.map(function(c){ return '<td'+(c[2]?' class="'+c[2]+'"':'')+'>'+c[1](x)+'</td>'; }).join('')+'</tr>'; }).join('')+'</tbody></table></div>'+
+      (n>500?'<p class="hint">Mostrando 500 de '+n.toLocaleString('pt-BR')+'. "Copiar códigos" copia todos.</p>':'');
+  }
+  function goListaAbrir(a, el){
+    var velho=$('goLista'); if (velho) velho.remove();
+    var anc=el.closest('.vz-card,.gm-card,.two,.tbl-wrap,.chart,.lc-card');
+    var box=document.createElement('div'); box.id='goLista'; box.className='go-lista'; box.innerHTML=goListaHTML(a);
+    if (anc){ var p=anc.parentNode; if (p&&p.classList&&(p.classList.contains('vz-grid')||p.classList.contains('gm')||p.classList.contains('grid2'))) box.style.gridColumn='1/-1'; anc.insertAdjacentElement('afterend',box); }
+    else { var sec=el.closest('section,.panel')||$('pgConteudo'); sec.appendChild(box); }
+    state.goAnc=anc||el; state.goListaAtual=a;
+    box.scrollIntoView({behavior:'smooth',block:'nearest'});
   }
 
   // ═════════ gráficos reutilizáveis (SVG puro; dica ao passar o mouse/tocar via data-tip) ═════════
   var CAT=['var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)','var(--c6)']; // ordem fixa, nunca cíclica
+  function larg(W){ var w=typeof window!=='undefined'?window.innerWidth:1200; return w<700?Math.max(300,Math.min(W||640,w-44)):(W||640); }
   function dSvg(W,H,tit){ return '<svg viewBox="0 0 '+W+' '+H+'" class="gm-svg vz-svg" role="img" aria-label="'+esc(tit||'gráfico')+'">'; }
   function eixoY(lo,hi,y,pl,W,pr,fmt){ var s=''; [lo,(lo+hi)/2,hi].forEach(function(t){ s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+y(t).toFixed(1)+'" y2="'+y(t).toFixed(1)+'" stroke="var(--line)"/><text x="'+(pl-5)+'" y="'+(y(t)+3.5).toFixed(1)+'" text-anchor="end" font-size="10" style="fill:var(--ink-3)">'+fmt(t)+'</text>'; }); return s; }
   function legenda(series){ if (series.length<2) return ''; return '<div class="leg">'+series.map(function(x){ return '<span><i class="dot" style="background:'+x.cor+(x.tracejado?';opacity:.6':'')+'"></i>'+esc(x.nome)+'</span>'; }).join('')+'</div>'; }
@@ -1597,7 +1684,7 @@
 
   // linhas (várias séries no mesmo eixo) · o.area preenche a 1ª série · o.banda {lo:[],hi:[]} faixa de controle · o.ref [{v,nome}] linhas de referência
   function gLinhas(ms, series, o){
-    o=o||{}; var W=o.W||640, H=o.H||230, pl=40, pr=14, pt=18, pb=26, n=ms.length, un=o.un||'', all=[];
+    o=o||{}; var W=larg(o.W), H=o.H||230, pl=40, pr=14, pt=18, pb=26, n=ms.length, un=o.un||'', all=[];
     series.forEach(function(se){ se.v.forEach(function(v){ if (v!=null&&!isNaN(v)) all.push(v); }); });
     if (o.banda) o.banda.lo.concat(o.banda.hi).forEach(function(v){ if (v!=null&&!isNaN(v)) all.push(v); });
     (o.ref||[]).forEach(function(r){ all.push(r.v); });
@@ -1619,7 +1706,7 @@
     ms.forEach(function(m,i){ if ((n-1-i)%passo===0) s+='<text x="'+x(i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10" style="fill:var(--ink-3)">'+MES_AB[+m.slice(5)-1]+'</text>';
       var w=n<2?W:(W-pl-pr)/(n-1), tip='<b>'+compLabel(m)+'</b>'; series.forEach(function(se){ var v=se.v[i]; tip+='<br>'+esc(se.nome)+': '+fmtG(v,un)+(se.extra&&se.extra[i]?' <span class=mut>('+se.extra[i]+')</span>':''); });
       if (o.banda&&o.banda.lo[i]!=null) tip+='<br>Faixa normal: '+fmtG(o.banda.lo[i],un)+' a '+fmtG(o.banda.hi[i],un);
-      s+='<rect x="'+(x(i)-w/2).toFixed(1)+'" y="0" width="'+w.toFixed(1)+'" height="'+H+'" fill="transparent" data-tip="'+esc(tip)+'"/>'; });
+      s+=hitRect(x(i)-w/2,0,w,H,tip,o.goMes?o.goMes(m,i):o.irMes?goMes(m,o.irMes):null); });
     return s+'</svg>'+legenda(series);
   }
   // barras horizontais (comparar categorias)
@@ -1627,24 +1714,24 @@
     o=o||{}; if (!itens.length) return '<div class="gm-vazio">Sem dados</div>';
     var mx=Math.max.apply(null,itens.map(function(x){ return Math.abs(x.v)||0; }))||1;
     return '<div class="hb">'+itens.map(function(x){ var w=Math.max(1,Math.abs(x.v)/mx*100);
-      return '<div class="hb-row" data-tip="'+esc('<b>'+esc(x.nome)+'</b><br>'+fmtG(x.v,o.un||'')+(x.extra?'<br>'+x.extra:''))+'"><span class="hb-n">'+esc(x.nome)+'</span><span class="hb-t"><i style="width:'+w.toFixed(1)+'%;background:'+(x.cor||'var(--c1)')+'"></i></span><span class="hb-v">'+fmtG(x.v,o.un||'')+'</span></div>'; }).join('')+'</div>';
+      return '<div class="hb-row" data-tip="'+esc('<b>'+esc(x.nome)+'</b><br>'+fmtG(x.v,o.un||'')+(x.extra?'<br>'+x.extra:''))+'"'+goAttr(x.go)+'><span class="hb-n">'+esc(x.nome)+'</span><span class="hb-t"><i style="width:'+w.toFixed(1)+'%;background:'+(x.cor||'var(--c1)')+'"></i></span><span class="hb-v">'+fmtG(x.v,o.un||'')+'</span></div>'; }).join('')+'</div>';
   }
   // rosca (partes de um todo; poucas categorias)
   function gRosca(partes, o){
     o=o||{}; partes=partes.filter(function(p){ return p.v>0; }); var tot=partes.reduce(function(s,p){ return s+p.v; },0); if (!tot) return '<div class="gm-vazio">Sem dados</div>';
     var R=70, r=44, cx=90, cy=90, a=-Math.PI/2, s='<div class="rosca">'+dSvg(180,180,o.titulo);
     partes.forEach(function(p,i){ var f=p.v/tot, a2=a+f*Math.PI*2-(partes.length>1?0.02:0), lg=f>0.5?1:0;
-      if (partes.length===1){ s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+((R+r)/2)+'" fill="none" style="stroke:'+p.cor+'" stroke-width="'+(R-r)+'" data-tip="'+esc('<b>'+esc(p.nome)+'</b><br>'+p.v.toLocaleString('pt-BR')+' (100%)')+'"/>'; }
+      if (partes.length===1){ s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+((R+r)/2)+'" fill="none" style="stroke:'+p.cor+'" stroke-width="'+(R-r)+'" data-tip="'+esc('<b>'+esc(p.nome)+'</b><br>'+p.v.toLocaleString('pt-BR')+' (100%)')+'"'+goAttr(p.go)+'/>'; }
       else { var P=function(rr,ang){ return (cx+rr*Math.cos(ang)).toFixed(2)+','+(cy+rr*Math.sin(ang)).toFixed(2); };
-        s+='<path d="M'+P(R,a)+' A'+R+','+R+' 0 '+lg+' 1 '+P(R,a2)+' L'+P(r,a2)+' A'+r+','+r+' 0 '+lg+' 0 '+P(r,a)+' Z" style="fill:'+p.cor+'" data-tip="'+esc('<b>'+esc(p.nome)+'</b><br>'+p.v.toLocaleString('pt-BR')+' ('+numBR(f*100,1)+'%)')+'"/>'; }
+        s+='<path class="fatia" d="M'+P(R,a)+' A'+R+','+R+' 0 '+lg+' 1 '+P(R,a2)+' L'+P(r,a2)+' A'+r+','+r+' 0 '+lg+' 0 '+P(r,a)+' Z" style="fill:'+p.cor+'" data-tip="'+esc('<b>'+esc(p.nome)+'</b><br>'+p.v.toLocaleString('pt-BR')+' ('+numBR(f*100,1)+'%)')+'"'+goAttr(p.go)+'/>'; }
       a+=f*Math.PI*2; });
-    s+='<text x="'+cx+'" y="'+(cy-2)+'" text-anchor="middle" font-size="20" font-weight="700" style="fill:var(--ink)">'+(o.centro!=null?o.centro:tot.toLocaleString('pt-BR'))+'</text><text x="'+cx+'" y="'+(cy+15)+'" text-anchor="middle" font-size="10" style="fill:var(--ink-3)">'+esc(o.sub||'total')+'</text></svg>';
-    return s+'<div class="rosca-leg">'+partes.map(function(p){ return '<div><i class="dot" style="background:'+p.cor+'"></i><span>'+esc(p.nome)+'</span><b>'+numBR(p.v/tot*100,1)+'%</b><span class="mut">'+p.v.toLocaleString('pt-BR')+'</span></div>'; }).join('')+'</div></div>';
+    s+='<text x="'+cx+'" y="'+(cy-2)+'" text-anchor="middle" font-size="20" font-weight="700" style="fill:var(--ink)" pointer-events="none">'+(o.centro!=null?o.centro:tot.toLocaleString('pt-BR'))+'</text><text x="'+cx+'" y="'+(cy+15)+'" text-anchor="middle" font-size="10" style="fill:var(--ink-3)" pointer-events="none">'+esc(o.sub||'total')+'</text></svg>';
+    return s+'<div class="rosca-leg">'+partes.map(function(p){ return '<div'+goAttr(p.go)+'><i class="dot" style="background:'+p.cor+'"></i><span>'+esc(p.nome)+'</span><b>'+numBR(p.v/tot*100,1)+'%</b><span class="mut">'+p.v.toLocaleString('pt-BR')+'</span></div>'; }).join('')+'</div></div>';
   }
   // dispersão (relação entre duas variáveis) · pontos {x,y,nome,r?,cor?}
   function gDispersao(pts, o){
     o=o||{}; pts=pts.filter(function(p){ return p.x!=null&&p.y!=null&&!isNaN(p.x)&&!isNaN(p.y); }); if (pts.length<2) return '<div class="gm-vazio">Poucos dados para relacionar</div>';
-    var W=o.W||640, H=o.H||260, pl=46, pr=16, pt=14, pb=38;
+    var W=larg(o.W), H=o.H||260, pl=46, pr=16, pt=14, pb=38;
     var xs=pts.map(function(p){ return p.x; }), ys=pts.map(function(p){ return p.y; });
     var x0=Math.min(0,Math.min.apply(null,xs)), x1=Math.max.apply(null,xs)*1.06||1, y0=Math.min(0,Math.min.apply(null,ys)), y1=Math.max.apply(null,ys)*1.1||1;
     if (o.logX){ x0=Math.log10(Math.max(1,Math.min.apply(null,xs))*0.8); x1=Math.log10(Math.max.apply(null,xs)*1.2); }
@@ -1655,42 +1742,60 @@
     tx.forEach(function(t){ s+='<text x="'+X(t).toFixed(1)+'" y="'+(H-pb+14)+'" text-anchor="middle" font-size="10" style="fill:var(--ink-3)">'+numBR(t,t<10?1:0)+'</text>'; });
     s+='<text x="'+((pl+W-pr)/2)+'" y="'+(H-4)+'" text-anchor="middle" font-size="10" style="fill:var(--ink-2)">'+esc(o.xl||'')+'</text><text x="12" y="'+((pt+H-pb)/2)+'" text-anchor="middle" font-size="10" style="fill:var(--ink-2)" transform="rotate(-90 12 '+((pt+H-pb)/2)+')">'+esc(o.yl||'')+'</text>';
     var rot=pts.slice().sort(function(a,b){ return (b.rot||0)-(a.rot||0); }).slice(0,o.nRot==null?5:o.nRot);
-    pts.forEach(function(p){ s+='<circle cx="'+X(p.x).toFixed(1)+'" cy="'+Y(p.y).toFixed(1)+'" r="'+(p.r||5)+'" style="fill:'+(p.cor||'var(--c1)')+';fill-opacity:.75" stroke="var(--surface)" stroke-width="2" data-tip="'+esc('<b>'+esc(p.nome)+'</b><br>'+esc(o.xl||'x')+': '+numBR(p.x,1)+'<br>'+esc(o.yl||'y')+': '+numBR(p.y,1)+(p.extra?'<br>'+p.extra:''))+'"/>'; });
+    pts.forEach(function(p){ s+='<circle class="pt" cx="'+X(p.x).toFixed(1)+'" cy="'+Y(p.y).toFixed(1)+'" r="'+(p.r||6)+'" style="fill:'+(p.cor||'var(--c1)')+';fill-opacity:.75" stroke="var(--surface)" stroke-width="2" data-tip="'+esc('<b>'+esc(p.nome)+'</b>'+(o.quem?' <span class=mut>('+esc(o.quem)+')</span>':'')+'<br>'+esc(o.xl||'x')+': '+numBR(p.x,1)+'<br>'+esc(o.yl||'y')+': '+numBR(p.y,1)+(p.extra?'<br>'+p.extra:''))+'"'+goAttr(p.go)+'/>'; });
     var usados=[]; rot.forEach(function(p){ if (!p.rot) return; var px=X(p.x), py=Y(p.y), dir=px>W*0.7, tx=dir?px-8:px+8, nm=String(p.nome).length>22?String(p.nome).slice(0,21)+'…':String(p.nome), w=nm.length*5.6, x0=dir?tx-w:tx;
       if (usados.some(function(u){ return Math.abs(u.y-py)<12 && x0<u.x1 && x0+w>u.x0; })) return; usados.push({x0:x0,x1:x0+w,y:py});
       s+='<text x="'+tx.toFixed(1)+'" y="'+(py+3.5).toFixed(1)+'" font-size="10"'+(dir?' text-anchor="end"':'')+' style="fill:var(--ink-2)" pointer-events="none">'+esc(nm)+'</text>'; });
     return s+'</svg>';
   }
-  // histograma (distribuição de valores contínuos/inteiros em faixas)
+  // histograma (distribuição de valores em faixas) · o.itens (paralelo a vals) + o.tipoLista: cada coluna lista os itens daquela faixa
   function gHisto(vals, o){
-    o=o||{}; var v=vals.filter(function(x){ return x!=null&&!isNaN(x); }); if (!v.length) return '<div class="gm-vazio">Sem dados</div>';
-    var e=est(v), lim=o.max!=null?o.max:Math.ceil(e.p90*1.5)||1, passo=o.passo||Math.max(1,Math.ceil(lim/24)), nb=Math.ceil((lim+1)/passo), cnt=new Array(nb+1).fill(0);
-    v.forEach(function(x){ var b=Math.floor(Math.max(0,x)/passo); cnt[Math.min(b,nb)]++; });
-    var W=o.W||640, H=o.H||210, pl=36, pr=10, pt=14, pb=28, mx=Math.max.apply(null,cnt)||1, bw=(W-pl-pr)/(nb+1);
+    o=o||{}; var idx=[]; (vals||[]).forEach(function(x,i){ if (x!=null&&!isNaN(x)) idx.push(i); }); if (!idx.length) return '<div class="gm-vazio">Sem dados</div>';
+    var v=idx.map(function(i){ return vals[i]; }), e=est(v), lim=o.max!=null?o.max:Math.ceil(e.p90*1.5)||1, passo=o.passo||Math.max(1,Math.ceil(lim/24)), nb=Math.ceil((lim+1)/passo), cnt=new Array(nb+1).fill(0), its=[];
+    for (var q=0;q<=nb;q++) its.push([]);
+    idx.forEach(function(i){ var b=Math.min(Math.floor(Math.max(0,vals[i])/passo),nb); cnt[b]++; if (o.itens) its[b].push(o.itens[i]); });
+    var W=larg(o.W), H=o.H||210, pl=36, pr=10, pt=14, pb=28, mx=Math.max.apply(null,cnt)||1, bw=(W-pl-pr)/(nb+1), un=o.un||'';
     var y=function(c){ return pt+(H-pt-pb)*(1-c/mx); }, s=dSvg(W,H,o.titulo)+eixoY(0,mx,y,pl,W,pr,function(t){ return Math.round(t); });
-    cnt.forEach(function(c,i){ var x=pl+i*bw, lab=i===nb?'≥ '+(i*passo):passo===1?String(i*passo):(i*passo)+'–'+((i+1)*passo-1), hh=y(0)-y(c);
-      if (c) s+='<rect x="'+(x+1).toFixed(1)+'" y="'+y(c).toFixed(1)+'" width="'+Math.max(1,bw-2).toFixed(1)+'" height="'+Math.max(1,hh).toFixed(1)+'" rx="2" style="fill:'+(o.lim!=null&&i*passo>o.lim?'var(--crit)':'var(--c1)')+'"/>';
-      s+='<rect x="'+x.toFixed(1)+'" y="'+pt+'" width="'+bw.toFixed(1)+'" height="'+(H-pt-pb)+'" fill="transparent" data-tip="'+esc('<b>'+lab+' '+(o.un||'')+'</b><br>'+c+' casos ('+numBR(c/v.length*100,1)+'%)')+'"/>';
-      if (i%Math.ceil((nb+1)/12)===0) s+='<text x="'+(x+bw/2).toFixed(1)+'" y="'+(H-12)+'" text-anchor="middle" font-size="10" style="fill:var(--ink-3)">'+(i===nb?'≥'+(i*passo):i*passo)+'</text>'; });
-    var xm=pl+(e.mediana/passo+0.5)*bw; s+='<line x1="'+xm.toFixed(1)+'" x2="'+xm.toFixed(1)+'" y1="'+pt+'" y2="'+(H-pb)+'" stroke="var(--ink)" stroke-dasharray="3 3"/><text x="'+(xm+4).toFixed(1)+'" y="'+(pt+10)+'" font-size="10" style="fill:var(--ink)">mediana '+numBR(e.mediana,1)+'</text>';
-    if (o.lim!=null){ var xl=pl+(o.lim/passo+1)*bw; s+='<line x1="'+xl.toFixed(1)+'" x2="'+xl.toFixed(1)+'" y1="'+pt+'" y2="'+(H-pb)+'" stroke="var(--crit)" stroke-dasharray="4 3"/>'; }
+    cnt.forEach(function(c,i){ var x=pl+i*bw, lab=i===nb?'≥ '+numBR(i*passo):passo===1?numBR(i*passo):numBR(i*passo)+'–'+numBR((i+1)*passo-(Number.isInteger(passo)?1:0)), hh=y(0)-y(c);
+      if (c) s+='<rect x="'+(x+1).toFixed(1)+'" y="'+y(c).toFixed(1)+'" width="'+Math.max(1,bw-2).toFixed(1)+'" height="'+Math.max(1,hh).toFixed(1)+'" rx="2" pointer-events="none" style="fill:'+(o.lim!=null&&(o.limEsq?i*passo>=o.lim:i*passo>o.lim)?'var(--crit)':'var(--c1)')+'"/>';
+      s+=hitRect(x,pt,bw,H-pt-pb,'<b>'+lab+' '+un+'</b><br>'+c+' casos ('+numBR(c/v.length*100,1)+'%)', c&&o.itens?goLista(lab+' '+un+(o.nomeLista?' · '+o.nomeLista:''),o.tipoLista,its[i]):null);
+      if (i%Math.ceil((nb+1)/12)===0) s+='<text x="'+(x+bw/2).toFixed(1)+'" y="'+(H-12)+'" text-anchor="middle" font-size="10" style="fill:var(--ink-3)" pointer-events="none">'+(i===nb?'≥'+numBR(i*passo):numBR(i*passo))+'</text>'; });
+    var xm=pl+(e.mediana/passo+0.5)*bw; s+='<line x1="'+xm.toFixed(1)+'" x2="'+xm.toFixed(1)+'" y1="'+pt+'" y2="'+(H-pb)+'" stroke="var(--ink)" stroke-dasharray="3 3" pointer-events="none"/><text x="'+(xm+4).toFixed(1)+'" y="'+(pt+10)+'" font-size="10" style="fill:var(--ink)" pointer-events="none">mediana '+numBR(e.mediana,1)+'</text>';
+    if (o.lim!=null){ var xl=pl+(o.lim/passo+(o.limEsq?0:1))*bw; s+='<line x1="'+xl.toFixed(1)+'" x2="'+xl.toFixed(1)+'" y1="'+pt+'" y2="'+(H-pb)+'" stroke="var(--crit)" stroke-dasharray="4 3" pointer-events="none"/>'; }
     return s+'<text x="'+((pl+W-pr)/2)+'" y="'+(H-1)+'" text-anchor="middle" font-size="10" style="fill:var(--ink-2)">'+esc(o.xl||'')+'</text></svg>';
   }
-  // box plot horizontal · grupos {nome, v:[...], cor?} — caixa = metade central, traço = mediana, bigodes até 1,5×IQR, pontos = discrepantes
+  function passoBonito(v){ if (!(v>0)) return 1; var p=Math.pow(10,Math.floor(Math.log10(v))), f=v/p; return (f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p; }
+  // box plot horizontal · grupos {nome, v:[...] ou pts:[{v, tip, go, item, lab}], cor?, sub?, go?}
+  // caixa = metade central, traço = mediana, bigodes até 1,5×IQR, pontos = casos fora do padrão (cada um com a própria dica e clique).
+  // O eixo cobre todos os casos quando o maior não passa muito do bigode; senão corta e marca à direita "n > fim do eixo".
   function gBox(grupos, o){
-    o=o||{}; grupos=grupos.map(function(g){ return {nome:g.nome, cor:g.cor||'var(--c1)', e:est(g.v), v:g.v, sub:g.sub}; }).filter(function(g){ return g.e.n; }); if (!grupos.length) return '<div class="gm-vazio">Sem dados</div>';
-    var lh=26, W=o.W||640, pl=o.pl||170, pr=16, pt=8, pb=24, H=pt+pb+grupos.length*lh;
-    var hi=Math.max.apply(null,grupos.map(function(g){ return Math.min(g.e.max, g.e.q3+1.5*(g.e.q3-g.e.q1)+1); })), xmax=o.max!=null?o.max:Math.max(1,hi*1.05);
-    var X=function(v){ return pl+(W-pl-pr)*Math.min(v,xmax)/xmax; }, s=dSvg(W,H,o.titulo);
-    [0,xmax/2,xmax].forEach(function(t){ s+='<line x1="'+X(t).toFixed(1)+'" x2="'+X(t).toFixed(1)+'" y1="'+pt+'" y2="'+(H-pb)+'" stroke="var(--line)"/><text x="'+X(t).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10" style="fill:var(--ink-3)">'+numBR(t,xmax<10?1:0)+'</text>'; });
-    if (o.ref!=null) s+='<line x1="'+X(o.ref).toFixed(1)+'" x2="'+X(o.ref).toFixed(1)+'" y1="'+pt+'" y2="'+(H-pb)+'" stroke="var(--crit)" stroke-dasharray="4 3"/>';
-    grupos.forEach(function(g,i){ var e=g.e, cy=pt+i*lh+lh/2, iq=e.q3-e.q1, wl=Math.max(e.min,e.q1-1.5*iq), wh=Math.min(e.max,e.q3+1.5*iq);
-      s+='<text x="'+(pl-8)+'" y="'+(cy+3.5)+'" text-anchor="end" font-size="11" style="fill:var(--ink-2)">'+esc(String(g.nome).length>34?String(g.nome).slice(0,33)+'…':g.nome)+'</text>';
-      s+='<line x1="'+X(wl).toFixed(1)+'" x2="'+X(wh).toFixed(1)+'" y1="'+cy+'" y2="'+cy+'" style="stroke:var(--ink-3)"/>';
-      s+='<rect x="'+X(e.q1).toFixed(1)+'" y="'+(cy-8)+'" width="'+Math.max(2,X(e.q3)-X(e.q1)).toFixed(1)+'" height="16" rx="3" style="fill:'+g.cor+';fill-opacity:.3;stroke:'+g.cor+'"/>';
-      s+='<line x1="'+X(e.mediana).toFixed(1)+'" x2="'+X(e.mediana).toFixed(1)+'" y1="'+(cy-8)+'" y2="'+(cy+8)+'" style="stroke:'+g.cor+'" stroke-width="3"/>';
-      var out=g.v.filter(function(v){ return v>wh||v<wl; }), vist={}; out.slice(0,60).forEach(function(v){ var k=Math.round(X(v)); if (vist[k]) return; vist[k]=1; s+='<circle cx="'+X(v).toFixed(1)+'" cy="'+cy+'" r="2.5" style="fill:var(--ink-3)"/>'; });
-      s+='<rect x="0" y="'+(cy-lh/2)+'" width="'+W+'" height="'+lh+'" fill="transparent" data-tip="'+esc('<b>'+esc(g.nome)+'</b>'+(g.sub?'<br>'+g.sub:'')+'<br>'+estTip(e,' '+(o.un||''))+(out.length?'<br>Fora do padrão (pontos): '+out.length:''))+'"/>'; });
+    o=o||{}; var un=o.un||'';
+    grupos=grupos.map(function(g){ var pts=(g.pts||(g.v||[]).map(function(v){ return {v:v}; })).filter(function(p){ return p.v!=null&&!isNaN(p.v); });
+      return {nome:g.nome, cor:g.cor||'var(--c1)', pts:pts, e:est(pts.map(function(p){ return p.v; })), sub:g.sub, go:g.go}; }).filter(function(g){ return g.e.n; });
+    if (!grupos.length) return '<div class="gm-vazio">Sem dados</div>';
+    grupos.forEach(function(g){ var e=g.e, iq=e.q3-e.q1; g.wl=Math.max(e.min,e.q1-1.5*iq); g.wh=Math.min(e.max,e.q3+1.5*iq); });
+    var alvo=Math.max.apply(null,grupos.map(function(g){ return g.wh; })), maxAll=Math.max.apply(null,grupos.map(function(g){ return g.e.max; }));
+    if (o.ref!=null) alvo=Math.max(alvo,o.ref);
+    var lim=o.max!=null?o.max:(maxAll<=alvo*1.6?maxAll:alvo*1.15), passo=passoBonito((lim||1)/5), xmax=Math.max(passo,Math.ceil(lim/passo-1e-9)*passo);
+    var cortou=grupos.some(function(g){ return g.e.max>xmax; });
+    var lh=28, W=larg(o.W), pl=Math.min(o.pl||170,Math.round(W*0.36)), pr=cortou?70:16, pt=8, pb=24, H=pt+pb+grupos.length*lh, nch=Math.max(10,Math.floor(pl/6.4));
+    var X=function(v){ return pl+(W-pl-pr)*Math.max(0,Math.min(v,xmax))/xmax; }, s=dSvg(W,H,o.titulo), dec=passo<1?1:0;
+    for (var t=0;t<=xmax+1e-9;t+=passo) s+='<line x1="'+X(t).toFixed(1)+'" x2="'+X(t).toFixed(1)+'" y1="'+pt+'" y2="'+(H-pb)+'" stroke="var(--line)" pointer-events="none"/><text x="'+X(t).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="10" style="fill:var(--ink-3)" pointer-events="none">'+numBR(t,dec)+'</text>';
+    if (o.ref!=null) s+='<line x1="'+X(o.ref).toFixed(1)+'" x2="'+X(o.ref).toFixed(1)+'" y1="'+pt+'" y2="'+(H-pb)+'" stroke="var(--crit)" stroke-dasharray="4 3" pointer-events="none"/>';
+    grupos.forEach(function(g,i){ var e=g.e, cy=pt+i*lh+lh/2;
+      // fundo da linha (por trás de tudo): dica e clique da natureza/grupo inteiro
+      s+=hitRect(0,cy-lh/2,W-pr+2,lh,'<b>'+esc(g.nome)+'</b>'+(g.sub?'<br>'+g.sub:'')+'<br>'+estTip(e,' '+un),g.go);
+      s+='<text x="'+(pl-8)+'" y="'+(cy+3.5)+'" text-anchor="end" font-size="11" style="fill:var(--ink-2)" pointer-events="none">'+esc(String(g.nome).length>nch?String(g.nome).slice(0,nch-1)+'…':g.nome)+'</text>';
+      s+='<line x1="'+X(g.wl).toFixed(1)+'" x2="'+X(g.wh).toFixed(1)+'" y1="'+cy+'" y2="'+cy+'" style="stroke:var(--ink-3)" pointer-events="none"/>';
+      s+='<rect x="'+X(e.q1).toFixed(1)+'" y="'+(cy-8)+'" width="'+Math.max(2,X(e.q3)-X(e.q1)).toFixed(1)+'" height="16" rx="3" style="fill:'+g.cor+';fill-opacity:.3;stroke:'+g.cor+'" pointer-events="none"/>';
+      s+='<line x1="'+X(e.mediana).toFixed(1)+'" x2="'+X(e.mediana).toFixed(1)+'" y1="'+(cy-8)+'" y2="'+(cy+8)+'" style="stroke:'+g.cor+'" stroke-width="3" pointer-events="none"/>';
+      var fora=g.pts.filter(function(p){ return p.v>g.wh||p.v<g.wl; }), cort=fora.filter(function(p){ return p.v>xmax; }), vis=fora.filter(function(p){ return p.v<=xmax; }).sort(function(a,b){ return a.v-b.v; }), occ={};
+      vis.slice(0,400).forEach(function(p){ var px=Math.round(X(p.v)), k=occ[px]=(occ[px]||0)+1, dy=[0,-6,6,-11,11][Math.min(k-1,4)];
+        s+='<circle class="pt" cx="'+X(p.v).toFixed(1)+'" cy="'+(cy+dy)+'" r="3.4" style="fill:var(--ink-3)" stroke="var(--surface)" stroke-width="1" data-tip="'+esc(p.tip||(esc(g.nome)+'<br>'+numBR(p.v,1)+' '+un))+'"'+goAttr(p.go)+'/>'; });
+      if (cort.length){ var xe=W-pr+8, tipC='<b>'+cort.length+(cort.length===1?' caso':' casos')+' acima de '+numBR(xmax,dec)+' '+un+'</b> (fora do eixo)<br>'+cort.slice().sort(function(a,b){ return b.v-a.v; }).slice(0,10).map(function(p){ return p.lab||numBR(p.v,1)+' '+un; }).join('<br>')+(cort.length>10?'<br>…':'');
+        var acC=cort.length===1?cort[0].go:(o.tipoLista&&cort[0].item?goLista(g.nome+' · acima de '+numBR(xmax,dec)+' '+un,o.tipoLista,cort.map(function(p){ return p.item; })):null);
+        s+='<path d="M'+xe+','+(cy-5)+' l7,5 l-7,5 z" style="fill:var(--ink-2)" pointer-events="none"/><text x="'+(xe+10)+'" y="'+(cy+3.5)+'" font-size="10" font-weight="700" style="fill:var(--ink-2)" pointer-events="none">'+cort.length+' &gt; '+numBR(xmax,dec)+'</text>';
+        s+=hitRect(xe-4,cy-lh/2,pr-6,lh,tipC,acC); } });
     return s+'</svg>';
   }
   function vzCard(tit, sub, corpo, cls){ return '<div class="vz-card'+(cls?' '+cls:'')+'"><div class="vz-h"><span class="vz-t">'+esc(tit)+'</span>'+(sub?'<span class="vz-s">'+sub+'</span>':'')+'</div>'+corpo+'</div>'; }
@@ -1703,10 +1808,10 @@
     if (state._desX&&state._desX.k===chave) return state._desX.v;
     var X=[];
     // mês = mês de finalização do ato (o mesmo critério do resto do painel): assim um mês não perde os atos que ainda estavam em andamento
-    function add(rp,et,nat,m,pz,sv){ if (!rp||pz==null||isNaN(pz)||!m) return; X.push({k:semAc(rp), nome:rp, et:et, nat:nat, m:m, pz:pz, sv:sv}); }
+    function add(rp,et,nat,m,pz,sv,c){ if (!rp||pz==null||isNaN(pz)||!m) return; X.push({k:semAc(rp), nome:rp, et:et, nat:nat, m:m, pz:pz, sv:sv, c:c}); }
     if (modo==='ri'||modo==='todas') Object.keys(state.docs).forEach(function(m){ if (!state.logs[m]) return; var map=state.logCache[m]||(state.logCache[m]=Motor.decodificarLog(state.logs[m]));
-      state.docs[m].atos.filter(origOk).forEach(function(a){ var L=map[a.c]; if (!L) return; L.ev.forEach(function(e){ add(e.rp,e.et,a.nat,m,e.pz,'RI'); }); }); });
-    if (modo==='serv'||modo==='todas') Object.keys(state.serv).forEach(function(m){ state.serv[m].forEach(function(d){ if (modo==='serv'&&!docOk(d)) return; var sv=svDe(d.t); if (sv==='Apoio') return; d.ets.forEach(function(e){ add(e.rp,e.et,d.nat,m,e.pz,sv); }); }); });
+      state.docs[m].atos.filter(origOk).forEach(function(a){ var L=map[a.c]; if (!L) return; L.ev.forEach(function(e){ add(e.rp,e.et,a.nat,m,e.pz,'RI',a.c); }); }); });
+    if (modo==='serv'||modo==='todas') Object.keys(state.serv).forEach(function(m){ state.serv[m].forEach(function(d){ if (modo==='serv'&&!docOk(d)) return; var sv=svDe(d.t); if (sv==='Apoio') return; d.ets.forEach(function(e){ add(e.rp,e.et,d.nat,m,e.pz,sv,d.c); }); }); });
     // média de cada célula (etapa × natureza) na equipe, e por pessoa, para o "esperado" sem a própria pessoa
     var EM={}; X.forEach(function(x){ var e=EM[x.et]=EM[x.et]||{n:0,s:0}; e.n++; e.s+=x.pz; }); X=X.filter(function(x){ return EM[x.et].s/EM[x.et].n>=0.05; }); // etapa sempre feita no mesmo dia não diz nada sobre ritmo
     var C={}; X.forEach(function(x){ var c=C[x.et+'|'+x.nat]=C[x.et+'|'+x.nat]||{n:0,s:0,p:{}}; c.n++; c.s+=x.pz; var q=c.p[x.k]=c.p[x.k]||{n:0,s:0}; q.n++; q.s+=x.pz; });
@@ -1772,13 +1877,14 @@
     var bl=ms.map(function(m,i){ return cen!=null&&nM[i]>=3?cen-larg(i):null; }), bh=ms.map(function(m,i){ return cen!=null&&nM[i]>=3?cen+larg(i):null; });
     var alerta=serie.map(function(v,i){ return v!=null&&bh[i]!=null&&(v>bh[i]||v<bl[i]); });
     var h='<div class="sub-h" style="margin-top:18px">'+esc(p.nome)+' · carta de controle</div><div class="vz-grid">';
-    h+=vzCard('Desvio por mês × linha normal','faixa cinza = variação normal dela; ponto vermelho = fora da faixa',gLinhas(ms,[{nome:p.nome,cor:'var(--c1)',v:serie,alerta:alerta,extra:nM.map(function(n){ return n+' execuções'; })}],{titulo:'Carta de controle',un:'d.u.',banda:cen!=null?{lo:bl,hi:bh}:null,ref:[{v:0,nome:'equipe'}].concat(cen!=null?[{v:cen,nome:'linha normal'}]:[])}),'vz-wide');
+    h+=vzCard('Desvio por mês × linha normal','faixa cinza = variação normal dela; ponto vermelho = fora da faixa',gLinhas(ms,[{nome:p.nome,cor:'var(--c1)',v:serie,alerta:alerta,extra:nM.map(function(n){ return n+' execuções'; })}],{titulo:'Carta de controle',un:'d.u.',irMes:'des',banda:cen!=null?{lo:bl,hi:bh}:null,ref:[{v:0,nome:'equipe'}].concat(cen!=null?[{v:cen,nome:'linha normal'}]:[])}),'vz-wide');
     // por etapa: dela × equipe (box plot)
     var me=X.filter(function(x){ return x.k===p.k&&(x.m===J.agora||J.antes.indexOf(x.m)>=0); }), cnt={}; me.forEach(function(x){ cnt[x.et]=(cnt[x.et]||0)+1; });
     var top=Object.keys(cnt).sort(function(a,b){ return cnt[b]-cnt[a]; }).slice(0,5), g=[];
     top.forEach(function(et){ var dela=me.filter(function(x){ return x.et===et; }), nats={}; dela.forEach(function(x){ nats[x.nat]=1; });
       var eq=X.filter(function(x){ return x.et===et&&x.k!==p.k&&nats[x.nat]&&(x.m===J.agora||J.antes.indexOf(x.m)>=0); });
-      var et2=et.length>22?et.slice(0,21)+'…':et; g.push({nome:et2+' · dela',cor:'var(--c1)',v:dela.map(function(x){ return x.pz; }),sub:dela.length+' execuções'}); g.push({nome:et2+' · equipe',cor:'var(--c2)',v:eq.map(function(x){ return x.pz; }),sub:eq.length+' execuções (mesmas naturezas)'}); });
+      var ptE=function(x){ return {v:x.pz, lab:x.c+' · '+x.pz+' d.u.', go:x.c?{t:'prot',c:x.c}:null, tip:'<b>Protocolo '+esc(x.c||'—')+'</b><br>'+esc(x.nome)+' · '+esc(et)+'<br>'+esc(x.nat)+'<br>'+x.pz+' d.u. na etapa'+(x.esp!=null?' · equipe '+numBR(x.esp,1):'')}; };
+      var et2=et.length>22?et.slice(0,21)+'…':et; g.push({nome:et2+' · dela',cor:'var(--c1)',pts:dela.map(ptE),sub:dela.length+' execuções'}); g.push({nome:et2+' · equipe',cor:'var(--c2)',pts:eq.map(ptE),sub:eq.length+' execuções (mesmas naturezas)'}); });
     h+=vzCard('Dias úteis na etapa · dela × equipe','últimos '+(J.antes.length+1)+' meses, mesmas naturezas',gBox(g,{un:'d.u.',pl:230}),'vz-wide');
     // tabela etapa × natureza
     var cel={}; me.filter(function(x){ return x.dv!=null; }).forEach(function(x){ var k=x.et+'|'+x.nat, c=cel[k]=cel[k]||{et:x.et,nat:x.nat,v:[],e:[]}; c.v.push(x.pz); c.e.push(x.esp); });
@@ -1804,8 +1910,8 @@
       var t=zWelch(a.map(function(x){ return x.dvG; }),b.map(function(x){ return x.dvG; })), ma=media(a.map(function(x){ return x.pz; })), mb=media(b.map(function(x){ return x.pz; }));
       var quem=null; if (t&&t.dif>0){ var pp={}; a.forEach(function(x){ var q=pp[x.k]=pp[x.k]||{nome:x.nome,s:0}; q.s+=x.dvG; }); var best=Object.keys(pp).sort(function(u,v){ return pp[v].s-pp[u].s; })[0]; if (best&&pp[best].s>0) quem=pp[best].nome; }
       return {et:et, na:a.length, nb:b.length, ma:ma, mb:mb, t:t, l:leitura(t,a.length,'piorou','melhorou'), quem:quem}; });
-    h+='<div class="vz-grid">'+vzCard('Dias úteis por etapa · média mensal','etapas com mais execuções',gLinhas(ms,top.slice(0,6).map(function(et,i){ return {nome:et,cor:CAT[i],v:ms.map(function(m){ var v=X.filter(function(x){ return x.et===et&&x.m===m; }).map(function(x){ return x.pz; }); return v.length>=5?media(v):null; })}; }),{titulo:'Dias por etapa',un:'d.u.',zero:true,rotulos:false}),'vz-wide')+
-      vzCard('Protocolo · tempo até o registro','mediana e média por mês',gLinhas(ms,[{nome:'Mediana',cor:'var(--c1)',v:ms.map(function(m){ var v=prot.filter(function(x){ return x.m===m; }).map(function(x){ return x.b; }); return v.length?mediana(v):null; })},{nome:'Média',cor:'var(--c2)',tracejado:true,v:ms.map(function(m){ var v=prot.filter(function(x){ return x.m===m; }).map(function(x){ return x.b; }); return v.length?media(v):null; })}],{titulo:'Tempo do protocolo',un:'d.u.',zero:true}),'vz-wide')+'</div>';
+    h+='<div class="vz-grid">'+vzCard('Dias úteis por etapa · média mensal','etapas com mais execuções',gLinhas(ms,top.slice(0,6).map(function(et,i){ return {nome:et,cor:CAT[i],v:ms.map(function(m){ var v=X.filter(function(x){ return x.et===et&&x.m===m; }).map(function(x){ return x.pz; }); return v.length>=5?media(v):null; })}; }),{titulo:'Dias por etapa',un:'d.u.',zero:true,rotulos:false,irMes:'des'}),'vz-wide')+
+      vzCard('Protocolo · tempo até o registro','mediana e média por mês',gLinhas(ms,[{nome:'Mediana',cor:'var(--c1)',v:ms.map(function(m){ var v=prot.filter(function(x){ return x.m===m; }).map(function(x){ return x.b; }); return v.length?mediana(v):null; })},{nome:'Média',cor:'var(--c2)',tracejado:true,v:ms.map(function(m){ var v=prot.filter(function(x){ return x.m===m; }).map(function(x){ return x.b; }); return v.length?media(v):null; })}],{titulo:'Tempo do protocolo',un:'d.u.',zero:true,irMes:'des'}),'vz-wide')+'</div>';
     h+='<div class="tbl-wrap"><table class="tleft"><thead><tr><th>Etapa</th><th class="num">Antes (média)</th><th class="num">Agora (média)</th><th class="num">Variação</th><th class="num" title="Mudança descontando a troca de naturezas">Mesmo mix</th><th>Leitura</th><th>Maior contribuição</th></tr></thead><tbody>'+
       linhas.map(function(r){ var vp=r.mb?((r.ma-r.mb)/r.mb*100):null; return '<tr><td>'+esc(r.et)+' <span class="mut">('+r.na+' agora)</span></td><td class="num">'+numBR(r.mb,1)+'</td><td class="num">'+numBR(r.ma,1)+'</td><td class="num">'+(vp==null||!isFinite(vp)?'—':(vp>0?'+':'')+numBR(vp,0)+'%')+'</td><td class="num">'+fDif(r.t&&r.t.dif)+'</td><td class="'+r.l.cls+'">'+(r.l.txt==='normal'?'sem mudança real':r.l.txt)+'</td><td>'+(r.l.cls==='acima'&&r.quem?esc(r.quem):'<span class="mut">·</span>')+'</td></tr>'; }).join('')+'</tbody></table></div>';
     return h;
@@ -1820,63 +1926,168 @@
 
   // ═════════ modo visual: o painel em gráficos (segue Serventia e Período do topo) ═════════
   function renderVis(){
-    var el=$('tabVis'); if (!el) return; var modo=svModo(), ms=mesesGraficos(), h='', cards=[];
+    var el=$('tabVis'); if (!el) return; var modo=svModo(), ms=mesesGraficos(), cards=[];
     var per=nomePeriodo();
     if (modo==='ri'||modo==='cert'){
       aplicarTri7(); var atos=todosAtos(), r=resumo(atos), msR=ms.filter(function(m){ return state.docs[m]; });
       if (modo==='ri'){
-        cards.push(vzCard('Volume de protocolos','atos por mês · área',gLinhas(msR,[{nome:'Atos',cor:'var(--c1)',v:msR.map(function(m){ return atosDoMes(m).length; })}],{titulo:'Volume',area:true}),'vz-wide'));
-        cards.push(vzCard('KPI-02 · no prazo','% por mês · linha',gLinhas(msR,[{nome:'No prazo',cor:'var(--c1)',v:msR.map(function(m){ var x=resumo(atosDoMes(m)); return x.n?x.kpi:null; })}],{titulo:'KPI-02',un:'%',W:360,H:210})));
-        var tud=atos.filter(function(a){ return a.cat==='R'||a.cat==='N'; }), cen=tud.filter(function(a){ return origemAto(a)==='central'; }).length;
-        cards.push(vzCard('Origem dos protocolos',per,gRosca([{nome:'Balcão',v:tud.length-cen,cor:'var(--c1)'},{nome:'Central (ONR)',v:cen,cor:'var(--c2)'}],{titulo:'Origem'})));
-        var R=r.Rall, e0=R.filter(function(a){ return !a.nex; }).length, e1=R.filter(function(a){ return a.nex===1; }).length, e2=R.filter(function(a){ return a.nex>=2; }).length;
-        cards.push(vzCard('Exigências por título registrado',per,gRosca([{nome:'Sem exigência',v:e0,cor:'var(--c3)'},{nome:'1 exigência',v:e1,cor:'var(--c4)'},{nome:'2 ou mais',v:e2,cor:'var(--c2)'}],{titulo:'Exigências',centro:pct(R.length?e0/R.length*100:null),sub:'1ª qualificação'})));
-        var nat={}; atos.forEach(function(a){ var n=nat[a.nat]=nat[a.nat]||{n:0,b:[]}; n.n++; if (a.cat==='R'&&a.bruto!=null) n.b.push(a.bruto); });
+        cards.push(vzCard('Volume de protocolos','atos por mês · clique no mês para ver só ele em Por natureza',gLinhas(msR,[{nome:'Atos',cor:'var(--c1)',v:msR.map(function(m){ return atosDoMes(m).length; })}],{titulo:'Volume',area:true,irMes:'nat'}),'vz-wide'));
+        cards.push(vzCard('KPI-02 · no prazo','% por mês · clique no mês para ver os fora do prazo',gLinhas(msR,[{nome:'No prazo',cor:'var(--c1)',v:msR.map(function(m){ var x=resumo(atosDoMes(m)); return x.n?x.kpi:null; })}],{titulo:'KPI-02',un:'%',W:360,H:210,irMes:'fp'})));
+        var tud=atos.filter(function(a){ return a.cat==='R'||a.cat==='N'; }), cenL=tud.filter(function(a){ return origemAto(a)==='central'; }), balL=tud.filter(function(a){ return origemAto(a)!=='central'; });
+        cards.push(vzCard('Origem dos protocolos',per+' · clique na fatia para listar',gRosca([{nome:'Balcão',v:balL.length,cor:'var(--c1)',go:goLista('Protocolos de balcão','atos',balL)},{nome:'Central (ONR)',v:cenL.length,cor:'var(--c2)',go:goLista('Protocolos da central (ONR)','atos',cenL)}],{titulo:'Origem'})));
+        var R=r.Rall, E0=R.filter(function(a){ return !a.nex; }), E1=R.filter(function(a){ return a.nex===1; }), E2=R.filter(function(a){ return a.nex>=2; });
+        cards.push(vzCard('Exigências por título registrado',per+' · clique na fatia para listar',gRosca([{nome:'Sem exigência',v:E0.length,cor:'var(--c3)',go:goLista('Registrados sem exigência','atos',E0)},{nome:'1 exigência',v:E1.length,cor:'var(--c4)',go:goLista('Registrados com 1 exigência','atos',E1)},{nome:'2 ou mais',v:E2.length,cor:'var(--c2)',go:goLista('Registrados com 2 ou mais exigências','atos',E2)}],{titulo:'Exigências',centro:pct(R.length?E0.length/R.length*100:null),sub:'1ª qualificação'})));
+        var nat={}; atos.forEach(function(a){ var n=nat[a.nat]=nat[a.nat]||{n:0,b:[],R:[]}; n.n++; if (a.cat==='R'&&a.bruto!=null){ n.b.push(a.bruto); n.R.push(a); } });
         var topN=Object.keys(nat).sort(function(a,b){ return nat[b].n-nat[a].n; });
-        cards.push(vzCard('Naturezas com mais protocolos',per+' · barras',gBarrasH(topN.slice(0,10).map(function(k){ return {nome:k,v:nat[k].n}; }))));
-        cards.push(vzCard('Dias úteis até o registro · por natureza','box plot · linha vermelha = 20 d.u.',gBox(topN.slice(0,8).filter(function(k){ return nat[k].b.length>=3; }).map(function(k){ return {nome:k,v:nat[k].b,sub:nat[k].b.length+' registrados'}; }),{un:'d.u.',ref:20,pl:200}),'vz-wide'));
-        cards.push(vzCard('Distribuição do tempo até o registro','histograma · todos os registrados',gHisto(r.R.map(function(a){ return a.bruto; }),{un:'d.u.',passo:1,max:30,lim:20,xl:'dias úteis brutos'}),'vz-wide'));
-        cards.push(vzCard('Volume × tempo por natureza','dispersão · cada ponto é uma natureza',gDispersao(topN.filter(function(k){ return nat[k].b.length>=3; }).map(function(k,i){ return {nome:k,x:nat[k].n,y:mediana(nat[k].b),rot:i<5?nat[k].n:0,extra:nat[k].b.length+' registrados'}; }),{xl:'protocolos no período (escala log)',yl:'mediana d.u.',logX:true,refY:20,refYNome:'prazo 20 d.u.'}),'vz-wide'));
+        cards.push(vzCard('Naturezas com mais protocolos',per+' · clique para abrir a natureza',gBarrasH(topN.slice(0,10).map(function(k){ return {nome:k,v:nat[k].n,go:goNatRI(k)}; }))));
+        cards.push(vzCard('Dias úteis até o registro · por natureza','box plot · linha vermelha = 20 d.u. · cada ponto é um protocolo fora do padrão (clique abre a ficha) · clique na linha para abrir a natureza',
+          gBox(topN.slice(0,8).filter(function(k){ return nat[k].b.length>=3; }).map(function(k){ return {nome:k,pts:nat[k].R.map(function(a){ return ptAto(a,a.bruto); }),sub:nat[k].b.length+' registrados',go:goNatRI(k)}; }),{un:'d.u.',ref:20,pl:200,tipoLista:'atos'}),'vz-wide'));
+        cards.push(vzCard('Distribuição do tempo até o registro','histograma · todos os registrados · clique na coluna para listar os protocolos',gHisto(r.R.map(function(a){ return a.bruto; }),{un:'d.u.',passo:1,max:30,lim:20,xl:'dias úteis brutos',itens:r.R,tipoLista:'atos',nomeLista:'tempo até o registro'}),'vz-wide'));
+        cards.push(vzCard('Volume × tempo por natureza','dispersão · cada ponto é uma natureza · clique para abrir',gDispersao(topN.filter(function(k){ return nat[k].b.length>=3; }).map(function(k,i){ return {nome:k,x:nat[k].n,y:mediana(nat[k].b),rot:i<5?nat[k].n:0,extra:nat[k].b.length+' registrados',go:goNatRI(k)}; }),{xl:'protocolos no período (escala log)',yl:'mediana d.u.',logX:true,refY:20,refYNome:'prazo 20 d.u.',quem:'natureza'}),'vz-wide'));
       }
       // certidões
-      var all=certCalc(certRecs()), hum=all.filter(function(x){ return x.u&&!/^tri7$/i.test(x.u); }), auto=0, temAuto=false; Object.keys(state.cert).forEach(function(m){ if (state.periodo==='todos'||state.periodo===m){ var v=certAutoMes(m); if (v!=null){ temAuto=true; auto+=v; } } });
+      var all=certCalc(certRecs()), hum=all.filter(function(x){ return x.u&&!/^tri7$/i.test(x.u); }), auto=[], temAuto=false;
+      Object.keys(state.cert).forEach(function(m){ if (state.periodo==='todos'||state.periodo===m){ var rw=state.cert[m].raw||{}; if (rw.auto){ temAuto=true; auto=auto.concat(rw.auto); } } });
       if (all.length){
-        if (temAuto) cards.push(vzCard('Certidões · quem fez',per,gRosca([{nome:'Escreventes',v:hum.length,cor:'var(--c1)'},{nome:'Automáticas (Tri7)',v:auto,cor:'var(--c2)'}],{titulo:'Certidões'})));
+        if (temAuto) cards.push(vzCard('Certidões · quem fez',per,gRosca([{nome:'Escreventes',v:hum.length,cor:'var(--c1)',go:goLista('Certidões feitas por escreventes','cert',hum)},{nome:'Automáticas (Tri7)',v:auto.length,cor:'var(--c2)',go:goLista('Certidões automáticas (Tri7)','cods',auto)}],{titulo:'Certidões'})));
         var pc={}; hum.forEach(function(x){ pc[x.u]=(pc[x.u]||0)+1; });
-        cards.push(vzCard('Certidões por escrevente','quem gerou o selo',gBarrasH(Object.keys(pc).sort(function(a,b){ return pc[b]-pc[a]; }).slice(0,10).map(function(k){ return {nome:k,v:pc[k]}; }))));
-        var C=all.filter(function(x){ return !x.intim; }), B=C.filter(function(x){ return x.origem==='Balcão'; }), O=C.filter(function(x){ return x.origem!=='Balcão'; });
-        cards.push(vzCard('Horas úteis até a certidão','box plot · balcão × central',gBox([{nome:'Balcão',cor:'var(--c1)',v:B.map(function(x){ return x.hu; })},{nome:'Central / online',cor:'var(--c2)',v:O.map(function(x){ return x.hu; })}],{un:'h',pl:130}),'vz-wide'));
+        cards.push(vzCard('Certidões por escrevente','quem gerou o selo · clique para o relatório individual',gBarrasH(Object.keys(pc).sort(function(a,b){ return pc[b]-pc[a]; }).slice(0,10).map(function(k){ return {nome:k,v:pc[k],go:goPessoa(k)}; }))));
+        cards.push(vzCard('Horas úteis até a certidão','box plot · balcão × central · cada ponto é um pedido',certBox(all.filter(function(x){ return !x.intim; })),'vz-wide'));
       }
     } else {
       var D=selDocs(), msS=ms.filter(function(m){ return state.serv[m]; });
       var docsMes=function(m){ return selDocsMes(m).filter(function(d){ return svDe(d.t)!=='Apoio'; }); };
       if (modo==='todas'){
         var sv=['RI','RC','RTD/PJ'];
-        cards.push(vzCard('Produção por serventia','colunas empilhadas · % do mês',graficoBarras(msS,sv.map(function(s,i){ return {nome:s,cor:CAT[i],v:msS.map(function(m){ var n=(state.serv[m]||[]).filter(function(d){ return svDe(d.t)===s; }).length; if (s==='RI'&&state.docs[m]) n+=state.docs[m].atos.length; return n; })}; }),{titulo:'Produção por serventia'})+legenda(sv.map(function(s,i){ return {nome:s,cor:CAT[i]}; })),'vz-wide'));
+        cards.push(vzCard('Produção por serventia','colunas empilhadas · % do mês · clique no segmento para ver só aquela serventia no mês',graficoBarras(msS,sv.map(function(s,i){ return {nome:s,cor:CAT[i],v:msS.map(function(m){ var n=(state.serv[m]||[]).filter(function(d){ return svDe(d.t)===s; }).length; if (s==='RI'&&state.docs[m]) n+=state.docs[m].atos.length; return n; })}; }),{titulo:'Produção por serventia',goMes:function(m){ return goMes(m,'vis'); },goSeg:function(m,i,se){ return {t:'sv',sv:se.nome,m:m}; }}),'vz-wide'));
         var tot={}; sv.forEach(function(s){ tot[s]=0; }); D=servDocs('__todas').filter(function(d){ return svDe(d.t)!=='Apoio'; }); D.forEach(function(d){ var s=svDe(d.t); if (tot[s]!=null) tot[s]++; }); tot.RI+=todosAtos().length;
-        cards.push(vzCard('Participação na produção',per,gRosca(sv.map(function(s,i){ return {nome:s,v:tot[s],cor:CAT[i]}; }),{titulo:'Participação'})));
+        cards.push(vzCard('Participação na produção',per+' · clique para ver só a serventia',gRosca(sv.map(function(s,i){ return {nome:s,v:tot[s],cor:CAT[i],go:{t:'sv',sv:s}}; }),{titulo:'Participação'})));
       } else {
-        cards.push(vzCard('Volume','documentos por mês · área',gLinhas(msS,[{nome:'Documentos',cor:'var(--c1)',v:msS.map(function(m){ return docsMes(m).length; })}],{titulo:'Volume',area:true}),'vz-wide'));
-        cards.push(vzCard('No prazo legal','% por mês (naturezas com prazo definido)',gLinhas(msS,[{nome:'No prazo',cor:'var(--c1)',v:msS.map(function(m){ var c=docsMes(m).filter(function(d){ return servPrazo(d)!=null; }); return c.length?c.filter(servOk).length/c.length*100:null; })}],{titulo:'No prazo',un:'%',W:360,H:210})));
+        cards.push(vzCard('Volume','documentos por mês · clique no mês para ver só ele',gLinhas(msS,[{nome:'Documentos',cor:'var(--c1)',v:msS.map(function(m){ return docsMes(m).length; })}],{titulo:'Volume',area:true,irMes:'nat'}),'vz-wide'));
+        cards.push(vzCard('No prazo legal','% por mês (naturezas com prazo definido) · clique no mês',gLinhas(msS,[{nome:'No prazo',cor:'var(--c1)',v:msS.map(function(m){ var c=docsMes(m).filter(function(d){ return servPrazo(d)!=null; }); return c.length?c.filter(servOk).length/c.length*100:null; })}],{titulo:'No prazo',un:'%',W:360,H:210,irMes:'fp'})));
       }
       D=D.filter(function(d){ return svDe(d.t)!=='Apoio'; });
-      var nt={}; D.forEach(function(d){ var n=nt[d.nat]=nt[d.nat]||{n:0,v:[]}; n.n++; var v=servDu(d); if (v!=null) n.v.push(v); });
-      var tn=Object.keys(nt).sort(function(a,b){ return nt[b].n-nt[a].n; });
-      cards.push(vzCard('Naturezas com mais documentos',per,gBarrasH(tn.slice(0,10).map(function(k){ return {nome:k,v:nt[k].n}; }))));
-      cards.push(vzCard('Dias úteis do ingresso à finalização · por natureza','box plot',gBox(tn.slice(0,8).filter(function(k){ return nt[k].v.length>=3; }).map(function(k){ return {nome:k,v:nt[k].v,sub:nt[k].n+' documentos'}; }),{un:'d.u.',pl:220}),'vz-wide'));
-      cards.push(vzCard('Distribuição do tempo','histograma',gHisto([].concat.apply([],tn.map(function(k){ return nt[k].v; })),{un:'d.u.',xl:'dias úteis'}),'vz-wide'));
-      cards.push(vzCard('Volume × tempo por natureza','dispersão',gDispersao(tn.filter(function(k){ return nt[k].v.length>=3; }).map(function(k,i){ return {nome:k,x:nt[k].n,y:mediana(nt[k].v),rot:i<5?nt[k].n:0}; }),{xl:'documentos (escala log)',yl:'mediana d.u.',logX:true}),'vz-wide'));
+      var nt={}; D.forEach(function(d){ var n=nt[d.nat]=nt[d.nat]||{n:0,v:[],D:[]}; n.n++; var v=servDu(d); if (v!=null){ n.v.push(v); n.D.push(d); } });
+      var tn=Object.keys(nt).sort(function(a,b){ return nt[b].n-nt[a].n; }), todosD=[].concat.apply([],tn.map(function(k){ return nt[k].D; }));
+      var goNt=function(k){ return modo==='todas'?null:goNatServ(k,D); };
+      cards.push(vzCard('Naturezas com mais documentos',per+(modo==='todas'?'':' · clique para abrir a natureza'),gBarrasH(tn.slice(0,10).map(function(k){ return {nome:k,v:nt[k].n,go:goNt(k)}; }))));
+      cards.push(vzCard('Dias úteis do ingresso à finalização · por natureza','box plot · cada ponto é um documento fora do padrão (clique abre a ficha)',gBox(tn.slice(0,8).filter(function(k){ return nt[k].v.length>=3; }).map(function(k){ return {nome:k,pts:nt[k].D.map(function(d){ return ptDoc(d,servDu(d)); }),sub:nt[k].n+' documentos',go:goNt(k)}; }),{un:'d.u.',pl:220,tipoLista:'docs'}),'vz-wide'));
+      cards.push(vzCard('Distribuição do tempo','histograma · clique na coluna para listar os documentos',gHisto(todosD.map(servDu),{un:'d.u.',xl:'dias úteis',itens:todosD,tipoLista:'docs',nomeLista:'tempo até finalizar'}),'vz-wide'));
+      cards.push(vzCard('Volume × tempo por natureza','dispersão · cada ponto é uma natureza',gDispersao(tn.filter(function(k){ return nt[k].v.length>=3; }).map(function(k,i){ return {nome:k,x:nt[k].n,y:mediana(nt[k].v),rot:i<5?nt[k].n:0,go:goNt(k)}; }),{xl:'documentos (escala log)',yl:'mediana d.u.',logX:true,quem:'natureza'}),'vz-wide'));
     }
     // pessoas: produção × inconformidades
-    var RD=relDados(), pts=Object.keys(RD.P).map(function(k){ var p=RD.P[k], inc=((RD.I[k]||{}).recs||[]).length; return p.docs>=MIN_PROD?{nome:p.nome,x:p.docs,y:inc/p.docs*100,rot:p.docs,extra:inc+' inconformidades'}:null; }).filter(Boolean);
-    var prodP=Object.keys(RD.P).map(function(k){ return {nome:RD.P[k].nome,v:RD.P[k].docs}; }).filter(function(x){ return x.v; }).sort(function(a,b){ return b.v-a.v; }).slice(0,12);
-    if (prodP.length) cards.push(vzCard('Produção por pessoa','documentos trabalhados no VHL',gBarrasH(prodP)));
-    if (pts.length>=2) cards.push(vzCard('Produção × inconformidades','dispersão · pessoas com '+MIN_PROD+'+ documentos',gDispersao(pts,{xl:'documentos trabalhados',yl:'% inconformidades',unY:'%',nRot:6}),'vz-wide'));
-    // desempenho (desvio) em gráfico
+    var RD=relDados(), pts=Object.keys(RD.P).map(function(k){ var p=RD.P[k], inc=((RD.I[k]||{}).recs||[]).length; return p.docs>=MIN_PROD?{nome:p.nome,x:p.docs,y:inc/p.docs*100,rot:p.docs,extra:inc+' inconformidades',go:goPessoa(p.nome)}:null; }).filter(Boolean);
+    var prodP=Object.keys(RD.P).map(function(k){ return {nome:RD.P[k].nome,v:RD.P[k].docs,go:goPessoa(RD.P[k].nome)}; }).filter(function(x){ return x.v; }).sort(function(a,b){ return b.v-a.v; }).slice(0,12);
+    if (prodP.length) cards.push(vzCard('Produção por pessoa','documentos trabalhados no VHL · clique para o relatório individual',gBarrasH(prodP)));
+    if (pts.length>=2) cards.push(vzCard('Produção × inconformidades','dispersão · cada ponto é uma pessoa com '+MIN_PROD+'+ documentos · clique para o relatório',gDispersao(pts,{xl:'documentos trabalhados',yl:'% inconformidades',unY:'%',nRot:6,quem:'pessoa'}),'vz-wide'));
     if (modo!=='cert'){ var X=desExecs(); if (X.length){ var J=desJanelas(X), P=desPessoas(X,J).filter(function(p){ return p.ag.length>=MIN_N; });
-      if (P.length) cards.push(vzCard('Ritmo × equipe · '+nomeMes(J.agora),'d.u. por execução vs equipe (mesma etapa e natureza) · negativo = mais rápido',gBarrasH(P.map(function(p){ return {nome:p.nome,v:Math.round(media(p.ag)*100)/100,cor:media(p.ag)>DES_MIN_DIF?'var(--c2)':'var(--c1)',extra:p.ag.length+' execuções · '+p.lEq.txt}; }).sort(function(a,b){ return a.v-b.v; }),{un:''}))); } }
-    h='<div class="sec-h"><span class="note">Os mesmos números das outras páginas, em gráfico. Segue a Serventia e o Período do topo ('+esc(per)+'). Passe o mouse ou toque em qualquer gráfico para ver os valores.</span></div>';
+      if (P.length) cards.push(vzCard('Ritmo × equipe · '+nomeMes(J.agora),'d.u. por execução vs equipe (mesma etapa e natureza) · negativo = mais rápido · clique para a carta de controle',gBarrasH(P.map(function(p){ return {nome:p.nome,v:Math.round(media(p.ag)*100)/100,cor:media(p.ag)>DES_MIN_DIF?'var(--c2)':'var(--c1)',extra:p.ag.length+' execuções · '+p.lEq.txt,go:{t:'des',k:p.k}}; }).sort(function(a,b){ return a.v-b.v; }),{un:''}))); } }
+    var h='<div class="sec-h"><span class="note">Os mesmos números das outras páginas, em gráfico. Segue a Serventia e o Período do topo ('+esc(per)+'). Passe o mouse para ver os valores; clique (no celular, toque duas vezes) para ir ao dado de origem.</span></div>';
     el.innerHTML=h+(cards.length?'<div class="vz-grid">'+cards.join('')+'</div>':'<div class="empty">Sem dados para o período.</div>');
+  }
+
+  // ═════════ v1.9: visão "Visual" de cada página (chave Tabela | Visual no título) ═════════
+  var VIS_DICA='<p class="vis-dica">Clique (ou toque duas vezes) em barra, fatia, coluna, ponto ou mês para ir ao dado de origem. Segue a Serventia e o Período do topo.</p>';
+  function visGrade(cards){ return VIS_DICA+(cards.length?'<div class="vz-grid">'+cards.join('')+'</div>':'<div class="empty">Sem dados para o período.</div>'); }
+  // mapa de calor genérico · linhas/colunas [{k,nome,curto?,go?,tip?}] · cel(linha,coluna) -> {v, txt?, tip, go}
+  function gMapa(linhas, colunas, cel){
+    var vals=[]; linhas.forEach(function(r){ colunas.forEach(function(c){ var x=cel(r,c); if (x&&x.v) vals.push(x.v); }); });
+    var mx=vals.length?Math.max.apply(null,vals):1, MIX=[10,24,40,60,82];
+    return '<div class="tbl-wrap"><table class="hm"><thead><tr><th></th>'+colunas.map(function(c){ return '<th title="'+esc(c.nome)+'">'+esc(c.curto||c.nome)+'</th>'; }).join('')+'</tr></thead><tbody>'+
+      linhas.map(function(r){ return '<tr><th class="hm-r"'+(r.tip?' data-tip="'+esc(r.tip)+'"':'')+goAttr(r.go)+'>'+esc(r.nome)+'</th>'+colunas.map(function(c){ var x=cel(r,c)||{};
+        if (!x.v) return '<td class="hmc"></td>'; var b=Math.max(0,Math.min(4,Math.floor(x.v/mx*5-1e-9)));
+        return '<td class="hmc b'+b+'" style="background:color-mix(in srgb, var(--brand) '+MIX[b]+'%, var(--surface))" data-tip="'+esc(x.tip||'')+'"'+goAttr(x.go)+'>'+(x.txt!=null?x.txt:x.v)+'</td>'; }).join('')+'</tr>'; }).join('')+'</tbody></table></div>';
+  }
+  function abrev(s,n){ s=String(s||''); return s.length>n?s.slice(0,n-1)+'…':s; }
+
+  // ——— Inconformidades
+  function visK1(atos){
+    var A=atrAtual(), todos=incTodos(), filtro=function(r){ return A!=='RI'?incOk(r):(state.incSetor==='todos'||r.t==='RI'); }, recs=incRecs().filter(filtro), per=nomePeriodo(), cards=[];
+    if (!recs.length) return '<div class="empty">Sem inconformidades no período com este filtro.</div>';
+    var pc={}; recs.forEach(function(r){ var c=catDe(r); (pc[c]=pc[c]||[]).push(r); });
+    var cats=Object.keys(pc).sort(function(a,b){ return pc[b].length-pc[a].length; });
+    cards.push(vzCard('Erros por tipo',per+' · '+recs.length+' registros',gBarrasH(cats.map(function(c){ return {nome:c, v:pc[c].length, extra:pct(pc[c].length/recs.length*100)+' dos registros', go:goLista('Erro: '+c,'inc',pc[c])}; }))));
+    var I=recs.filter(function(r){ return grupoDe(r)!=='E'; }), E=recs.filter(function(r){ return grupoDe(r)==='E'; });
+    cards.push(vzCard('Interno × externo',per+' · externo = o erro saiu do cartório',gRosca([{nome:'Interno',v:I.length,cor:'var(--c1)',go:goLista('Inconformidades internas','inc',I)},{nome:'Externo',v:E.length,cor:'var(--c2)',go:goLista('Inconformidades externas','inc',E)}],{titulo:'Interno × externo',sub:'registros'})));
+    var ms=Object.keys(state.inconf).sort().slice(-12), porM=ms.map(function(m){ return (state.inconf[m]||[]).filter(filtro); });
+    cards.push(vzCard('Registros por mês','todos os meses importados · clique no mês para ver só ele',gLinhas(ms,[{nome:'Registros',cor:'var(--c1)',v:porM.map(function(x){ return x.length; }),extra:porM.map(function(x){ return x.filter(function(r){ return grupoDe(r)==='E'; }).length+' externos'; })}],{titulo:'Registros por mês',zero:true,area:true,irMes:'k1'}),'vz-wide'));
+    if (A==='RI'){ var msR=Object.keys(state.docs).sort().slice(-12), kv=msR.map(function(m){ return kpi1Mes(state.docs[m].atos,todos); });
+      cards.push(vzCard('KPI-01 · atos com inconformidade','% dos atos RI registrados no mês',gLinhas(msR,[{nome:'KPI-01',cor:'var(--c2)',v:kv.map(function(q){ return q.k; }),extra:kv.map(function(q){ return q.c+' de '+q.n+' atos'; })}],{titulo:'KPI-01',un:'%',zero:true,ref:[{v:metaDe('KPI-01',16.5),nome:'meta'}],irMes:'k1'}),'vz-wide')); }
+    // pessoa × tipo
+    var pes={}; recs.forEach(function(r){ if (r.r) (pes[r.r]=pes[r.r]||[]).push(r); });
+    var pk=Object.keys(pes).sort(function(a,b){ return pes[b].length-pes[a].length; }).slice(0,15), ck=cats.slice(0,8);
+    if (pk.length) cards.push(vzCard('Pessoa × tipo de erro','as 15 pessoas e os 8 erros com mais registros · mais escuro = mais registros · clique no número para listar, no nome para o relatório',
+      gMapa(pk.map(function(p){ return {k:p, nome:p, tip:'<b>'+esc(p)+'</b><br>'+pes[p].length+' registros no período', go:goPessoa(p)}; }), ck.map(function(c){ return {k:c, nome:c, curto:abrev(c,16)}; }),
+        function(r,c){ var L=pes[r.k].filter(function(x){ return catDe(x)===c.k; }); return L.length?{v:L.length, tip:'<b>'+esc(r.k)+'</b><br>'+esc(c.k)+': '+L.length, go:goLista(r.k+' · '+c.k,'inc',L)}:null; }),'vz-wide'));
+    // taxa × produção
+    var RD=relDados(), pts=Object.keys(RD.P).map(function(k){ var p=RD.P[k], inc=((RD.I[k]||{}).recs||[]).filter(function(r){ return !!state.docs[r.d.slice(0,7)]; }).length, lt=RD.LT[k];
+      return p.docs>=MIN_PROD?{nome:p.nome, x:p.docs, y:inc/p.docs*100, rot:p.docs, cor:lt&&lt.sig==='acima'?'var(--c2)':'var(--c1)', extra:inc+' inconformidades'+(lt?' · '+lt.txt:''), go:goPessoa(p.nome)}:null; }).filter(Boolean);
+    if (pts.length>=2) cards.push(vzCard('Taxa × produção por pessoa','cada ponto é uma pessoa com '+MIN_PROD+'+ documentos · laranja = acima do esperado para o volume dela',gDispersao(pts,{xl:'documentos trabalhados no VHL',yl:'% de inconformidades',unY:'%',nRot:6,quem:'pessoa',refY:RD.taxaEq,refYNome:'média da equipe'}),'vz-wide'));
+    return visGrade(cards);
+  }
+
+  // ——— Atendimento
+  function visAtend(L){
+    var cards=[], at=L.filter(function(s){ return s.c!=null&&s.e!=null; }), per=nomePeriodo();
+    if (!at.length) return '<div class="empty">Sem senhas chamadas no período.</div>';
+    var FX=[[0,30,'até 30 s'],[30,60,'30 s a 1 min'],[60,120,'1 a 2 min'],[120,300,'2 a 5 min'],[300,600,'5 a 10 min'],[600,900,'10 a 15 min'],[900,1e9,'15 min ou mais']];
+    cards.push(vzCard('Espera até a chamada · por faixa',per+' · laranja = 10 min ou mais (gatilho do PCA) · clique para listar as senhas',gBarrasH(FX.map(function(f){ var L2=at.filter(function(s){ return s.e>=f[0]&&s.e<f[1]; }); return {nome:f[2], v:L2.length, cor:f[0]>=600?'var(--c2)':'var(--c1)', extra:pct(L2.length/at.length*100)+' das senhas chamadas', go:goLista('Espera '+f[2],'senhas',L2)}; }))));
+    // dia da semana × hora
+    var cel={}, horas={}; L.forEach(function(s){ var hr=Math.floor(s.g/3600), k=s.dw+'_'+hr, c=cel[k]=cel[k]||{L:[],es:[]}; c.L.push(s); if (s.c!=null&&s.e!=null) c.es.push(s.e); horas[hr]=(horas[hr]||0)+1; });
+    var hs=Object.keys(horas).map(Number).filter(function(h){ return horas[h]>=Math.max(5,L.length*0.005); }).sort(function(a,b){ return a-b; });
+    cards.push(vzCard('Quando aperta · espera média (min)','dia da semana × hora da emissão · clique na célula para listar as senhas',gMapa([1,2,3,4,5].map(function(dw){ return {k:dw, nome:DSEM[dw]}; }), hs.map(function(h){ return {k:h, nome:h+'h'}; }),
+      function(r,c){ var x=cel[r.k+'_'+c.k]; if (!x||!x.es.length) return null; var m=media(x.es)/60; return {v:Math.max(0.01,m), txt:numBR(m,1), tip:'<b>'+DSEM[r.k]+' · '+c.k+'h–'+(c.k+1)+'h</b><br>'+x.L.length+' senhas · espera média '+fmtMS(media(x.es))+'<br>≥ 10 min: '+x.es.filter(function(e){ return e>=600; }).length, go:goLista(DSEM[r.k]+' '+c.k+'h · senhas','senhas',x.L)}; }),'vz-wide'));
+    // por atendente
+    var P={}; L.forEach(function(s){ if (!s.at||s.c==null||s.t==null||s.t>3600) return; (P[s.at]=P[s.at]||[]).push(s); });
+    var ak=Object.keys(P).filter(function(k){ return P[k].length>=MIN_N; }).sort(function(a,b){ return P[b].length-P[a].length; }).slice(0,12);
+    if (ak.length) cards.push(vzCard('Tempo de atendimento por atendente','minutos, da chamada à finalização · clique no nome para o relatório individual · pontos = atendimentos fora do padrão',
+      gBox(ak.map(function(k,i){ return {nome:k, cor:'var(--c1)', sub:P[k].length+' atendimentos', go:goPessoa(k), pts:P[k].map(function(s){ return {v:s.t/60, item:s, lab:fmtData(s.dia)+' '+hhmm(s.c)+' · '+fmtMS(s.t), tip:'<b>'+esc(k)+'</b><br>'+fmtData(s.dia)+' às '+hhmm(s.c)+' · '+esc(s.fila)+'<br>Atendimento: '+fmtMS(s.t)}; })}; }),{un:'min',pl:260,tipoLista:'senhas'}),'vz-wide'));
+    // mês a mês (todas as senhas, não só o período)
+    var ms=Object.keys(state.senhas).sort().slice(-12), Rm=ms.map(function(m){ return senhasResumo(state.senhas[m].L.filter(senhaOk)); });
+    cards.push(vzCard('KPI-13 · espera média por mês','minutos · clique no mês para ver só ele',gLinhas(ms,[{nome:'Espera média',cor:'var(--c1)',v:Rm.map(function(r){ return r.med!=null?r.med/60:null; }),extra:Rm.map(function(r){ return r.na+' senhas'; })}],{titulo:'Espera média',zero:true,irMes:'at',W:360,H:210})));
+    cards.push(vzCard('Senhas com espera ≥ 10 min','% das senhas chamadas no mês',gLinhas(ms,[{nome:'≥ 10 min',cor:'var(--c2)',v:Rm.map(function(r){ return r.na?r.a10/r.na*100:null; }),extra:Rm.map(function(r){ return r.a10+' senhas'; })}],{titulo:'Espera ≥ 10 min',un:'%',zero:true,irMes:'at',W:360,H:210})));
+    var F={}; L.forEach(function(s){ (F[s.fila]=F[s.fila]||[]).push(s); });
+    cards.push(vzCard('Espera média por fila',per+' · clique para listar as senhas da fila',gBarrasH(Object.keys(F).map(function(f){ var r=senhasResumo(F[f]); return {nome:f, v:r.med!=null?Math.round(r.med/6)/10:0, extra:F[f].length+' senhas · '+fmtMS(r.med)+' em média', go:goLista('Fila '+f,'senhas',F[f])}; }).sort(function(a,b){ return b.v-a.v; }),{un:'min'})));
+    return visGrade(cards);
+  }
+
+  // ——— Certidões (box plot balcão × central usado aqui e no Modo visual)
+  function certBox(C){
+    var B=C.filter(function(x){ return x.origem==='Balcão'; }), O=C.filter(function(x){ return x.origem!=='Balcão'; });
+    function pts(L){ return L.map(function(c){ return {v:c.hu, item:c, lab:c.p+' · '+fmtH(c.hu), tip:'<b>Pedido '+esc(c.p)+'</b><br>'+esc(c.tipo)+'<br>'+fmtH(c.hu)+' úteis · prazo '+fmtLim(c.lim)+'<br>Selo gerado por '+esc(c.u||'—')}; }); }
+    return gBox([{nome:'Balcão',cor:'var(--c1)',pts:pts(B),sub:B.length+' pedidos',go:goLista('Certidões de balcão','cert',B)},{nome:'Central / online',cor:'var(--c2)',pts:pts(O),sub:O.length+' pedidos',go:goLista('Certidões da central','cert',O)}],{un:'h',pl:130,tipoLista:'cert'});
+  }
+  function visCer(){
+    var all=certCalc(certRecs()), hum=all.filter(function(x){ return x.u&&!/^tri7$/i.test(x.u); }), C=all.filter(function(x){ return !x.intim; }), per=nomePeriodo(), cards=[];
+    if (!all.length) return '<div class="empty">Sem certidões no período.</div>';
+    var auto=[], temAuto=false; Object.keys(state.cert).sort().forEach(function(m){ if (state.periodo!=='todos'&&state.periodo!==m) return; var r=state.cert[m].raw||{}; if (r.auto){ temAuto=true; auto=auto.concat(r.auto); } });
+    if (temAuto) cards.push(vzCard('Quem fez as certidões',per,gRosca([{nome:'Escreventes',v:hum.length,cor:'var(--c1)',go:goLista('Certidões feitas por escreventes','cert',hum)},{nome:'Automáticas (Tri7)',v:auto.length,cor:'var(--c2)',go:goLista('Certidões automáticas (Tri7)','cods',auto)}],{titulo:'Quem fez',sub:'certidões'})));
+    else cards.push(vzCard('Quem fez as certidões',per,'<div class="gm-vazio">Reimporte o Relatório de andamentos do Tri7 para contar as automáticas.</div>'));
+    var pc={}; hum.forEach(function(x){ (pc[x.u]=pc[x.u]||[]).push(x); });
+    cards.push(vzCard('Certidões por escrevente','quem gerou o selo · clique para o relatório individual',gBarrasH(Object.keys(pc).sort(function(a,b){ return pc[b].length-pc[a].length; }).slice(0,12).map(function(k){ var L=pc[k].filter(function(x){ return !x.intim; }), ok=L.filter(function(x){ return x.ok; }).length; return {nome:k, v:pc[k].length, extra:L.length?pct(ok/L.length*100)+' no prazo':'fluxo de intimação', go:goPessoa(k)}; }))));
+    cards.push(vzCard('Horas úteis até a certidão','balcão × central · pontos = pedidos fora do padrão (clique no fim da linha para listar os que passam do eixo)',certBox(C),'vz-wide'));
+    var ms=Object.keys(state.cert).sort().slice(-12), pm=ms.map(function(m){ var a=certCalc(state.cert[m].recs).filter(function(x){ return !x.intim; }); return {n:a.length, ok:a.filter(function(x){ return x.ok; }).length}; });
+    cards.push(vzCard('Certidões no prazo por mês','% dos pedidos concluídos no mês · clique no mês para ver só ele',gLinhas(ms,[{nome:'No prazo',cor:'var(--c1)',v:pm.map(function(x){ return x.n?x.ok/x.n*100:null; }),extra:pm.map(function(x){ return x.ok+' de '+x.n; })}],{titulo:'No prazo',un:'%',irMes:'cer'}),'vz-wide'));
+    var g={}; C.forEach(function(x){ var k=x.origem+' · '+x.tipo; (g[k]=g[k]||[]).push(x); });
+    cards.push(vzCard('Pedidos por origem e tipo',per+' · clique para listar',gBarrasH(Object.keys(g).sort(function(a,b){ return g[b].length-g[a].length; }).slice(0,12).map(function(k){ var ok=g[k].filter(function(x){ return x.ok; }).length; return {nome:k, v:g[k].length, extra:pct(ok/g[k].length*100)+' no prazo · prazo '+fmtLim(g[k][0].lim), go:goLista(k,'cert',g[k])}; }))));
+    var fora=C.filter(function(x){ return !x.ok; }).sort(function(a,b){ return b.hu-a.hu; });
+    if (fora.length) cards.push(vzCard('Fora do prazo por tipo',per+' · '+fora.length+' pedidos',gBarrasH((function(){ var t={}; fora.forEach(function(x){ (t[x.tipo]=t[x.tipo]||[]).push(x); }); return Object.keys(t).sort(function(a,b){ return t[b].length-t[a].length; }).map(function(k){ return {nome:k, v:t[k].length, cor:'var(--c2)', go:goLista('Fora do prazo · '+k,'cert',t[k])}; }); })())));
+    return visGrade(cards);
+  }
+
+  // ——— Cancelados e especiais
+  function visNao(atos){
+    var R=atos.filter(function(a){ return a.cat==='R'; }), N=atos.filter(function(a){ return a.cat==='N'; }), E=atos.filter(function(a){ return a.cat==='E'; }), I=atos.filter(function(a){ return a.cat==='I'; }), per=nomePeriodo(), cards=[];
+    if (!atos.length) return '<div class="empty">Sem protocolos no período.</div>';
+    cards.push(vzCard('Situação dos protocolos',per,gRosca([{nome:'Registrados',v:R.length,cor:'var(--c1)',go:goLista('Registrados','atos',R)},{nome:'Cancelados',v:N.length,cor:'var(--c2)',go:goLista('Cancelados','atos',N)},{nome:'Abertura + outros',v:E.length,cor:'var(--c3)',go:goLista('Abertura de matrícula + outros atos','atos',E)},{nome:'Sem histórico',v:I.length,cor:'var(--c4)',go:goLista('Sem histórico suficiente','atos',I)}],{titulo:'Situação',centro:pct(atos.length?N.length/atos.length*100:null),sub:'cancelados'})));
+    var pm={}; N.forEach(function(a){ (pm[a.motivo]=pm[a.motivo]||[]).push(a); });
+    cards.push(vzCard('Motivos do cancelamento',per+' · clique para listar',gBarrasH(Object.keys(pm).sort(function(a,b){ return pm[b].length-pm[a].length; }).map(function(k){ return {nome:MOTIVOS[k]||k, v:pm[k].length, cor:'var(--c2)', extra:pct(pm[k].length/N.length*100)+' dos cancelados', go:goLista('Cancelados · '+(MOTIVOS[k]||k),'atos',pm[k])}; }))));
+    var ms=Object.keys(state.docs).sort().slice(-12), rm=ms.map(function(m){ var A=atosDoMes(m), n=A.filter(function(a){ return a.cat==='N'; }).length; return {n:n, t:A.length}; });
+    cards.push(vzCard('Cancelamento por mês','% dos protocolos do mês (KPI-02 complementar) · clique no mês para ver só ele',gLinhas(ms,[{nome:'Cancelados',cor:'var(--c2)',v:rm.map(function(x){ return x.t?x.n/x.t*100:null; }),extra:rm.map(function(x){ return x.n+' de '+x.t; })}],{titulo:'Cancelamento',un:'%',zero:true,irMes:'nao'}),'vz-wide'));
+    var pn={}, tn={}; N.forEach(function(a){ (pn[a.nat]=pn[a.nat]||[]).push(a); }); atos.forEach(function(a){ tn[a.nat]=(tn[a.nat]||0)+1; });
+    cards.push(vzCard('Naturezas com mais cancelados',per+' · clique para abrir a natureza',gBarrasH(Object.keys(pn).sort(function(a,b){ return pn[b].length-pn[a].length; }).slice(0,12).map(function(k){ return {nome:k, v:pn[k].length, cor:'var(--c2)', extra:pct(pn[k].length/tn[k]*100)+' dos '+tn[k]+' protocolos da natureza', go:goNatRI(k)}; }))));
+    if (E.length) cards.push(vzCard('Abertura de matrícula + outros atos',per+' · dias úteis no Prazo do VHL · clique na coluna para listar',gHisto(E.map(function(a){ return a.pv; }),{un:'d.u.',xl:'Prazo do VHL (d.u.)',itens:E,tipoLista:'atos',nomeLista:'abertura + outros',W:380,H:230})));
+    return visGrade(cards);
   }
 
   // ——— aba Certidões
@@ -1908,7 +2119,7 @@
       kpi('Feitas por escreventes',hum.length.toLocaleString('pt-BR'),(semInfo.length===ms.length?'':pct(tot?hum.length/tot*100:null)+' · ')+L.length+' pessoas geraram selo')+
       (L.length?kpi('Quem mais fez',esc(L[0].nome.split(' ')[0]),L[0].n+' certidões · '+pct(hum.length?L[0].n/hum.length*100:null)+' das manuais'):'')+'</div>';
     if (semInfo.length && semInfo.length<ms.length) h+='<p class="hint" style="margin:0 0 8px">Sem contagem de automáticas em: '+semInfo.map(nomeMes).join(', ')+'. Reimporte o Relatório de andamentos desses meses.</p>';
-    if (ms.length>1 && semInfo.length<ms.length) h+='<div class="panel" style="margin-bottom:12px">'+graficoBarras(ms,[{nome:'Escreventes',cor:'var(--brand)',v:ms.map(function(m){ return state.cert[m].recs.filter(function(x){ return x.u&&!/^tri7$/i.test(x.u); }).length; })},{nome:'Automáticas (Tri7)',cor:'#868e96',v:ms.map(function(m){ return certAutoMes(m)||0; })}],{titulo:'Certidões automáticas × escreventes por mês'})+'<div class="leg"><span><i class="dot" style="background:var(--brand)"></i>Escreventes</span><span><i class="dot" style="background:#868e96"></i>Automáticas (Tri7)</span></div></div>';
+    if (ms.length>1 && semInfo.length<ms.length) h+='<div class="panel" style="margin-bottom:12px">'+graficoBarras(ms,[{nome:'Escreventes',cor:'var(--brand)',v:ms.map(function(m){ return state.cert[m].recs.filter(function(x){ return x.u&&!/^tri7$/i.test(x.u); }).length; })},{nome:'Automáticas (Tri7)',cor:'#868e96',v:ms.map(function(m){ return certAutoMes(m)||0; })}],{titulo:'Certidões automáticas × escreventes por mês',goMes:function(m){ return goMes(m,'cer'); }})+'<div class="leg"><span><i class="dot" style="background:var(--brand)"></i>Escreventes</span><span><i class="dot" style="background:#868e96"></i>Automáticas (Tri7)</span></div></div>';
     if (L.length) h+='<div class="tbl-wrap" style="margin-bottom:14px"><table class="tleft" style="max-width:900px"><thead><tr><th>Escrevente (gerou o selo)</th><th class="num">Certidões</th><th class="num">% das manuais</th><th class="num">Balcão</th><th class="num">Central</th><th class="num">No prazo</th><th class="num">Mediana</th></tr></thead><tbody>'+
       L.map(function(o){ return '<tr><td>'+esc(o.nome)+'</td><td class="num"><span class="barra" style="--w:'+Math.round(o.n/mx*100)+'%">'+o.n+'</span></td><td class="num">'+pct(hum.length?o.n/hum.length*100:null)+'</td><td class="num">'+(o.bal||'·')+'</td><td class="num">'+(o.cen||'·')+'</td><td class="num">'+(o.nc?pillKpi(o.ok/o.nc*100):'<span class="mut">intimação</span>')+'</td><td class="num">'+(o.hs.length?fmtH(mediana(o.hs)):'—')+'</td></tr>'; }).join('')+'</tbody></table></div>';
     return h;
@@ -1916,6 +2127,7 @@
   function renderCer(){
     var ms=Object.keys(state.cert);
     if (!ms.length){ $('tabCer').innerHTML='<div class="empty"><b>Nenhuma certidão importada</b>Solte o Relatório de andamentos do Tri7 em Importar dados (a Prazo e Tempo Médio do mesmo período que diz quais pedidos foram de balcão e o tipo).</div>'; return; }
+    if (state.pgVis.cer){ $('tabCer').innerHTML=visCer(); return; }
     var all=certCalc(certRecs()), C=all.filter(function(x){return !x.intim;}), I=all.length-C.length;
     var ok=C.filter(function(x){return x.ok;}).length;
     var B=C.filter(function(x){return x.origem==='Balcão';}), O=C.filter(function(x){return x.origem!=='Balcão';});
@@ -1991,6 +2203,7 @@
   function renderMetodo(){
     var meses=Object.keys(state.docs).sort().reverse();
     $('tabMet').innerHTML='<div class="metodo">'+
+      '<h3>Gráficos que levam ao dado</h3>Todo gráfico é clicável (cursor de mão e realce ao passar o mouse; no celular, o 1º toque mostra a dica e o 2º abre). Natureza → página Por natureza com ela aberta. Mês → o Período muda para aquele mês. Fatia, coluna ou barra de um grupo → lista dos itens logo abaixo do gráfico, com os mais demorados primeiro e o botão "Voltar ao gráfico". Pessoa → relatório individual. Ponto de um protocolo (casos fora do padrão nos box plots) → ficha do protocolo. Quando o clique leva a outra página, o botão "← Voltar ao gráfico" no rodapé devolve ao lugar de onde você saiu. Nos box plots, o eixo vai até o maior caso; se um caso estiver muito acima dos outros, o eixo é cortado e o fim da linha mostra quantos passam (ex.: "3 &gt; 30"), com a lista ao clicar. Inconformidades, Atendimento, Certidões e Cancelados têm a chave <b>Tabela | Visual</b> no título (o navegador lembra a escolha).'+
       '<h3>Desempenho (ritmo e linha normal)</h3>Cada execução de etapa no VHL (Produção por Etapa) é comparada com a média da equipe <b>na mesma etapa e na mesma natureza</b>, sem contar a própria pessoa. A diferença é o <b>desvio</b> (negativo = mais rápido). A <b>linha normal</b> da pessoa é o desvio médio dela nos até 6 meses anteriores. "Reduziu o ritmo" só aparece quando o mês atual difere da linha normal com 95% de confiança <b>e</b> por pelo menos '+numBR(DES_MIN_DIF,1)+' d.u. por execução. O volume compara documentos trabalhados por dia útil com a média dela nos meses anteriores (alerta abaixo de 70% do normal). O mês de cada execução é o mês de finalização do ato, igual ao resto do painel. Etapas sempre feitas no mesmo dia ficam fora porque não mostram ritmo. Um mês muito menor que os anteriores é tratado como incompleto quando o período é "Todos". Antes de concluir, confira férias, afastamento ou mudança de função.'+
       '<h3>Como lemos os números</h3><b>Média</b> é o número do KPI (é o que a ficha técnica define). <b>Mediana</b> é o caso típico — metade fica abaixo, metade acima — e não é puxada por poucos casos extremos. <b>Moda</b> (“mais comum”) só aparece em contagens inteiras, como dias úteis; em tempo de relógio usamos a <b>faixa mais comum</b>. <b>90% em até</b> (P90) mostra o risco: o que acontece com os piores 10%. <b>Faixa típica</b> é onde está a metade central dos casos — larga quer dizer processo imprevisível. Com menos de '+MIN_N+' casos o painel avisa “poucos” e não tira conclusão.'+
       '<h3>Comparação justa entre pessoas</h3><b>Inconformidades:</b> cada pessoa é comparada com a faixa normal para o volume de documentos dela, já contando que funções diferentes erram em ritmos diferentes (funil com sobredispersão). Só aparece “acima” ou “abaixo do esperado” com 95% de confiança — o resto é variação normal. <b>Atendimento:</b> o tempo é comparado com a mediana da equipe <i>na mesma fila</i>, e só vira ponto de atenção quando a diferença é consistente (teste do sinal, menos de 5% de chance de ser acaso, 10+ atendimentos). “≈” marca diferença que pode ser acaso.'+
@@ -2177,6 +2390,12 @@
   document.addEventListener('click',function(e){
     var t=e.target;
     if (t.id==='btnSalvar') return salvar();
+    if (t.id==='btnVoltar') return goVoltar();
+    if (t.dataset && t.dataset.golvoltar){ var gx=$('goLista'); if (gx) gx.remove(); if (state.goAnc&&state.goAnc.scrollIntoView) state.goAnc.scrollIntoView({behavior:'smooth',block:'center'}); return; }
+    if (t.dataset && t.dataset.golfechar){ var gx2=$('goLista'); if (gx2) gx2.remove(); return; }
+    if (t.dataset && t.dataset.golcopiar){ var GA=state.goListaAtual; if (GA) copiarTexto(GA.itens.map(function(x){ return goCodigo(GA.tipo,x); }).filter(function(x){ return x!=null; }).join('\n'), t); return; }
+    if (t.dataset && t.dataset.pv!=null) return pgVisDef(state.aba, t.dataset.pv==='1');
+    var gel=t.closest&&t.closest('[data-go]'); if (gel){ if (toqueSoDica(gel)) return; return goExec(gel); }
     if (t.id==='btnVis'){ if (state.aba==='vis') return irAba(state.abaAntVis||'geral'); state.abaAntVis=state.aba; return irAba('vis'); }
     var dsl=t.closest&&t.closest('tr[data-dessel]'); if (dsl){ state.desSel=state.desSel===dsl.dataset.dessel?null:dsl.dataset.dessel; renderDes(); var dd=document.querySelector('#tabDes .sub-h:last-of-type'); return; }
     var sn=t.closest&&t.closest('tr[data-srvnat]'); if (sn && !t.closest('input')){ state.srvNat=state.srvNat===sn.dataset.srvnat?null:sn.dataset.srvnat; return renderAtr(); }
@@ -2202,7 +2421,7 @@
     if (t.dataset && t.dataset.verrel){ state.relSel=state.incFiltroPessoa?semAc(state.incFiltroPessoa):'__geral'; return irAba('rel'); }
     if (t.id==='relBaixar') return baixarRelatorio();
     var cpb=t.closest&&t.closest('.cp'); if (cpb) return copiarTexto(cpb.dataset.cp, cpb);
-    var pl=t.closest&&t.closest('[data-prot]'); if (pl){ $('protIn').value=pl.dataset.prot; return fichaProtocolo(pl.dataset.prot); }
+    var pl=t.closest&&t.closest('[data-prot]'); if (pl){ if (!pl.closest('#protBox')) goGuardar(); $('protIn').value=pl.dataset.prot; return fichaProtocolo(pl.dataset.prot); }
     if (t.id==='protFechar'){ state.protSel=null; $('protBox').hidden=true; return; }
     if (t.id==='protCopiar') return copiarTexto(state.protTxt, t);
     if (t.id==='memBtn') return baixarMemoria(state.lancMes);
@@ -2244,11 +2463,17 @@
     if (t.id==='btnMenu') return menuAbrir(!document.body.classList.contains('menu-aberto'));
     if (t.id==='menuFundo') return menuAbrir(false);
     var tab=t.closest&&t.closest('.tab');
-    if (tab) return irAba(tab.dataset.tab);
+    if (tab){ state.voltar=null; $('btnVoltar').hidden=true; return irAba(tab.dataset.tab); }
   });
+  var PG_VIS={k1:1,at:1,cer:1,nao:1};
+  function pgVisLer(){ try{ return JSON.parse(localStorage.getItem('crco-pgvis')||'{}')||{}; }catch(e){ return {}; } }
+  state.pgVis=pgVisLer();
+  function pgVisDef(aba,on){ state.pgVis[aba]=on; try{ localStorage.setItem('crco-pgvis',JSON.stringify(state.pgVis)); }catch(e){} pgVisSw(); render(); }
+  function pgVisSw(){ var el=$('pgVisSw'); if (!el) return; var k=state.aba; if (!PG_VIS[k]){ el.innerHTML=''; return; } var on=!!state.pgVis[k];
+    el.innerHTML='<div class="seg" role="group" aria-label="Formato da página"><button type="button" class="segb" data-pv="0" aria-pressed="'+!on+'">▤ Tabela</button><button type="button" class="segb" data-pv="1" aria-pressed="'+on+'">◫ Visual</button></div>'; }
   var TITULOS={des:'Desempenho · ritmo e linha normal',vis:'Modo visual',geral:'Painel geral',nat:'Prazos · por natureza',eta:'Prazos · por etapa',fp:'Prazos · fora do prazo',ex:'Prazos · exigências',nao:'Prazos · cancelados e especiais',k1:'Inconformidades',imp:'Importar dados',cer:'Certidões',at:'Atendimento',rel:'Relatórios por pessoa',tri:'Quem fez · Tri7',lanc:'Lançar KPIs no ANOREG+',met:'Como é calculado'};
   function menuAbrir(sim){ document.body.classList.toggle('menu-aberto',!!sim); $('menuFundo').hidden=!sim; }
-  function irAba(k){ if (k==='imp' && !podeEscrever) k='geral'; if (typeof svModo==='function' && svModo()==='cert' && (k==='geral'||SO_SERV.indexOf(k)>=0)) k='cer'; state.aba=k; $('pgGeral').hidden=k!=='geral'; $('pgConteudo').hidden=k==='geral'||k==='imp'; $('importar').hidden=k!=='imp'; $('pgTitulo').textContent=TITULOS[k]||''; menuAbrir(false); window.scrollTo(0,0); if (k==='geral') renderGraficos(); document.querySelectorAll('.tab').forEach(function(b){ b.setAttribute('aria-selected',b.dataset.tab===k?'true':'false'); });
+  function irAba(k){ if (k==='imp' && !podeEscrever) k='geral'; if (typeof svModo==='function' && svModo()==='cert' && (k==='geral'||SO_SERV.indexOf(k)>=0)) k='cer'; state.aba=k; $('pgGeral').hidden=k!=='geral'; $('pgConteudo').hidden=k==='geral'||k==='imp'; $('importar').hidden=k!=='imp'; $('pgTitulo').textContent=TITULOS[k]||''; pgVisSw(); menuAbrir(false); window.scrollTo(0,0); if (k==='geral') renderGraficos(); document.querySelectorAll('.tab').forEach(function(b){ b.setAttribute('aria-selected',b.dataset.tab===k?'true':'false'); });
     var MAP={nat:'tabNat',k1:'tabK1',cer:'tabCer',eta:'tabEta',fp:'tabFp',ex:'tabEx',nao:'tabNao',at:'tabAt',tri:'tabTri',lanc:'tabLanc',rel:'tabRel',met:'tabMet',des:'tabDes',vis:'tabVis'}; Object.keys(MAP).forEach(function(x){ $(MAP[x]).hidden=state.aba!==x; });
     if (k==='rel') renderRel(); if (k==='tri') renderTri(); if (k==='imp') renderExcluir();  if (k==='lanc') renderLanc(); if (k==='at') renderAtend(); if (k==='des') renderDes(); if (k==='vis') renderVis(); var bv=$('btnVis'); if (bv) bv.setAttribute('aria-pressed',k==='vis'?'true':'false'); }
   function avRascunho(t){ var row=t.closest&&t.closest('#tabEx tr[data-cod]'); if (!row||!t.matches('select.mini,input.mini')) return false;
@@ -2294,14 +2519,19 @@
     if (e.target.id==='busca'){ state.busca=e.target.value; var pos=e.target.selectionStart; renderDetalhe(todosAtos().filter(function(a){return a.nat===state.natSel;})); var b=$('busca'); b.focus(); b.setSelectionRange(pos,pos); }
     if (e.target.id==='soFora'){ state.filtroFora=e.target.checked; renderDetalhe(todosAtos().filter(function(a){return a.nat===state.natSel;})); }
   });
-  var tip=$('tip'), tipTimer=null;
-  document.addEventListener('touchstart',function(e){ var el=e.target.closest&&e.target.closest('[data-tip]'); if (!el){ tip.hidden=true; return; }
-    var to=e.touches[0]; tip.innerHTML=el.getAttribute('data-tip'); tip.hidden=false; var w=tip.offsetWidth, h=tip.offsetHeight, x=Math.min(Math.max(8,to.clientX-w/2),innerWidth-w-8), y=to.clientY-h-18; if (y<8) y=to.clientY+18;
+  var tip=$('tip'), tipTimer=null, toque={el:null,ultimo:null,novo:false,t:0};
+  function dicaGo(el,toq){ var g=el.dataset.goh?el:(el.closest&&el.closest('[data-go]')); return g&&g.dataset.goh?'<div class="tip-go">▸ '+(toq?'Toque de novo para ':'Clique para ')+esc(g.dataset.goh)+'</div>':''; }
+  // no celular o 1º toque mostra a dica; o 2º toque no mesmo elemento abre
+  function toqueSoDica(el){ if (Date.now()-toque.t>900 || toque.el!==el || !toque.novo || !el.hasAttribute('data-tip')) return false; toque.novo=false; return true; }
+  document.addEventListener('touchstart',function(e){ var g=e.target.closest&&e.target.closest('[data-go]'); toque.novo=!!g&&g!==toque.ultimo; toque.el=g; toque.ultimo=g; toque.t=Date.now();
+    var el=e.target.closest&&e.target.closest('[data-tip]'); if (!el){ tip.hidden=true; return; }
+    var to=e.touches[0]; tip.innerHTML=el.getAttribute('data-tip')+dicaGo(el,true); tip.hidden=false; var w=tip.offsetWidth, h=tip.offsetHeight, x=Math.min(Math.max(8,to.clientX-w/2),innerWidth-w-8), y=to.clientY-h-18; if (y<8) y=to.clientY+18;
     tip.style.left=x+'px'; tip.style.top=y+'px'; clearTimeout(tipTimer); tipTimer=setTimeout(function(){ tip.hidden=true; },3500); },{passive:true});
   document.addEventListener('mousemove',function(e){
+    if (Date.now()-toque.t<1200) return; // mouse emulado depois de um toque: a dica do toque fica
     var el=e.target.closest&&e.target.closest('[data-tip]');
     if(!el){ tip.hidden=true; return; }
-    tip.innerHTML=el.getAttribute('data-tip'); tip.hidden=false;
+    tip.innerHTML=el.getAttribute('data-tip')+dicaGo(el,false); tip.hidden=false;
     var x=e.clientX+14, y=e.clientY+14, w=tip.offsetWidth, h=tip.offsetHeight;
     if (x+w>innerWidth-8) x=e.clientX-w-14; if (y+h>innerHeight-8) y=e.clientY-h-14;
     tip.style.left=x+'px'; tip.style.top=y+'px';
