@@ -1,6 +1,17 @@
 (function(){
   if (typeof document==='undefined') return;
   var $=function(id){ return document.getElementById(id); };
+  // ——— tema (automático / claro / escuro) e barra lateral recolhida: preferências deste navegador
+  function prefLer(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+  function prefGravar(k,v){ try{ if (v==null) localStorage.removeItem(k); else localStorage.setItem(k,v); }catch(e){} }
+  var TEMAS={auto:['◐ Auto','Tema: automático (segue o computador)'],claro:['☀ Claro','Tema: claro'],escuro:['☾ Escuro','Tema: escuro']};
+  function temaAplicar(t){ if (!TEMAS[t]) t='auto'; var r=document.documentElement; if (t==='auto') r.removeAttribute('data-theme'); else r.setAttribute('data-theme',t==='escuro'?'dark':'light');
+    var b=document.getElementById('btnTema'); if (b){ b.textContent=TEMAS[t][0]; b.title=TEMAS[t][1]+' · clique para trocar'; } return t; }
+  var temaAtual=temaAplicar(prefLer('crco-tema')||'auto');
+  function temaTrocar(){ temaAtual=temaAplicar(temaAtual==='auto'?'escuro':temaAtual==='escuro'?'claro':'auto'); prefGravar('crco-tema',temaAtual==='auto'?null:temaAtual); if (typeof toast==='function') toast(TEMAS[temaAtual][1]); }
+  function menuRecolher(sim){ document.body.classList.toggle('menu-recolhido',!!sim); prefGravar('crco-menu',sim?'recolhido':null); var b=document.getElementById('btnMenu'); if (b) b.setAttribute('aria-label',sim?'Mostrar a barra lateral':'Abrir menu de seções'); }
+  if (prefLer('crco-menu')==='recolhido') menuRecolher(true);
+  temaAplicar(temaAtual);
   var state={ docs:{}, extras:[], arquivos:{prazo:[],etapa:[],demanda:[],inconf:[],tri7:[],andam:[]}, nomes:{prazo:[],etapa:[],demanda:[],inconf:[],tri7:[],andam:[]}, andam:{}, andIdx:null, usr:{}, usrAuto:{}, resAnd:null, serv:{}, impFeito:{}, prazosServ:{}, sv:'RI', svSub:{}, srvNat:null, kpiCat:null, lancEdit:false,
     resultado:null, periodo:'todos', aba:'geral', natSel:null, sortNat:{k:'total',d:-1}, filtroFora:false, busca:'', natBusca:'', natTodas:false, just:{}, aval:{}, filtroEx:'pend', avDraft:{}, buscaEx:'', inconf:{}, incCat:{}, incSetor:'todos', incFiltroCat:null, incFiltroPessoa:null, cert:{}, cfg:{expIni:8, expFim:17, intim:null}, relSel:'__geral', feedback:{}, kp:{}, k9:{}, lancMes:null, lancTodos:false, atPessoa:null, logs:{}, logCache:{}, protSel:null, protTxt:'', senhas:{}, atMes:'todos', atMet:'esp', atTodosDias:false };
   var db=null, dbPronto=false, podeEscrever=true;
@@ -1482,7 +1493,7 @@
   }
 
   // ——— versão, dados brutos, recálculo, backup e memória de cálculo (site no GitHub + Supabase)
-  var APP_VERSAO='1.9.1';
+  var APP_VERSAO='1.9.2';
   // Dados brutos: só as colunas que o cálculo usa (sem título, solicitante ou nome de parte)
   function brutosMontar(){
     var S=XLSX.SSF, out={};
@@ -2706,7 +2717,9 @@
     var tr=t.closest&&t.closest('#tabNat tr.click');
     if (tr){ var n=tr.dataset.nat; state.natSel = state.natSel===n?null:n; state.busca=''; state.filtroFora=false; var A=todosAtos(); renderNatTabela(A); if(state.natSel) renderDetalhe(A.filter(function(a){return a.nat===state.natSel;})); else $('detalhe').innerHTML=''; if(state.natSel){ var d=$('detalhe'); d&&d.scrollIntoView({behavior:'smooth',block:'nearest'}); } return; }
     var gir=t.closest&&t.closest('[data-ir]'); if (gir) return irAba(gir.dataset.ir);
-    if (t.id==='btnMenu') return menuAbrir(!document.body.classList.contains('menu-aberto'));
+    if (t.id==='btnMenu'){ if (window.innerWidth>980) return menuRecolher(false); return menuAbrir(!document.body.classList.contains('menu-aberto')); }
+    if (t.id==='btnRecolher') return menuRecolher(true);
+    if (t.id==='btnTema') return temaTrocar();
     if (t.id==='menuFundo') return menuAbrir(false);
     var tab=t.closest&&t.closest('.tab');
     if (tab){ state.voltar=null; $('btnVoltar').hidden=true; return irAba(tab.dataset.tab); }

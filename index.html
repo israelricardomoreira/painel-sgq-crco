@@ -265,6 +265,15 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
 .menu .tab[aria-selected=true]{background:var(--brand-soft);color:var(--brand)}
 .layout>.wrap{min-width:0;width:100%}
 .menu-btn{display:none;font-size:1.1rem;padding:6px 11px}
+.menu-recolher{margin-left:auto;padding:2px 9px;font-size:.95rem;line-height:1.2}
+/* v1.9.2: barra lateral recolhida (computador) */
+@media (min-width:981px){
+  body.menu-recolhido .layout{grid-template-columns:minmax(0,1fr)}
+  body.menu-recolhido .menu{display:none}
+  body.menu-recolhido .menu-btn{display:inline-flex}
+  body.menu-recolhido .wrap{max-width:1400px}
+}
+@media (max-width:980px){.menu-recolher{display:none}}
 .menu-fundo{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:40}
 .pg-tit{font-size:1.15rem;margin-bottom:14px}
 .gm{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
@@ -312,7 +321,7 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
 
 <div class="layout">
 <nav id="menu" class="menu" aria-label="Seções do painel">
-  <div class="menu-marca"><div class="mark">RI</div><b>Painel SGQ</b></div>
+  <div class="menu-marca"><div class="mark">RI</div><b>Painel SGQ</b><button class="btn sm menu-recolher" id="btnRecolher" type="button" title="Recolher a barra lateral" aria-label="Recolher a barra lateral">«</button></div>
   <button class="tab" type="button" data-tab="geral" aria-selected="true">Painel geral</button>
   <button class="tab" type="button" data-tab="vis" aria-selected="false">Modo visual</button>
   <div class="menu-grp">Prazos</div>
@@ -344,6 +353,7 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
       <form id="protForm" class="protf" role="search"><input type="search" id="protIn" placeholder="Protocolo ou código (ex.: 120322, N4447)" aria-label="Buscar protocolo ou código"><button class="btn" type="submit">Ver ficha</button></form>
       <span class="atrw"><label for="selAtr" class="hint" style="margin:0">Serventia</label> <select id="selAtr" aria-label="Serventia"></select> <select id="selSub" aria-label="O que ver" hidden></select> <select id="selOrig" aria-label="Origem do protocolo" hidden><option value="todas">Balcão + central</option><option value="balcao">Só balcão</option><option value="central">Só central (ONR)</option></select></span>
       <button class="btn" type="button" id="btnVis" aria-pressed="false" title="Ver o painel em gráficos">◫ Modo visual</button>
+      <button class="btn" type="button" id="btnTema" title="Tema: automático (segue o computador)" aria-label="Trocar tema">◐ Auto</button>
       <label for="selMes" class="hint" style="margin:0">Período</label>
       <select id="selMes" aria-label="Período"></select>
     </div>
