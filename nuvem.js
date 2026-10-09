@@ -127,7 +127,11 @@
   // ——— início ———
   document.addEventListener('DOMContentLoaded',function(){
     if (!CFG.supabaseUrl || !CFG.supabaseAnonKey || !window.supabase){ tela('<p class="nl-tit">Site ainda não configurado</p><p class="nl-txt">Preencha <code>config.js</code> com a URL e a chave pública (anon) do seu projeto Supabase. Veja o README.</p>'); return; }
-    sb=window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, {auth:{persistSession:true, autoRefreshToken:true, storageKey:'crco-painel-sessao'}});
+    // sessão só enquanto o navegador estiver aberto (sessionStorage): fechou, pede senha e código de novo.
+    // Recarregar a página na mesma aba continua logado. Remove a sessão antiga que ficava salva no localStorage.
+    try{ Object.keys(localStorage).forEach(function(k){ if (k.indexOf('crco-painel-sessao')===0) localStorage.removeItem(k); }); }catch(e){}
+    var guarda=null; try{ guarda=window.sessionStorage; }catch(e){}
+    sb=window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, {auth:{persistSession:!!guarda, storage:guarda||undefined, autoRefreshToken:true, storageKey:'crco-painel-sessao'}});
     sb.auth.getSession().then(function(r){ if (r.data && r.data.session){ usuario=r.data.session.user; etapaMFA(); } else telaSenha(); });
   });
 })();

@@ -52,6 +52,8 @@ var Motor = (function(){
   var POS_REGISTRO = /imprimir ficha|arquivamento|envio de registro|digitalizar selo/;
   var ESPECIAL = 'abertura de matricula + outros atos';
   var PESQUISA = 'onr - pesquisa qualificada';
+  // consultas que não são registro: contam só no volume (fora do KPI-02)
+  var CONSULTAS = [PESQUISA, 'informacao verbal - visualizacao de matricula'];
 
   function processar(prazoRows, etapaRows, demandaRows, SSF, extras){
     var du = criarCalendario(extras);
@@ -84,14 +86,17 @@ var Motor = (function(){
       if (fin==null) return;
       var mes=isoDeDia(fin).slice(0,7);
       var M=meses[mes]=meses[mes]||{mes:mes,atos:[],pesquisa:0};
-      if (natn===PESQUISA){ M.pesquisa++; return; }
+      if (CONSULTAS.indexOf(natn)>=0){ M.pesquisa++; return; }
       var ets=porCod[c]||[], ult=ets.length?ets[ets.length-1].etn:'';
+      var semPos=ets.filter(function(e){ return !POS_REGISTRO.test(e.etn); }), ultUtil=semPos.length?semPos[semPos.length-1].etn:''; // última etapa sem contar as de pós-registro (digitalizar selo, imprimir ficha…)
       var rev=null; ets.forEach(function(e){ if (e.etn.indexOf('revisao oficial')>=0 && e.etn.indexOf('previa')<0) rev=e.d; });
       var st=dem[c]||'';
       var motivo='';
       if (st==='cancelado') motivo='C';
       else if (ult==='cancelamento de protocolo') motivo='P';
       else if (ult==='onr - envio do recibo do protocolo') motivo='O';
+      else if (ult==='oficio de cancelamento') motivo='F';
+      else if (ultUtil==='devolucao deposito previo') motivo='X';
       else if (rev==null && ult==='onr - nota de devolucao') motivo='D';
       else if (rev==null && ult==='re-analise - 1 d') motivo='A';
       var reing = ets.some(function(e){ return /re-analise|revisao de exigencia/.test(e.etn); }) || (c in dem);
@@ -185,6 +190,14 @@ var Motor = (function(){
     if (j.indexOf('laudo de exigencias')>=0) return 'Qualificação: exigência não feita';
     return 'Outros';
   }
+  // LGPD: CPF e RG de partes não precisam estar nas observações para o indicador. Mascara na importação e nos dados já salvos.
+  var RX_CPF=/\b\d{3}\.\d{3}\.\d{3}-?\d{2}\b|(\bCPF\b[^0-9]{0,15})\d{11}\b/gi;
+  var RX_RG=/(\b(?:RG|R\.G\.|identidade|carteira de identidade)\b\s*(?:n[º°o.]*\s*)?[:;]?\s*)([0-9][0-9.\-/xX]{3,}[0-9xX])/gi;
+  function cpfValido(d){ if (!/^\d{11}$/.test(d) || /^(\d)\1{10}$/.test(d)) return false; var s=0,i; for (i=0;i<9;i++) s+=+d[i]*(10-i); var v=(s*10)%11%10; if (v!==+d[9]) return false; s=0; for (i=0;i<10;i++) s+=+d[i]*(11-i); return (s*10)%11%10===+d[10]; }
+  function mascarar(t){ if (t==null) return t; var s=String(t);
+    return s.replace(RX_CPF,function(m,pre){ return pre?pre+'***********':'***.***.***-**'; })
+      .replace(/\b\d{11}\b/g,function(m){ return cpfValido(m)?'***********':m; }) // 11 dígitos soltos só quando o dígito verificador fecha (não pega nº de OS)
+      .replace(RX_RG,function(m,pre){ return pre+'*****'; }); }
   function hash(str){ var h=5381; for (var i=0;i<str.length;i++){ h=((h<<5)+h+str.charCodeAt(i))|0; } return (h>>>0).toString(36); }
   function processarInconf(rows, SSF){
     var L=linhas(rows), out={}, vistos={};
@@ -194,7 +207,7 @@ var Motor = (function(){
       var iso=isoDeDia(dia), mes=iso.slice(0,7);
       var rec={c:cod,t:tipo,n:String(r['natureza']||'').trim(),r:String(r['responsavel']||'').trim(),p:+r['peso']||0,
         g:/externo/i.test(String(r['grupo de inconformidade']||''))?'E':'I',j:String(r['justificativa']||'').trim(),o:String(r['observacao']||'').trim(),d:iso};
-      var id=hash([rec.c,rec.d,rec.r,rec.j,rec.o].join('|')), k=id, n=1; while (vistos[k]) { if (vistos[k]===2) return; k=id+'-'+(++n); }
+      var id=hash([rec.c,rec.d,rec.r,rec.j,rec.o].join('|')); rec.o=mascarar(rec.o); rec.j=mascarar(rec.j); // o id usa o texto original: reimportar a mesma planilha não duplica, k=id, n=1; while (vistos[k]) { if (vistos[k]===2) return; k=id+'-'+(++n); }
       vistos[k]=1; rec.id=k; (out[mes]=out[mes]||[]).push(rec);
     });
     return out;
@@ -241,8 +254,8 @@ var Motor = (function(){
 
 
   // ——— Tri7 · Relatório de andamentos (quem fez cada andamento; horário local, sem ajuste)
-  var AND_ST={'prenotado':'PN','prenotado automaticamente':'PA','prenotado automaticamente (saec/onr)':'PA','re-analise':'RA','revisao de exigencia':'RE','nota de exigencia':'NE','selos gerados':'SG','recebido para entrega':'RC','custas informadas (saec/onr)':'CI','custas informadas':'CI','aguardando pagamento':'AP'};
-  var AND_NOME={PN:'Prenotado',PA:'Prenotado automaticamente',RA:'Re-análise',RE:'Revisão de Exigência',NE:'Nota de Exigência',SG:'Selos Gerados',RC:'Recebido para Entrega',CI:'Custas Informadas (ONR)',AP:'Aguardando Pagamento'};
+  var AND_ST={'prenotado':'PN','prenotado automaticamente':'PA','prenotado automaticamente (saec/onr)':'PA','re-analise':'RA','revisao de exigencia':'RE','nota de exigencia':'NE','selos gerados':'SG','recebido para entrega':'RC','custas informadas (saec/onr)':'CI','custas informadas':'CI','aguardando pagamento':'AP','cancelado por desistencia ou impossibilidade':'CD'};
+  var AND_NOME={PN:'Prenotado',PA:'Prenotado automaticamente',RA:'Re-análise',RE:'Revisão de Exigência',NE:'Nota de Exigência',SG:'Selos Gerados',RC:'Recebido para Entrega',CI:'Custas Informadas (ONR)',AP:'Aguardando Pagamento',CD:'Cancelado por Desistência ou Impossibilidade'};
   function andMin(dv, hv){ // data (serial ou dd/mm/aaaa) + hora (fração ou hh:mm[:ss]) -> minutos "ingênuos" locais
     var d=null, h=0, m;
     if (typeof dv==='number') d=Math.floor(dv)-25569+(dv%1);
@@ -269,7 +282,8 @@ var Motor = (function(){
       }
       var t=tipo==='protocolo'?'P':tipo.indexOf('exame')===0?'E':null; if (!t) return;
       var cod=AND_ST[st]||String(r['status do andamento']).trim(), me=isoMin(mi).slice(0,7); nP++;
-      (ev[me]=ev[me]||[]).push({t:t,n:num,s:cod,u:u,m:mi});
+      var ev1={t:t,n:num,s:cod,u:u,m:mi}; if (cod==='CD'){ var ip=andMin(r['data prot.']); if (ip!=null) ev1.i=ip; } // cancelado: guarda a prenotação (o protocolo pode ser de antes do relatório)
+      (ev[me]=ev[me]||[]).push(ev1);
     });
     return {ev:ev, cert:cert, ini:ini===Infinity?null:isoMin(ini), fim:fim===-Infinity?null:isoMin(fim), nP:nP, nC:nC, nAuto:nAuto};
   }
@@ -277,13 +291,14 @@ var Motor = (function(){
   function codificarAndam(mes, lista, origem){
     var us=[], ui={}, ss=[], si={}, vistos={}, rows=[];
     function id(a,ix,x){ if(!(x in ix)){ ix[x]=a.length; a.push(x);} return ix[x]; }
-    lista.slice().sort(function(a,b){ return a.m-b.m || (a.n<b.n?-1:a.n>b.n?1:0); }).forEach(function(e){ var k=andChave(e); if (vistos[k]) return; vistos[k]=1;
-      rows.push([e.t,e.n,id(ss,si,e.s),id(us,ui,e.u),e.m].join('|')); });
+    var uni=[]; lista.forEach(function(e){ var k=andChave(e), j=vistos[k]; if (j==null){ vistos[k]=uni.length; uni.push(e); } else if (uni[j].i==null && e.i!=null) uni[j]=e; }); // repetido: fica o que tem a data da prenotação
+    uni.sort(function(a,b){ return a.m-b.m || (a.n<b.n?-1:a.n>b.n?1:0); }).forEach(function(e){
+      rows.push([e.t,e.n,id(ss,si,e.s),id(us,ui,e.u),e.m].concat(e.i!=null?[e.i]:[]).join('|')); });
     return {mes:mes, v:1, atualizadoEm:new Date().toISOString(), origem:origem||'', us:us, ss:ss, rows:rows};
   }
   function decodificarAndam(doc){
     var ss=(doc.ss||[]).map(function(x){ return AND_NOME[x]?x:(AND_ST[semAcento(x)]||x); });
-    return (doc.rows||[]).map(function(s){ var f=s.split('|'); return {t:f[0],n:f[1],s:ss[+f[2]],u:doc.us[+f[3]],m:+f[4]}; });
+    return (doc.rows||[]).map(function(s){ var f=s.split('|'); var e={t:f[0],n:f[1],s:ss[+f[2]],u:doc.us[+f[3]],m:+f[4]}; if (f[5]) e.i=+f[5]; return e; });
   }
 
   // ——— outras atribuições (RC, RTD, RPJ, Intimações, Malote Digital, Arquivo…) a partir do Prazo e Tempo Médio + Produção por Etapa
@@ -318,7 +333,7 @@ var Motor = (function(){
         ets:f[7]?f[7].split(';').map(function(x){ var q=x.split(':'); return {et:doc.ets[+q[0]], rp:doc.resps[+q[1]], d:+q[2], pz:+q[3]}; }):[]}; });
   }
 
-  return {processarServ:processarServ, codificarServ:codificarServ, decodificarServ:decodificarServ, tipoServ:tipoServ, processarAndam:processarAndam, codificarAndam:codificarAndam, decodificarAndam:decodificarAndam, andChave:andChave, AND_NOME:AND_NOME, isoMin:isoMin, processar:processar, processarInconf:processarInconf, processarCert:processarCert, codificarCert:codificarCert, decodificarCert:decodificarCert, horasUteis:horasUteis, limiteCert:limiteCert, feriadoSet:feriadoSet, nomearErro:nomearErro, CATS_ERRO:CATS_ERRO, detectar:detectar, codificar:codificar, decodificar:decodificar, criarCalendario:criarCalendario, diaDeIso:diaDeIso, isoDeDia:isoDeDia, codificarLog:codificarLog, decodificarLog:decodificarLog, paraDia:paraDia, semAcento:semAcento, linhas:linhas};
+  return {mascarar:mascarar, processarServ:processarServ, codificarServ:codificarServ, decodificarServ:decodificarServ, tipoServ:tipoServ, processarAndam:processarAndam, codificarAndam:codificarAndam, decodificarAndam:decodificarAndam, andChave:andChave, AND_NOME:AND_NOME, isoMin:isoMin, processar:processar, processarInconf:processarInconf, processarCert:processarCert, codificarCert:codificarCert, decodificarCert:decodificarCert, horasUteis:horasUteis, limiteCert:limiteCert, feriadoSet:feriadoSet, nomearErro:nomearErro, CATS_ERRO:CATS_ERRO, detectar:detectar, codificar:codificar, decodificar:decodificar, criarCalendario:criarCalendario, diaDeIso:diaDeIso, isoDeDia:isoDeDia, codificarLog:codificarLog, decodificarLog:decodificarLog, paraDia:paraDia, semAcento:semAcento, linhas:linhas};
 })();
 if (typeof module!=='undefined') module.exports=Motor;
 // MOTOR-FIM ———————————————————————————————————————————————————
