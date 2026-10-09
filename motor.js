@@ -100,12 +100,15 @@ var Motor = (function(){
       else if (rev==null && ult==='onr - nota de devolucao') motivo='D';
       else if (rev==null && ult==='re-analise - 1 d') motivo='A';
       var reing = ets.some(function(e){ return /re-analise|revisao de exigencia/.test(e.etn); }) || (c in dem);
-      var susp = !temDemanda || (c in dem), nex=0, npg=0, nri=0, dias=[];
+      var susp = !temDemanda || (c in dem), nex=0, npg=0, nri=0, dias=[], retE=null;
       ets.forEach(function(e){ if (POS_REGISTRO.test(e.etn) || (rev!=null && e.d>rev)) return;
         var u=dias[dias.length-1]; if (!u||u.d!==e.d) dias.push({d:e.d,pz:e.pz,re:/re-analise|revisao de exigencia/.test(e.etn)});
         else { u.pz=Math.max(u.pz,e.pz); u.re=u.re||/re-analise|revisao de exigencia/.test(e.etn); } });
       for (var k=1;k<dias.length;k++){ var gap=du(dias[k-1].d,dias[k].d)-dias[k].pz;
-        if (gap>=1 && susp){ if (dias[k].re) nex++; else npg++; } else if (dias[k].re) nri++; }
+        if (gap>=1 && susp){ if (dias[k].re){ nex++; retE=dias[k].d; } else npg++; } else if (dias[k].re) nri++; }
+      // 1.10.3: dia do último retorno do título (exigência cumprida) até o registro — limite = retorno + 5 d.u. (art. 188, §1º, III), nunca menos que 20
+      var retQ=null; ets.forEach(function(e){ if (/re-analise|revisao de exigencia/.test(e.etn) && ing!=null && e.d>ing && (rev==null || e.d<=rev)) retQ=e.d; });
+      var ret=retE!=null?retE:retQ;
       var hist = ing!=null && minEt!==Infinity && ing>=minEt;
       var cat, bruto=null, liq=null, medida='', etapasStr=[];
       if (motivo) cat='N';
@@ -120,7 +123,8 @@ var Motor = (function(){
         etapasStr=Object.keys(agg).map(function(k){ return [k,agg[k]]; });
       }
       M.atos.push({c:c,nat:nat,ing:ing!=null?isoDeDia(ing):'',reg:rev!=null?isoDeDia(rev):'',fin:isoDeDia(fin),
-        bruto:bruto,liq:liq,reing:reing?1:0,cat:cat,pv:pv,medida:medida,etapas:etapasStr,motivo:motivo,nex:nex,npg:npg,nri:nri,log:ets,st:st,ingD:ing});
+        bruto:bruto,liq:liq,reing:reing?1:0,ret:(reing&&ret!=null&&rev!=null)?isoDeDia(ret):'', // sem Revisão Oficial (CNIB, intimações) o limite segue 20/25
+        cat:cat,pv:pv,medida:medida,etapas:etapasStr,motivo:motivo,nex:nex,npg:npg,nri:nri,log:ets,st:st,ingD:ing});
     });
     Object.keys(certTip).forEach(function(m){ (meses[m]=meses[m]||{mes:m,atos:[],pesquisa:0}).cert=certTip[m]; });
     var producao={}; Object.keys(prod).forEach(function(m){ producao[m]={}; Object.keys(prod[m]).forEach(function(p){ producao[m][p]={d:Object.keys(prod[m][p].docs).length,e:prod[m][p].et,z:prod[m][p].z}; }); });
@@ -141,20 +145,29 @@ var Motor = (function(){
     function ide(n){ if(!(n in ei)){ ei[n]=ets.length; ets.push(n);} return ei[n]; }
     var atos=M.atos.map(function(a){
       var es=a.etapas.map(function(p){ return ide(p[0])+':'+p[1]; }).join(';');
-      return [a.c,idn(a.nat),a.ing,a.reg,a.fin,a.bruto==null?'':a.bruto,a.liq==null?'':a.liq,a.reing,a.cat,a.pv,a.medida,es,a.motivo,a.nex||0,a.npg||0,a.nri||0].join('|');
+      return [a.c,idn(a.nat),a.ing,a.reg,a.fin,a.bruto==null?'':a.bruto,a.liq==null?'':a.liq,a.reing,a.cat,a.pv,a.medida,es,a.motivo,a.nex||0,a.npg||0,a.nri||0,a.ret||''].join('|');
     });
     var inc=M.atos.filter(function(a){return a.cat==='I';}).length;
     var cn=[], cni={}, ct=Object.keys(M.cert||{}).map(function(k){ var n=M.cert[k]; if(!(n in cni)){ cni[n]=cn.length; cn.push(n);} return k+':'+cni[n]; }).join(';');
     return {mes:M.mes, v:2, atualizadoEm:new Date().toISOString(), pesquisa:M.pesquisa, incompletos:inc,
       total:M.atos.length, naturezas:nats, etapas:ets, atos:atos, origem:origem||{}, producao:producao||{}, certNats:cn, certTipos:ct};
   }
+  // limite do KPI-02: 20 d.u.; com reingresso, dia útil do retorno + 5 (art. 188, §1º, III), nunca menos que 20 nem mais que 25
+  // (retorno depois do 20º d.u. no sistema = erro de contagem: o cartório não registra título com prenotação vencida, então conta como 25)
+  // sem data de retorno conhecida (reingresso só pela Demanda), fica 25
+  var calLim=null, calLimK=null;
+  function limitePrazo(reing, ing, ret, extras){
+    if (!reing) return 20; if (!ret || !ing) return 25;
+    var k=(extras||[]).join(','); if (calLimK!==k){ calLim=criarCalendario(extras||[]); calLimK=k; }
+    var d=calLim(diaDeIso(ing), diaDeIso(ret)); return Math.max(20, Math.min(d,20)+5);
+  }
   function decodificar(doc){
     return doc.atos.map(function(s){
       var f=s.split('|');
       var es=f[11]?f[11].split(';').map(function(x){ var q=x.split(':'); return [doc.etapas[+q[0]], +q[1]]; }):[];
       var a={c:f[0],nat:doc.naturezas[+f[1]],ing:f[2],reg:f[3],fin:f[4],bruto:f[5]===''?null:+f[5],liq:f[6]===''?null:+f[6],
-        reing:+f[7],cat:f[8],pv:+f[9],medida:f[10],etapas:es,motivo:f[12]||'',nex:+(f[13]||0),npg:+(f[14]||0),nri:+(f[15]||0),mes:doc.mes};
-      a.lim=a.reing?25:20; a.dentro=a.bruto!=null && a.bruto<=a.lim;
+        reing:+f[7],cat:f[8],pv:+f[9],medida:f[10],etapas:es,motivo:f[12]||'',nex:+(f[13]||0),npg:+(f[14]||0),nri:+(f[15]||0),ret:f[16]||'',mes:doc.mes};
+      a.lim=limitePrazo(a.reing, a.ing, a.ret); a.dentro=a.bruto!=null && a.bruto<=a.lim;
       a.espera=(a.bruto!=null&&a.liq!=null)?Math.max(0,a.bruto-a.liq):null;
       return a;
     });
@@ -333,7 +346,7 @@ var Motor = (function(){
         ets:f[7]?f[7].split(';').map(function(x){ var q=x.split(':'); return {et:doc.ets[+q[0]], rp:doc.resps[+q[1]], d:+q[2], pz:+q[3]}; }):[]}; });
   }
 
-  return {mascarar:mascarar, processarServ:processarServ, codificarServ:codificarServ, decodificarServ:decodificarServ, tipoServ:tipoServ, processarAndam:processarAndam, codificarAndam:codificarAndam, decodificarAndam:decodificarAndam, andChave:andChave, AND_NOME:AND_NOME, isoMin:isoMin, processar:processar, processarInconf:processarInconf, processarCert:processarCert, codificarCert:codificarCert, decodificarCert:decodificarCert, horasUteis:horasUteis, limiteCert:limiteCert, feriadoSet:feriadoSet, nomearErro:nomearErro, CATS_ERRO:CATS_ERRO, detectar:detectar, codificar:codificar, decodificar:decodificar, criarCalendario:criarCalendario, diaDeIso:diaDeIso, isoDeDia:isoDeDia, codificarLog:codificarLog, decodificarLog:decodificarLog, paraDia:paraDia, semAcento:semAcento, linhas:linhas};
+  return {limitePrazo:limitePrazo, mascarar:mascarar, processarServ:processarServ, codificarServ:codificarServ, decodificarServ:decodificarServ, tipoServ:tipoServ, processarAndam:processarAndam, codificarAndam:codificarAndam, decodificarAndam:decodificarAndam, andChave:andChave, AND_NOME:AND_NOME, isoMin:isoMin, processar:processar, processarInconf:processarInconf, processarCert:processarCert, codificarCert:codificarCert, decodificarCert:decodificarCert, horasUteis:horasUteis, limiteCert:limiteCert, feriadoSet:feriadoSet, nomearErro:nomearErro, CATS_ERRO:CATS_ERRO, detectar:detectar, codificar:codificar, decodificar:decodificar, criarCalendario:criarCalendario, diaDeIso:diaDeIso, isoDeDia:isoDeDia, codificarLog:codificarLog, decodificarLog:decodificarLog, paraDia:paraDia, semAcento:semAcento, linhas:linhas};
 })();
 if (typeof module!=='undefined') module.exports=Motor;
 // MOTOR-FIM ———————————————————————————————————————————————————
