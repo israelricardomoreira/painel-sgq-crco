@@ -255,20 +255,20 @@ var Motor = (function(){
     return out;
   }
   function codificarCert(M, origem){
-    var us=[], ui={}; function idu(n){ if(!(n in ui)){ ui[n]=us.length; us.push(n);} return ui[n]; }
-    var o={mes:M.mes, v:1, atualizadoEm:new Date().toISOString(), origem:origem||'', erros:M.erros, pend:M.pend, usuarios:us,
-      recs:M.recs.map(function(r){ return [r.p,isoMin(r.i),isoMin(r.f),idu(r.u)].join('|'); })};
+    var us=[], ui={}, ns=[], ni={}; function idu(n){ if(!(n in ui)){ ui[n]=us.length; us.push(n);} return ui[n]; } function idn(n){ if(!(n in ni)){ ni[n]=ns.length; ns.push(n);} return ni[n]; }
+    var o={mes:M.mes, v:1, atualizadoEm:new Date().toISOString(), origem:origem||'', erros:M.erros, pend:M.pend, usuarios:us, nats:ns, // 0.10.5: natureza da certidão (ex.: Certidão de Intimação - SAEC)
+      recs:M.recs.map(function(r){ return [r.p,isoMin(r.i),isoMin(r.f),idu(r.u)].concat(r.nat?[idn(r.nat)]:[]).join('|'); })};
     if (M.auto) o.auto=M.auto.filter(function(x,i,a){ return a.indexOf(x)===i; }); // protocolos de certidão com selo gerado pelo próprio Tri7 (automáticas)
     return o;
   }
   function decodificarCert(doc){
-    return doc.recs.map(function(s){ var f=s.split('|'); return {p:f[0],i:minIso(f[1]),f:minIso(f[2]),u:doc.usuarios[+f[3]],mes:doc.mes}; });
+    return doc.recs.map(function(s){ var f=s.split('|'); return {p:f[0],i:minIso(f[1]),f:minIso(f[2]),u:doc.usuarios[+f[3]],mes:doc.mes,nat:(f[4]!=null&&f[4]!==''&&doc.nats)?doc.nats[+f[4]]||'':''}; });
   }
 
 
   // ——— Tri7 · Relatório de andamentos (quem fez cada andamento; horário local, sem ajuste)
-  var AND_ST={'prenotado':'PN','prenotado automaticamente':'PA','prenotado automaticamente (saec/onr)':'PA','re-analise':'RA','revisao de exigencia':'RE','nota de exigencia':'NE','selos gerados':'SG','recebido para entrega':'RC','custas informadas (saec/onr)':'CI','custas informadas':'CI','aguardando pagamento':'AP','cancelado por desistencia ou impossibilidade':'CD'};
-  var AND_NOME={PN:'Prenotado',PA:'Prenotado automaticamente',RA:'Re-análise',RE:'Revisão de Exigência',NE:'Nota de Exigência',SG:'Selos Gerados',RC:'Recebido para Entrega',CI:'Custas Informadas (ONR)',AP:'Aguardando Pagamento',CD:'Cancelado por Desistência ou Impossibilidade'};
+  var AND_ST={'prenotado':'PN','prenotado automaticamente':'PA','prenotado automaticamente (saec/onr)':'PA','re-analise':'RA','revisao de exigencia':'RE','nota de exigencia':'NE','selos gerados':'SG','recebido para entrega':'RC','custas informadas (saec/onr)':'CI','custas informadas':'CI','aguardando pagamento':'AP','cancelado por desistencia ou impossibilidade':'CD','cancelado por decurso de prazo':'CP','cancelado':'CC'}; // 0.10.5: os três cancelamentos do Tri7
+  var AND_NOME={PN:'Prenotado',PA:'Prenotado automaticamente',RA:'Re-análise',RE:'Revisão de Exigência',NE:'Nota de Exigência',SG:'Selos Gerados',RC:'Recebido para Entrega',CI:'Custas Informadas (ONR)',AP:'Aguardando Pagamento',CD:'Cancelado por Desistência ou Impossibilidade',CP:'Cancelado por Decurso de Prazo',CC:'Cancelado'};
   function andMin(dv, hv){ // data (serial ou dd/mm/aaaa) + hora (fração ou hh:mm[:ss]) -> minutos "ingênuos" locais
     var d=null, h=0, m;
     if (typeof dv==='number') d=Math.floor(dv)-25569+(dv%1);
@@ -295,7 +295,7 @@ var Motor = (function(){
       }
       var t=tipo==='protocolo'?'P':tipo.indexOf('exame')===0?'E':null; if (!t) return;
       var cod=AND_ST[st]||String(r['status do andamento']).trim(), me=isoMin(mi).slice(0,7); nP++;
-      var ev1={t:t,n:num,s:cod,u:u,m:mi}; if (cod==='CD'){ var ip=andMin(r['data prot.']); if (ip!=null) ev1.i=ip; } // cancelado: guarda a prenotação (o protocolo pode ser de antes do relatório)
+      var ev1={t:t,n:num,s:cod,u:u,m:mi}; if (cod==='CD'||cod==='CP'||cod==='CC'){ var ip=andMin(r['data prot.']); if (ip!=null) ev1.i=ip; } // cancelado: guarda a prenotação (o protocolo pode ser de antes do relatório)
       (ev[me]=ev[me]||[]).push(ev1);
     });
     return {ev:ev, cert:cert, ini:ini===Infinity?null:isoMin(ini), fim:fim===-Infinity?null:isoMin(fim), nP:nP, nC:nC, nAuto:nAuto};
