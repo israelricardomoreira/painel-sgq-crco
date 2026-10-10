@@ -71,7 +71,8 @@ svg .fatia[data-go]:hover,svg .seg-b[data-go]:hover{stroke:var(--ink);stroke-wid
 .vz-svg{width:100%;height:auto;display:block}
 .hb{display:flex;flex-direction:column;gap:5px}
 .hb-row{display:grid;grid-template-columns:minmax(90px,38%) 1fr auto;align-items:center;gap:8px;font-size:.82rem}
-.hb-n{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hb-n{color:var(--ink-2);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.25;overflow-wrap:break-word}
+.tbl-fixa th:first-child,.tbl-fixa td:first-child{position:sticky;left:0;background:var(--surface);z-index:1}
 .hb-t{height:12px;background:var(--surface-2);border-radius:4px;overflow:hidden}
 .hb-t i{display:block;height:100%;border-radius:0 4px 4px 0}
 .hb-v{font-variant-numeric:tabular-nums;color:var(--ink);min-width:3.5em;text-align:right}
