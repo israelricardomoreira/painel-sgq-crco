@@ -118,6 +118,7 @@
   // funções extras: backup, restauração e dados brutos
   window.nuvem={
     papel:function(){ return perfil&&perfil.papel; },
+    nome:function(){ return (perfil&&perfil.nome)||(usuario&&usuario.email)||''; },
     gravar:gravar,
     ler:function(col,id){ return sb.from('docs').select('dados').eq('colecao',col).eq('id',id).eq('arquivado',false).maybeSingle().then(function(r){ if (r.error) throw erroBanco(r.error); return r.data?r.data.dados:null; }); },
     lerColecao:function(col){ return lerPaginado(function(){ return sb.from('docs').select('id,dados').eq('colecao',col).eq('arquivado',false).order('id'); }); },

@@ -71,6 +71,7 @@ svg .fatia[data-go]:hover,svg .seg-b[data-go]:hover{stroke:var(--ink);stroke-wid
 .vz-svg{width:100%;height:auto;display:block}
 .hb{display:flex;flex-direction:column;gap:5px}
 .hb-row{display:grid;grid-template-columns:minmax(90px,38%) 1fr auto;align-items:center;gap:8px;font-size:.82rem}
+.cfg-t{width:100%;table-layout:fixed}.cfg-t th,.cfg-t td{white-space:normal;vertical-align:top;overflow-wrap:break-word}.cfg-t th:nth-child(1){width:56%}.cfg-t th:nth-child(2){width:30%}.cfg-t th:nth-child(3){width:14%}.cfg-t td:last-child{white-space:nowrap;text-align:right}.cfg-ed td{white-space:normal}.cfg-ed td{background:var(--surface-2,rgba(0,0,0,.03))}.cfg-form{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end}.cfg-form label{display:flex;flex-direction:column;gap:4px;font-size:.82rem}.cfg-mot{flex:1 1 280px}.cfg-mot input{width:100%}.cfg-bt{display:flex;gap:6px}.cfg-det{margin:8px 0}.cfg-det summary{cursor:pointer;font-weight:600;padding:6px 0}
 .hb-n{color:var(--ink-2);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.25;overflow-wrap:break-word}
 .tbl-fixa th:first-child,.tbl-fixa td:first-child{position:sticky;left:0;background:var(--surface);z-index:1}
 .hb-t{height:12px;background:var(--surface-2);border-radius:4px;overflow:hidden}
@@ -344,6 +345,7 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
   <button class="tab" type="button" data-tab="lanc" aria-selected="false">Lançar KPIs</button>
   <button class="tab" type="button" data-tab="met" aria-selected="false">Como é calculado</button>
   <div class="menu-grp" id="grpDados">Dados</div>
+  <button class="tab" type="button" data-tab="cfg" id="tabCfgBtn" aria-selected="false">Configuração</button>
   <button class="tab" type="button" data-tab="imp" id="tabImp" aria-selected="false">Importar dados</button>
 </nav>
 <div id="menuFundo" class="menu-fundo" hidden></div>
@@ -391,14 +393,11 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
         <div class="sub-h">Como exportar (todo mês, do 1º ao último dia)</div>
         <ul class="hint" style="padding-left:18px;margin:0">
           <li><b>VHL · Dashboard</b>: exporte os painéis <b>PAINEL-01 Prazo e Tempo Médio</b>, <b>PAINEL-02 Produção por Etapa</b> (começando <b>2 meses antes</b>: para outubro, de 01/08 a 31/10), <b>PAINEL-03 Demanda suspensa no período</b>, <b>PAINEL-04 Consulta de inconformidades</b> (moderadas) e <b>PAINEL-05 Consulta de senhas</b>. Eles trazem todas as atribuições; não precisa filtrar por RI.</li>
-          <li><b>Tri7 (RI)</b>: Impressão › Movimentação › selecione <b>todos os tipos de pesquisa</b> › "Filtrar pela data do: <b>Andamento</b>" do primeiro ao último dia do mês (pega tudo o que aconteceu no mês, inclusive intimações antigas; o painel guarda por mês do andamento e não duplica) › o Tri7 aceita <b>10 andamentos por relatório</b>, então gere <b>3 relatórios</b> com o mesmo período: <b>Lote 1 (essencial: prazo e cancelamento)</b> 0011 Prenotado · 0504 Prenotado Automaticamente (SAEC/ONR) · 0326 Nota de Exigência · 0357 Re-análise · 0334 Revisão de Exigência · 0370 Custas Informadas (SAEC/ONR) · 0019 Selos Gerados · Cancelado por Desistência ou Impossibilidade · Cancelado por Decurso de Prazo · Cancelado — <b>Lote 2 (pagamento, registro e entrega)</b> Aguardando Pagamento · Pagamento Identificado (SAEC/ONR) · Pagamento Identificado (automático) · Título Apto a Registro (Pendente Pgto) · 0481 Revisão Oficial · Título Entregue Digitalmente · 0328 Recebido para Entrega · Qualificação Prévia · Análise · Pedido de Certidão Digital — <b>Lote 3 (certidões automáticas e intimação)</b> Certidão Gerada Automaticamente · Erro Validação Certidão Automática · Minuta Intimação · Minuta Publicação de Edital · Emissão de Certidão de Diligência › Pesquisar › baixe as 3 planilhas e solte as três juntas aqui (o painel junta sem duplicar). A planilha de cancelados do Tri7 (Cancelados.xls) também pode ser solta aqui, sozinha.</li>
+          <li><b>Tri7 (RI)</b>: Impressão › Movimentação › selecione <b>todos os tipos de pesquisa</b> › "Filtrar pela data do: <b>Andamento</b>" do primeiro ao último dia do mês (pega tudo o que aconteceu no mês, inclusive intimações antigas; o painel guarda por mês do andamento e não duplica) › o Tri7 aceita <b>10 andamentos por relatório</b>, então gere <b>3 relatórios</b> com o mesmo período: <b>Lote 1 (essencial: prazo e cancelamento)</b> 0011 Prenotado · 0504 Prenotado Automaticamente (SAEC/ONR) · 0326 Nota de Exigência · 0357 Re-análise · 0334 Revisão de Exigência · 0370 Custas Informadas (SAEC/ONR) · 0019 Selos Gerados · Cancelado por Desistência ou Impossibilidade · Cancelado por Decurso de Prazo · Cancelado — <b>Lote 2 (pagamento, registro e entrega)</b> Aguardando Pagamento · Pagamento Identificado (SAEC/ONR) · Pagamento Identificado (automático) · Título Apto a Registro (Pendente Pgto) · 0481 Revisão Oficial · Título Entregue Digitalmente · 0328 Recebido para Entrega · Qualificação Prévia · Análise · Pedido de Certidão Digital — <b>Lote 3 (certidões automáticas, minuta e intimação)</b> 0221 Certidão Gerada Automaticamente · Erro Validação Certidão Automática · 0476 Minuta · 0251 Minuta Intimação · Minuta Publicação de Edital · 0479 Emissão de Certidão de Diligência › Pesquisar › baixe as 3 planilhas e solte as três juntas aqui (o painel junta sem duplicar). A planilha de cancelados do Tri7 (Cancelados.xls) também pode ser solta aqui, sozinha.</li>
           <li><b>Folha</b>: Rel. Eventos de Apuração por Período (ciclo 22 a 21), para o KPI-09.</li>
           <li>Pode soltar tudo junto ou um de cada vez, e reimportar quando quiser: o painel <b>junta</b> com o que já tem e recalcula — nada se perde.</li>
         </ul>
-        <div class="sub-h" style="margin-top:14px">Feriados locais</div>
-        <div class="hint">Os nacionais (inclusive Carnaval, Sexta-feira Santa e Corpus Christi) já entram automaticamente. Adicione municipais ou dias sem expediente.</div>
-        <div class="ctl" style="margin-top:8px"><input type="date" id="ferData" aria-label="Data do feriado"><button class="btn" id="ferAdd" type="button">Adicionar</button></div>
-        <div class="feriados" id="ferLista"></div>
+        <p class="hint" style="margin-top:14px">Feriados locais e expediente das certidões agora ficam em <b>Configuração</b>.</p>
         <div class="sub-h" style="margin-top:16px">Backup e manutenção</div>
         <div class="hint" id="backupInfo"></div>
         <div class="ctl" style="margin-top:8px;flex-wrap:wrap"><button class="btn" id="btnBackup" type="button">Baixar backup (.json)</button><button class="btn" id="btnRestaurar" type="button">Restaurar backup</button><input type="file" id="restIn" accept=".json,application/json" hidden><button class="btn" id="btnRecalc" type="button">Recalcular tudo com a regra atual</button></div>
@@ -442,6 +441,17 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
     <div id="tabMet" hidden></div>
     <div id="tabDes" hidden></div>
     <div id="tabVis" hidden></div>
+    <div id="tabCfg" hidden>
+      <div id="cfgCorpo"></div>
+      <div id="cfgCal">
+        <div class="sub-h" style="margin-top:16px">Calendário · feriados locais</div>
+        <div class="hint">Os nacionais (inclusive Carnaval, Sexta-feira Santa e Corpus Christi) já entram automaticamente. Adicione municipais ou dias sem expediente.</div>
+        <div class="ctl" style="margin-top:8px"><input type="date" id="ferData" aria-label="Data do feriado"><button class="btn" id="ferAdd" type="button">Adicionar</button></div>
+        <div class="feriados" id="ferLista"></div>
+        <div class="ctl" style="margin-top:10px"><span class="hint" style="margin:0">Expediente das certidões</span><input type="number" id="expIni" min="0" max="23" value="8" style="width:64px" class="mini" aria-label="Início do expediente"><span class="hint" style="margin:0">às</span><input type="number" id="expFim" min="1" max="24" value="17" style="width:64px" class="mini" aria-label="Fim do expediente"><span class="hint" style="margin:0">h · seg a sex, sem feriados</span></div>
+      </div>
+      <div id="cfgHist"></div>
+    </div>
   </section>
 <p class="rodape">Painel SGQ · CRCO — dados no Supabase com acesso restrito · código em github.com/israelricardomoreira/painel-sgq-crco</p>
 </div>

@@ -156,10 +156,11 @@ var Motor = (function(){
   // (retorno depois do 20º d.u. no sistema = erro de contagem: o cartório não registra título com prenotação vencida, então conta como 25)
   // sem data de retorno conhecida (reingresso só pela Demanda), fica 25
   var calLim=null, calLimK=null;
-  function limitePrazo(reing, ing, ret, extras){
-    if (!reing) return 20; if (!ret || !ing) return 25;
+  function limitePrazo(reing, ing, ret, extras, base, mais){ // 0.10.6: base (prazo da prenotação) e mais (dias depois do retorno) vêm da Configuração; padrão 20 e 5
+    base=base==null?20:+base; mais=mais==null?5:+mais;
+    if (!reing) return base; if (!ret || !ing) return base+mais;
     var k=(extras||[]).join(','); if (calLimK!==k){ calLim=criarCalendario(extras||[]); calLimK=k; }
-    var d=calLim(diaDeIso(ing), diaDeIso(ret)); return Math.max(20, Math.min(d,20)+5);
+    var d=calLim(diaDeIso(ing), diaDeIso(ret)); return Math.max(base, Math.min(d,base)+mais);
   }
   function decodificar(doc){
     return doc.atos.map(function(s){
