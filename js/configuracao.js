@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/configuracao.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/configuracao.js']='0.12.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/configuracao.js']='0.13.0';
   function compAto(a){ return a.mes||(a.fin||'').slice(0,7)||'9999-99'; }
   function cfgDef(key, comp){ var d=CFG_DEF[key]; if (d){ var v=null; d.def.forEach(function(e){ if (e[0]<=comp) v=e[1]; }); return v; }
     if (key.indexOf('serv.prazo|')===0){ var x=state.prazosServ[key.slice(11)]; return x==null||x===''?null:+x; }

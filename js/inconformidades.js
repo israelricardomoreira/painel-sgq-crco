@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/inconformidades.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inconformidades.js']='0.12.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inconformidades.js']='0.13.0';
   function incRecs(){ var out=[]; Object.keys(state.inconf).sort().forEach(function(m){ if (state.periodo==='todos'||state.periodo===m) out=out.concat(state.inconf[m]); }); return out; }
   function incTodos(){ var out=[]; Object.keys(state.inconf).forEach(function(m){ out=out.concat(state.inconf[m]); }); return out; }
   function ovDe(r){ var o=state.incCat[r.id]; return typeof o==='string'?{cat:o}:(o||{}); }
@@ -39,7 +39,7 @@
         return '<tr><td>'+nomeMes(m)+'</td><td>'+q.n+'</td><td>'+q.c+'</td><td><b>'+pct(q.k)+'</b></td><td>'+pct(q.ke)+'</td></tr>'; }).join('')+'</tbody></table></div>';
     } }
     // filtros
-    h+='<div class="search" style="margin-top:16px">'+(A==='RI'?'<div class="seg" role="group" aria-label="Setor"><button type="button" class="segb" data-incsetor="todos" aria-pressed="'+(state.incSetor==='todos')+'">Todos os setores</button><button type="button" class="segb" data-incsetor="ri" aria-pressed="'+(state.incSetor==='ri')+'">Só RI</button></div>':'')+
+    h+='<div class="search" style="margin-top:16px">'+''+
       '<span class="spacer"></span>'+(state.incFiltroPessoa?'<button class="btn primary sm" type="button" data-verrel="1">Ver relatório de '+esc(state.incFiltroPessoa.split(' ')[0])+'</button>':'<button class="btn sm" type="button" data-verrel="1">Relatórios</button>')+(state.incFiltroCat||state.incFiltroPessoa?'<span class="chip ok">'+esc(state.incFiltroCat||state.incFiltroPessoa)+'</span><button class="btn sm" type="button" data-inclimpar="1">Limpar filtro</button>':'')+'</div>';
     // pareto
     var pc={}; recs.forEach(function(r){ var c=catDe(r); pc[c]=(pc[c]||0)+1; });

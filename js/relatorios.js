@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/relatorios.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/relatorios.js']='0.12.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/relatorios.js']='0.13.0';
   function nomePeriodo(){ if (state.periodo!=='todos') return nomeMes(state.periodo); var m=Object.keys(state.docs).sort(); return m.length?nomeMes(m[0])+' a '+nomeMes(m[m.length-1]):'todos os meses'; }
   function mesesPeriodo(){ return Object.keys(state.docs).sort().filter(function(m){ return state.periodo==='todos'||state.periodo===m; }); }
   // produção detalhada por pessoa (chave = nome sem acento, para casar VHL e Tri7)
@@ -79,7 +79,7 @@
     var taxa=p.docs>=MIN_PROD?incProd.length/p.docs*100:null, cer=((D.C[k]||{}).recs)||[];
     var cerCalc=cer.filter(function(c){return !c.intim;}), cerOk=cerCalc.filter(function(c){return c.ok;}).length;
     var totEt=Object.keys(p.et).reduce(function(s,e){return s+p.et[e];},0);
-    var h=cabecalhoRel('Relatório de desempenho — qualidade e produção','<b>'+esc(nome)+'</b> · Período: '+nomePeriodo()+' · Serventia: '+esc(selNome())+(state.incSetor==='ri'?' · inconformidades só RI':''));
+    var h=cabecalhoRel('Relatório de desempenho — qualidade e produção','<b>'+esc(nome)+'</b> · Período: '+nomePeriodo()+' · Serventia: '+esc(selNome())+(atrAtual()==='RI'?' · inconformidades do RI':''));
     var msP=mesesProd(), md=mediaDiaria(k,msP);
     h+='<h2>Resumo</h2><div class="diaria">'+fraseDiaria(md,msP.length)+'</div>'+tilesRel([
       (md&&md.X?['Documentos trabalhados',md.X.toLocaleString('pt-BR'),'no VHL · '+esc(selNome())]:['Documentos trabalhados',p.docs||'—','no VHL']),['Execuções de etapa',totEt||'—',Object.keys(p.et).length+' tipos de etapa'],
@@ -145,7 +145,7 @@
     var linhas=Object.keys(D.pessoas).map(function(k){ var p=D.P[k]||{docs:0,et:{}}, inc=((D.I[k]||{}).recs)||[], ip=inc.filter(function(r){ return !!state.docs[r.d.slice(0,7)]; }).length, ext=inc.filter(function(r){return grupoDe(r)==='E';}).length, c=((D.C[k]||{}).recs)||[];
       var t=(D.T||{})[k]||{}, md=mediaDiaria(k); return {md:md,lt:D.LT[k],nome:D.pessoas[k],docs:p.docs,ex:Object.keys(p.et).reduce(function(s,e){return s+p.et[e];},0),inc:inc.length,ext:ext,taxa:p.docs>=MIN_PROD?ip/p.docs*100:null,cert:c.length,ent:(t.PN||0)+(t.PA||0),rex:t.REx||0,sg:t.SG||0}; })
       .sort(function(a,b){ return b.docs-a.docs; });
-    var h=cabecalhoRel('Relatório geral — qualidade e produção da equipe','Período: '+nomePeriodo()+(state.incSetor==='ri'?' · inconformidades só RI':''));
+    var h=cabecalhoRel('Relatório geral — qualidade e produção da equipe','Período: '+nomePeriodo()+(atrAtual()==='RI'?' · inconformidades do RI':''));
     h+='<h2>Indicadores</h2>'+tilesRel([['KPI-01',pct(k1.k),k1.c+' de '+k1.n+' atos RI'],['KPI-01 complementar',pct(k1.ke),'erro externo'],['Taxa da equipe',pct(D.taxaEq),'inconformidades ÷ documentos'],['Certidões no prazo',cr.length?pctK(cok/cr.length*100):'—',cr.length?cok+' de '+cr.length:'']]);
     h+='<h2>Por pessoa</h2><table><thead><tr><th>Pessoa</th><th class="n">Documentos</th><th class="n">Dias ativos</th><th class="n">Por dia ativo</th><th class="n">Execuções</th><th class="n">Inconf.</th><th class="n">Taxa</th><th>Leitura</th><th class="n">Externas</th><th class="n">Certidões</th><th class="n">Entradas</th><th class="n">Exig. redigidas</th><th class="n">Registros</th></tr></thead><tbody>'+
       linhas.map(function(x){ var lt=x.taxa!=null?x.lt:null; return '<tr><td>'+esc(x.nome)+'</td><td class="n">'+(x.docs||'—')+'</td><td class="n">'+(x.md&&x.md.Y?x.md.Y+' <span style="color:#6f695f">de '+x.md.Z+'</span>':'—')+'</td><td class="n"><b>'+(x.md&&x.md.W!=null?numBR(x.md.W,1):'—')+'</b></td><td class="n">'+(x.ex||'—')+'</td><td class="n">'+x.inc+'</td><td class="n">'+(x.taxa==null?'—':pct(x.taxa))+'</td><td class="'+(lt&&lt.sig==='acima'?'acima':lt&&lt.sig==='abaixo'?'bom':'')+'">'+(lt?lt.txt:'—')+'</td><td class="n">'+(x.ext||'')+'</td><td class="n">'+(x.cert||'')+'</td><td class="n">'+(x.ent||'')+'</td><td class="n">'+(x.rex||'')+'</td><td class="n">'+(x.sg||'')+'</td></tr>'; }).join('')+'</tbody></table>'+
@@ -166,7 +166,7 @@
     var h='<style>'+REL_CSS+'.relwrap{background:var(--surface-2);border-radius:12px;padding:16px;overflow-x:auto}.relsheet{box-shadow:0 2px 14px rgba(0,0,0,.12);border-radius:4px}</style>'+
       '<div class="search"><select id="relSel" aria-label="Relatório de"><option value="__geral"'+(state.relSel==='__geral'?' selected':'')+'>Equipe (relatório geral)</option>'+
       ks.map(function(k){ return '<option value="'+esc(k)+'"'+(state.relSel===k?' selected':'')+'>'+esc(D.pessoas[k])+'</option>'; }).join('')+'</select>'+
-      '<div class="seg" role="group" aria-label="Setor"><button type="button" class="segb" data-incsetor="todos" aria-pressed="'+(state.incSetor==='todos')+'">Todos os setores</button><button type="button" class="segb" data-incsetor="ri" aria-pressed="'+(state.incSetor==='ri')+'">Só RI</button></div>'+
+      
       '<span class="spacer"></span>'+(state.relSel!=='__geral'&&dbPronto?'<button class="btn sm" type="button" id="fbSalvar">Salvar devolutiva</button>':'')+'<button class="btn primary sm" type="button" id="relBaixar">Baixar para imprimir</button></div>'+
       '<p class="hint" style="margin:0 0 10px">O período segue o seletor do topo ('+nomePeriodo()+'). O arquivo baixado abre no navegador: Ctrl+P para imprimir ou salvar em PDF.</p>'+
       '<div class="relwrap"><div class="relsheet">'+(state.relSel==='__geral'?corpoGeral(D):corpoPessoa(state.relSel,D,false))+'</div></div>';

@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/ficha.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/ficha.js']='0.12.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/ficha.js']='0.13.0';
   // ——— ficha do protocolo (log completo de como o painel calculou)
   function protLink(c){ return '<button type="button" class="lnk" data-prot="'+esc(c)+'" title="Ver ficha do protocolo">'+esc(c)+'</button>'; }
   function logDe(c, mesPref){
@@ -13,12 +13,12 @@
     if (!c){ box.hidden=true; return; }
     aplicarTri7(); var a=atoDe(c), L=logDe(c, a&&a.mes), inc=incTodos().filter(function(r){ return String(r.c)===c; });
     var h='<div class="sec-h"><h2>Protocolo '+esc(c)+'</h2><span><button class="btn sm" type="button" id="protCopiar">Copiar resumo</button> <button class="btn sm" type="button" id="protFechar">Fechar</button></span></div>';
-    var SF=!a?servFicha(c):''; if (!a && SF){ h=h.replace('<h2>Protocolo ','<h2>Documento '); h+=SF; var incS=incTodos().filter(function(r){ return String(r.c).toUpperCase()===c; }); if (incS.length) h+=protInc(incS); box.innerHTML=h; box.hidden=false; box.scrollIntoView({behavior:'smooth',block:'start'}); state.protTxt='Documento '+c+': '+box.innerText.slice(0,600); return; }
+    var SF=!a?servFicha(c):''; if (!a && SF){ h=h.replace('<h2>Protocolo ','<h2>Documento '); h+=SF; var incS=incTodos().filter(function(r){ return String(r.c).toUpperCase()===c; }); if (incS.length) h+=protInc(incS); box.innerHTML=h; box.hidden=false; box.scrollTop=0; state.protTxt='Documento '+c+': '+box.innerText.slice(0,600); return; }
     if (!a){
       h+='<div class="empty"><b>Não encontrei esse protocolo nos meses importados.</b>O painel guarda os atos <i>finalizados</i> (arquivados) nos meses carregados — '+(Object.keys(state.docs).sort().map(nomeMes).join(', ')||'nenhum')+'. Protocolo ainda em andamento, pesquisa qualificada ou de outro mês não aparece.</div>';
       var AF0=andFichaHTML(c); h+=AF0.h;
       if (inc.length) h+=protInc(inc);
-      box.innerHTML=h; box.hidden=false; box.scrollIntoView({behavior:'smooth',block:'start'}); state.protTxt='Protocolo '+c+': não encontrado nos meses importados.'+AF0.txt; return;
+      box.innerHTML=h; box.hidden=false; box.scrollTop=0; state.protTxt='Protocolo '+c+': não encontrado nos meses importados.'+AF0.txt; return;
     }
     var du=Motor.criarCalendario(state.extras||[]), fer=Motor.feriadoSet(state.extras||[]), D=function(d){ return Motor.isoDeDia(d); }, F=function(d){ return fmtData(D(d)); };
     var sit=a.cat==='R'?(ok(a)?(a.dentro?'Registrado dentro do prazo':'Fora do prazo, com justificativa'):'Registrado FORA do prazo'):a.cat==='N'?'Não registrado — '+(MOTIVOS_N[a.motivo]||'cancelado'):a.cat==='E'?'Abertura de matrícula + outros atos (fluxo especial, fora do KPI-02)':'Sem histórico suficiente (entrou antes do início da Produção por Etapa importada)';
@@ -61,7 +61,7 @@
     } else h+='<p class="hint" style="margin-top:12px">'+(Object.keys(state.logs).length?'Sem etapas deste protocolo na Produção por Etapa importada.':'Linha do tempo indisponível: reimporte os meses (Prazo + Produção por Etapa) para o painel guardar o histórico detalhado.')+'</p>';
     if (inc.length) h+=protInc(inc);
     var av=state.aval[idDoc(c)]; if (av) h+='<p class="hint">Avaliação das exigências: <b>'+esc(AV[av.resultado]||av.resultado)+'</b>'+(av.obs?' — '+esc(av.obs):'')+'</p>';
-    box.innerHTML=h; box.hidden=false; box.scrollIntoView({behavior:'smooth',block:'start'});
+    box.innerHTML=h; box.hidden=false; box.scrollTop=0;
     state.protTxt='Protocolo '+c+' — '+a.nat+'\n'+sit+'\nIngresso: '+(a.ing?fmtData(a.ing):'—')+(a.reg?' · Registro (última Revisão Oficial): '+fmtData(a.reg):'')+(a.bruto!=null?'\nBruto: '+a.bruto+' d.u. · Limite: '+a.lim+' d.u.'+(a.liq!=null?' · Líquido: '+a.liq+' d.u. · Espera: '+a.espera+' d.u.':''):'')+(a.cat==='R'?'\nExigências: '+a.nex+(a.npg?' · Retornos por pagamento: '+a.npg:''):'')+(linhasTxt.length?'\n\nLinha do tempo:\n'+linhasTxt.join('\n'):'')+AF.txt;
   }
   function protInc(inc){ return '<div class="sub-h" style="margin-top:14px">Inconformidades deste protocolo ('+inc.length+')</div><div class="tbl-wrap"><table class="tleft"><thead><tr><th>Data</th><th>Responsável</th><th>Tipo</th><th>Erro</th><th>Observação</th></tr></thead><tbody>'+

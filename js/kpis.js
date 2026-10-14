@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/kpis.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/kpis.js']='0.12.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/kpis.js']='0.13.0';
   function compLabel(m){ var p=m.split('-'); return p[1]+'. '+MES_C[+p[1]-1]+'/'+p[0]; }
   function evidLabel(m){ var p=m.split('-'); return MES_C[+p[1]-1]+' '+p[0]; }
   function mesAnt(m){ var p=m.split('-').map(Number); p[1]--; if(!p[1]){ p[1]=12; p[0]--; } return p[0]+'-'+(p[1]<10?'0':'')+p[1]; }
@@ -126,7 +126,7 @@
     var o=kpiValor(K.id,m), sit=kpiSituacao(K,o), tend=kpiTendencia(K,o,m), e=kpEntrada(m,K.id);
     var txt=(o&&o.travado&&o.travado.n!=null)?(o.txt||''):(e.a!=null?e.a:((o&&o.txt)||''));
     var nTxt=o?numBR(o.n):'', dTxt=o?numBR(o.d):'';
-    var h='<div class="lc-grid">'+cp('Competência',compLabel(m))+cp('KPI',K.id)+cp('indicador',K.nome,'w2')+cp('Numerador',nTxt)+cp('Denominador',dTxt)+cp('Meta',K.meta)+cp('Situação',sit,sit==='Não atende'?'bad':sit==='Atende'?'good':'')+cp('Tendência',tend)+cp('Evidência (Link)',e.ev!=null?e.ev:evidLabel(m))+'</div>';
+    var h='<div class="lc-grid">'+cp('Competência',compLabel(m))+cp('KPI',K.id)+cp('Indicador',K.nome,'w2')+cp('Numerador',nTxt,'big')+cp('Denominador',dTxt,'big')+cp('Meta',K.meta)+cp('Situação',sit,sit==='Não atende'?'bad':sit==='Atende'?'good':'')+cp('Tendência',tend)+cp('Evidência (Link)',e.ev!=null?e.ev:evidLabel(m))+'</div>';
     var res=o&&o.r!=null?numBR(o.r):(o&&K.cont?'—':'');
     var nota=[];
     if (o) nota.push('Resultado (o ANOREG+ calcula): <b>'+(res||'—')+(o.r!=null&&!K.minutos&&K.den!==100?'%':'')+'</b>'+(K.minutos&&o?' · '+mmss(o.n):''));
@@ -163,17 +163,21 @@
       '<span class="chip'+(feitos===vis.length?' ok':'')+'">'+feitos+' de '+vis.length+' lançados</span>'+
       '<label class="lc-chk"><input type="checkbox" id="lancTodos"'+(state.lancTodos?' checked':'')+'> mostrar ocultos</label>'+(podeEscrever?'<button class="btn sm" type="button" id="kpiEdBtn">Editar indicadores</button>':'')+
       '<span class="spacer"></span><button class="btn sm" type="button" id="memBtn" title="Planilha com o cálculo de cada KPI deste mês, ato por ato, com fórmulas do Excel — para anexar no ANOREG+">Baixar memória de cálculo (.xlsx)</button>'+'</div>'+'';
+    // 0.13.0: lista do mês à esquerda e o indicador escolhido à direita (no celular aparecem todos, um embaixo do outro)
+    if (!state.lancSel || !vis.some(function(K){ return K.id===state.lancSel; })){ var pend=vis.filter(function(K){ return !L[K.id]; })[0]; state.lancSel=(pend||vis[0]||{}).id; }
+    h+='<div class="lc-lay"><nav class="lc-lista" aria-label="Indicadores do mês">'+vis.map(function(K){ var o=kpiValor(K.id,m), sit=kpiSituacao(K,o), res=o?(o.r!=null&&!K.cont?numBR(o.r)+(K.minutos||K.den===100?'':'%'):numBR(o.n)):'—';
+        return '<button type="button" class="lc-it'+(K.id===state.lancSel?' on':'')+'" data-lancsel="'+esc(K.id)+'"><b>'+esc(K.id)+'</b><span class="lc-itn">'+esc(K.nome)+'</span><small class="num">'+res+(sit?' · '+esc(sit):'')+'</small><em class="'+(L[K.id]?'l':'p')+'">'+(L[K.id]?'Lançado':'Pendente')+'</em></button>'; }).join('')+'</nav><div class="lc-cards">';
     h+=vis.map(function(K){
       var s=cardSaida(K,m), done=!!L[K.id], tr=kpiTravado(m,K.id);
-      return '<div class="lc-card'+(done?' done':'')+(tr?' travado':'')+'" data-kpi="'+esc(K.id)+'">'+
+      return '<div class="lc-card'+(done?' done':'')+(tr?' travado':'')+(K.id===state.lancSel?' lc-on':'')+'" data-kpi="'+esc(K.id)+'">'+
         '<div class="lc-top"><b>'+esc(K.id)+'</b><span class="lc-nome">'+esc(K.nome)+'</span>'+(K.freq?'<span class="chip">'+K.freq+'</span>':'')+(K.novo?'<span class="chip">ainda não existe no ANOREG+</span>':'')+
         '<span class="spacer"></span><label class="lc-chk"><input type="checkbox" data-lanc="1"'+(done?' checked':'')+(podeEscrever?'':' disabled')+'> lançado</label></div>'+
-        (tr?'<div class="lc-trava">🔒 Valor travado em '+fmtDataHora(tr.em)+' (painel '+esc(tr.ver||'?')+'). Mudanças do painel não alteram este mês. Para mudar, desmarque "lançado".</div>':done?'<div class="lc-trava velho">Marcado como lançado antes da trava (1.10.1): o valor não foi guardado. Desmarque e marque de novo para travar o valor de hoje.</div>':'')+
+        (tr?'<div class="lc-trava"><span class="selo ok">'+SELO_OK+'Lançado em '+fmtDataHora(tr.em)+' · valor travado</span> Painel '+esc(tr.ver||'?')+'. Mudanças do painel não alteram este mês; para mudar, desmarque "lançado".</div>':done?'<div class="lc-trava velho">Marcado como lançado antes da trava (1.10.1): o valor não foi guardado. Desmarque e marque de novo para travar o valor de hoje.</div>':'')+
         '<div class="lc-ins">'+(tr?'':cardEntrada(K,m))+'</div>'+
         '<div class="lc-out">'+s.html+'</div>'+
         '<div class="lc-an"><div class="lc-anh"><span class="cpl">Análise / Ação</span><button type="button" class="btn sm" data-cpan="1">Copiar análise</button>'+(!tr&&kpEntrada(m,K.id).a!=null?'<button type="button" class="btn sm" data-anreset="1">Voltar ao texto sugerido</button>':'')+'</div>'+
-        '<textarea data-kpin="a" rows="2"'+(tr?' readonly':'')+' placeholder="Sem texto sugerido — escreva a análise se houver">'+esc(s.txt)+'</textarea></div></div>';
-    }).join('');
+        '<textarea data-kpin="a" rows="4"'+(tr?' readonly':'')+' placeholder="Sem texto sugerido — escreva a análise se houver">'+esc(s.txt)+'</textarea></div></div>';
+    }).join('')+'</div></div>';
     // destaques do KPI-09 (só na tela)
     var k9=state.k9[m];
     if (k9){

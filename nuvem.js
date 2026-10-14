@@ -82,10 +82,11 @@
     }).catch(function(e){ tela('<p class="nl-tit">Não consegui carregar os dados</p><p class="nl-txt">'+esc(e.message)+'</p><p class="nl-rod"><button type="button" class="lnk" id="nlTentar">Tentar de novo</button></p>'); $('nlTentar').addEventListener('click',carregar); });
   }
   function barraUsuario(){
-    var ctl=document.querySelector('header.top .ctl'); if (!ctl || $('nlUser')) return;
+    var ctl=document.getElementById('umenuCorpo')||document.querySelector('header.top .ctl'); if (!ctl || $('nlUser')) return; // 0.13.0: dentro do menu da conta
     var s=document.createElement('span'); s.id='nlUser'; s.className='nl-user';
     s.innerHTML='<span title="'+esc(usuario.email)+'">'+esc(perfil.nome||usuario.email)+' · '+(perfil.papel==='admin'?'administrador':'leitura')+'</span><button class="btn sm" type="button" id="nlBtnSair">Sair</button>';
     ctl.appendChild(s); $('nlBtnSair').addEventListener('click',sair);
+    var av=document.getElementById('uAv'); if (av){ var nm=String(perfil.nome||usuario.email||'').trim().split(/[^A-Za-zÀ-ÿ]+/).filter(Boolean); av.textContent=((nm[0]||'?')[0]+((nm[1]||'')[0]||'')).toUpperCase(); av.parentNode.title=(perfil.nome||usuario.email)+' · '+(perfil.papel==='admin'?'administrador':'leitura'); }
   }
   function sair(){ sb.auth.signOut().then(function(){ location.reload(); }); }
   function vigiarInatividade(){
@@ -116,7 +117,7 @@
 
   window.claude={ use:function(nome){ return pronto.then(function(){ return nome==='db'?dbApi:nome==='user'?userApi:nome==='downloads'?dlApi:null; }); } };
   // funções extras: backup, restauração e dados brutos
-  window.NUVEM_VERSAO='0.12.0'; // 0.11.0: conferida pelo app.js para avisar arquivos de versões diferentes
+  window.NUVEM_VERSAO='0.13.0'; // 0.11.0: conferida pelo app.js para avisar arquivos de versões diferentes
   window.nuvem={
     papel:function(){ return perfil&&perfil.papel; },
     nome:function(){ return (perfil&&perfil.nome)||(usuario&&usuario.email)||''; },

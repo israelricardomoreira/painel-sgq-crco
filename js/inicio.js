@@ -1,15 +1,15 @@
 /* Painel SGQ · CRCO — js/inicio.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inicio.js']='0.12.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inicio.js']='0.13.0';
   // 0.12.0: confere logo de saída se todos os arquivos do painel vieram da mesma entrega
   var ARQUIVOS_APP=["js/nucleo.js", "js/prazos.js", "js/inconformidades.js", "js/relatorios.js", "js/kpis.js", "js/atendimento.js", "js/ficha.js", "js/configuracao.js", "js/tri7.js", "js/serventias.js", "js/dados.js", "js/graficos.js", "js/desempenho.js", "js/visual.js", "js/certidoes.js", "js/importar.js", "js/navegacao.js", "js/inicio.js"];
-  try{ checarVersoes('0.12.0'); }catch(e){ var avv=document.getElementById('avisoVersao'); if (avv){ avv.hidden=false; avv.textContent='Faltam arquivos do painel ou eles são de versões diferentes. Suba de novo todos os arquivos da entrega e recarregue a página.'; } }
+  try{ checarVersoes('0.13.0'); }catch(e){ var avv=document.getElementById('avisoVersao'); if (avv){ avv.hidden=false; avv.textContent='Faltam arquivos do painel ou eles são de versões diferentes. Suba de novo todos os arquivos da entrega e recarregue a página.'; } }
   var $=function(id){ return document.getElementById(id); };
   var TEMAS={auto:['◐ Auto','Tema: automático (segue o computador)'],claro:['☀ Claro','Tema: claro'],escuro:['☾ Escuro','Tema: escuro']};
   var temaAtual=temaAplicar(prefLer('crco-tema')||'auto');
   if (prefLer('crco-menu')==='recolhido') menuRecolher(true);
   temaAplicar(temaAtual);
   var state={ docs:{}, extras:[], arquivos:{prazo:[],etapa:[],demanda:[],inconf:[],tri7:[],andam:[]}, nomes:{prazo:[],etapa:[],demanda:[],inconf:[],tri7:[],andam:[]}, andam:{}, andIdx:null, usr:{}, usrAuto:{}, resAnd:null, serv:{}, impFeito:{}, prazosServ:{}, sv:'RI', svSub:{}, srvNat:null, kpiCat:null, lancEdit:false,
-    resultado:null, periodo:'todos', aba:'geral', natSel:null, sortNat:{k:'total',d:-1}, filtroFora:false, busca:'', natBusca:'', natTodas:false, just:{}, aval:{}, filtroEx:'pend', avDraft:{}, buscaEx:'', inconf:{}, incCat:{}, incSetor:'todos', incFiltroCat:null, incFiltroPessoa:null, cert:{}, cfg:{expIni:8, expFim:17, intim:null}, relSel:'__geral', feedback:{}, kp:{}, k9:{}, lancMes:null, lancTodos:false, atPessoa:null, logs:{}, logCache:{}, protSel:null, protTxt:'', senhas:{}, atMes:'todos', atMet:'esp', atTodosDias:false };
+    resultado:null, periodo:'todos', aba:'geral', natSel:null, sortNat:{k:'total',d:-1}, filtroFora:false, busca:'', natBusca:'', natTodas:false, just:{}, aval:{}, filtroEx:'pend', avDraft:{}, buscaEx:'', inconf:{}, incCat:{}, incSetor:'ri' /* 0.13.0: o setor segue a Serventia do topo (RI = só RI; Todas = todas) */, incFiltroCat:null, incFiltroPessoa:null, cert:{}, cfg:{expIni:8, expFim:17, intim:null}, relSel:'__geral', feedback:{}, kp:{}, k9:{}, lancMes:null, lancTodos:false, atPessoa:null, logs:{}, logCache:{}, protSel:null, protTxt:'', senhas:{}, atMes:'todos', atMet:'esp', atTodosDias:false };
   var db=null, dbPronto=false, podeEscrever=true;
 
   var MOTIVOS={C:'Cancelado (status)',P:'Cancelamento de Protocolo',O:'ONR – recibo de cancelamento',D:'ONR – nota de devolução, sem registro',A:'Re-análise sem registro (caducou)',F:'Ofício de Cancelamento',X:'Devolução do depósito prévio',T:'Cancelado no Tri7 (desistência ou impossibilidade)'};
@@ -57,6 +57,7 @@
     '.relsheet .dlab{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#716a60;margin:8px 0 3px}'+
     '.relsheet textarea{width:100%;min-height:58px;border:1px solid #e3dfd8;border-radius:6px;padding:8px 10px;font:inherit;color:#2b2926;background:#fffdf9;resize:vertical;box-sizing:border-box}'+
     '.relsheet .ass{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:34px}.relsheet .ass div{border-top:1px solid #333;padding-top:4px;text-align:center;font-size:10.5px}'+
+    '.relsheet th,.relsheet td{white-space:normal;overflow-wrap:anywhere;padding:4px 4px}.relsheet th{font-size:8.5px;letter-spacing:0}.relsheet td{font-size:10.5px}'+ /* 0.13.0: a tabela cabe na folha */
     '.relsheet tr{break-inside:avoid}@media (max-width:640px){.relsheet{padding:16px}.relsheet .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}';
 
   // ——— aba Lançar KPIs (cópia campo a campo para o IND-SGQ-001 no ANOREG+)
@@ -154,7 +155,7 @@
   var KPIS_PADRAO=null;
 
   // ——— versão, dados brutos, recálculo, backup e memória de cálculo (site no GitHub + Supabase)
-  var APP_VERSAO='0.12.0';
+  var APP_VERSAO='0.13.0';
   // 0.11.0: a biblioteca de planilhas (≈310 KB) só é baixada quando precisa — importar, recalcular ou baixar a memória de cálculo
   var XLSX_URL='xlsx.full.min.js?v=0.20.3', XLSX_SRI='sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT', xlsxProm=null;
   var BRUTO_COLS={prazo:['tipo de documento','codigo','natureza','ingresso','finalizacao','prazo','tempo'], etapa:['codigo','data execucao','etapa','responsavel','prazo'], demanda:['codigo','status']};
@@ -227,6 +228,9 @@
   if ($('ferAdd')) $('ferAdd').addEventListener('click',function(){ var v=$('ferData').value; if(!v) return; if(state.extras.indexOf(v)<0){ state.extras.push(v); apurLog('Feriado local','—',fmtData(v),'imediato',''); apurSalvar(); } $('ferData').value=''; salvarFeriados(); });
   document.addEventListener('click',function(e){
     var t=e.target;
+    if (t.dataset && t.dataset.metall!=null){ document.querySelectorAll('#tabMet details.met-sec').forEach(function(d){ d.open=t.dataset.metall==='1'; }); return; }
+    if (t.dataset && t.dataset.metgo!=null){ var dm=document.getElementById('met-'+t.dataset.metgo); if (dm){ dm.open=true; dm.scrollIntoView({block:'start'}); } return; }
+    var ls=t.closest&&t.closest('[data-lancsel]'); if (ls){ state.lancSel=ls.dataset.lancsel; document.querySelectorAll('.lc-it').forEach(function(b){ b.classList.toggle('on',b===ls); }); document.querySelectorAll('.lc-cards .lc-card').forEach(function(c){ c.classList.toggle('lc-on',c.dataset.kpi===state.lancSel); }); return; } // 0.13.0
     if (t.dataset && (t.dataset.cfged||t.dataset.cfgcancel||t.dataset.cfgsalvar||t.dataset.cfgpadrao) && cfgClique(t)) return;
     if (t.dataset && t.dataset.cfgir){ state.cfgEd=t.dataset.cfgir==='cal'?null:t.dataset.cfgir; irAba('cfg'); if (t.dataset.cfgir==='cal'){ var c=$('cfgCal'); if (c&&c.scrollIntoView) c.scrollIntoView({block:'start'}); } return; }
     if (t.id==='btnSalvar') return salvar();
@@ -422,3 +426,10 @@
     db.collection('cert').onSnapshot(function(snap){ var m={}; snap.docs.forEach(function(d){ var x=d.data(); if (x&&x.recs) m[x.mes||d.id]={raw:x,recs:Motor.decodificarCert(x)}; }); state.cert=m; agendarRender(); }, function(){});
   });
   }
+  // 0.13.0: o menu da conta fecha ao clicar fora
+  document.addEventListener('click',function(e){ var u=document.getElementById('umenu'); if (u && u.open && !u.contains(e.target)) u.open=false; });
+  // 0.13.0: fundo escuro da ficha lateral; fecha com Esc ou clicando fora
+  (function(){ var pb=document.getElementById('protBox'), pf=document.getElementById('protFundo'); if (!pb||!pf) return;
+    function fechar(){ state.protSel=null; pb.hidden=true; }
+    new MutationObserver(function(){ pf.hidden=pb.hidden; document.body.style.overflow=pb.hidden?'':'hidden'; }).observe(pb,{attributes:true,attributeFilter:['hidden']});
+    pf.addEventListener('click',fechar); document.addEventListener('keydown',function(e){ if (e.key==='Escape' && !pb.hidden) fechar(); }); })();

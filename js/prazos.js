@@ -1,23 +1,50 @@
 /* Painel SGQ · CRCO — js/prazos.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/prazos.js']='0.12.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/prazos.js']='0.13.0';
   function pintarGeral(atos){
     var r=resumo(atos);
-    $('kpis').innerHTML=[
-      kpi('KPI-02 · dentro do prazo',pctK(r.kpi),r.dentro+' de '+r.n+' registrados'+(r.J?' · '+r.J+' justificado'+(r.J>1?'s':''):''),'hero'),
-      (function(){ var eb=est(r.R.map(function(a){return a.bruto;})); return kpi('Mediana bruta',f1(r.medB)+' <small style="font-size:14px">d.u.</small>','média '+f1(r.mB)+(eb.moda!=null?' · mais comum '+eb.moda:'')+' · 90% em até '+f1(eb.p90)); })(),
-      (function(){ var fo=r.R.filter(function(a){return a.dentro&&a.bruto!=null;}).map(function(a){return a.lim-a.bruto;}), ef=est(fo), apert=fo.filter(function(x){return x<=3;}).length;
-        var pa=ef.n?pct(apert/ef.n*100):'', alto=apert/Math.max(1,ef.n)>0.05;
-        return kpi('Folga até o limite',(ef.n?f1(ef.mediana):'—')+' <small style="font-size:14px">d.u.</small>','mediana · '+(ef.n?(alto?'<span class="at">'+pa+'</span>':pa)+' registrados com 3 d.u. ou menos de folga':'')); })(), // 0.11.0: vermelho só para fora da meta; o alerta fica no texto
-      kpi('Mediana líquida',f1(r.medL)+' <small style="font-size:14px">d.u.</small>','média '+f1(r.mL)+' · tempo com o cartório'),
-      kpi('Espera do cliente',f1(r.mEsp)+' <small style="font-size:14px">d.u.</small>','média por ato · exigência/suspensão'),
-      kpi('Aprovados na 1ª qualificação',pct(r.n?r.prim/r.n*100:null),r.prim+' sem exigência · '+r.comEx+' com exigência'),
-      (function(){ var X=cancSoTri7Periodo(), N=r.N+X.length, T=r.total+X.length; return kpi('KPI-02 complementar · cancelamento',pct(T?N/T*100:null),N+' de '+T+' atos · cancelado, devolvido ou caducou'+(X.length?' · inclui '+X.length+' cancelado'+(X.length>1?'s':'')+' só no Tri7':'')); })(),
-      kpi('Volume RI',String(r.total),'atos RI do período'+(pesquisaTotal()?' · fora '+pesquisaTotal()+' pesquisa'+(pesquisaTotal()>1?'s':'')+' qualificada'+(pesquisaTotal()>1?'s':'')+' (consulta, não é ato)':'')), // 0.11.0: Pesquisa Qualificada e Informação Verbal não entram no RI
-      (function(){ var tudo=[]; Object.keys(state.docs).forEach(function(m){ if (state.periodo==='todos'||state.periodo===m) tudo=tudo.concat(state.docs[m].atos.filter(function(a){ return a.cat==='R'||a.cat==='N'; })); });
-        var c=tudo.filter(function(a){ return origemAto(a)==='central'; }).length; return kpi('Origem dos protocolos',tudo.length?pct(c/tudo.length*100)+' <small style="font-size:14px">central</small>':'—',c+' pela central (ONR) · '+(tudo.length-c)+' balcão · de '+tudo.length+' registrados e cancelados'+((state.riOrig||'todas')!=='todas'?' · <b>filtro: '+(state.riOrig==='central'?'só central':'só balcão')+'</b>':'')); })()
-    ].join('') + (r.aberto? '<div class="banner warn" style="grid-column:1/-1;margin:0">'+r.aberto+' ato(s) fora do prazo em aberto. Registre o motivo na aba <b>Fora do prazo</b> para levá-lo à curva normal.</div>':'') + (r.I? '<div class="banner warn" style="grid-column:1/-1;margin:0">'+r.I+' ato(s) sem histórico suficiente ficaram fora do cálculo. Reimporte o mês com a Produção por Etapa começando 2 meses antes.</div>':'');
+    // 0.13.0: indicadores oficiais em destaque (valor, meta, situação, linha do ano e selo de lançado); o apoio fica numa faixa
+    var mesSel=state.periodo!=='todos'?state.periodo:null, msG=mesesGraficos(), filtroOrig=(state.riOrig||'todas')!=='todas';
+    var eb=est(r.R.map(function(a){return a.bruto;}));
+    var fo=r.R.filter(function(a){return a.dentro&&a.bruto!=null;}).map(function(a){return a.lim-a.bruto;}), ef=est(fo), apert=fo.filter(function(x){return x<=3;}).length, pa=ef.n?pct(apert/ef.n*100):'', alto=apert/Math.max(1,ef.n)>0.05;
+    var X=cancSoTri7Periodo(), Nc=r.N+X.length, Tc=r.total+X.length;
+    var tudo=[]; Object.keys(state.docs).forEach(function(m){ if (state.periodo==='todos'||state.periodo===m) tudo=tudo.concat(state.docs[m].atos.filter(function(a){ return a.cat==='R'||a.cat==='N'; })); });
+    var cO=tudo.filter(function(a){ return origemAto(a)==='central'; }).length;
+    var todosInc=incTodos(), k1=todosInc.length?kpi1Mes(atos,todosInc):null, meta1=metaDe('KPI-01',16.5);
+    var S13=mesSel&&state.senhas[mesSel]?senhasResumo(state.senhas[mesSel].L):null, v13=S13?Math.round(S13.med/60*100)/100:null, meta13=metaDe('KPI-13',15);
+    $('kpis').innerHTML='<div class="of">'+
+      oficialHTML('KPI-02','Finalizados no prazo',r.n?pctK(r.kpi).replace('%',''):'—',r.n?'%':'',r.dentro+' de '+r.n+' registrados'+(r.J?' · '+r.J+' justificado'+(r.J>1?'s':''):''),null,r.n?{c:'mute',t:'Baseline'}:null,'sem meta fixada (baseline)',serieKPI('KPI-02',msG),null,mesSel,filtroOrig)+
+      oficialHTML('KPI-01','Atos com inconformidade',k1&&k1.k!=null?pct(k1.k).replace('%',''):'—',k1&&k1.k!=null?'%':'',k1?k1.c+' de '+k1.n+' registrados':'importe as inconformidades',meta1,k1&&k1.k!=null?(k1.k<=meta1?{c:'good',t:'Atende'}:{c:'crit',t:'Fora da meta'}):null,'meta ≤ '+numBR(meta1,1)+'%',serieKPI('KPI-01',msG),meta1,mesSel,filtroOrig)+
+      oficialHTML('KPI-13','Espera para atendimento',v13!=null?numBR(v13,2):'—',v13!=null?'min':'',S13?'média de todas as filas · '+S13.na+' senhas':(mesSel?'importe a consulta de senhas':'escolha um mês no Período'),meta13,v13!=null?(v13<=meta13?{c:'good',t:'Atende'}:{c:'crit',t:'Fora da meta'}):null,'meta ≤ '+numBR(meta13,0)+' min',serieKPI('KPI-13',msG),meta13,mesSel,false)+
+      '</div><dl class="apoio">'+
+      apoioHTML('Mediana bruta',f1(r.medB),'d.u.','média '+f1(r.mB)+' · 90% em até '+f1(eb.p90))+
+      apoioHTML('Folga até o limite',ef.n?f1(ef.mediana):'—','d.u.',ef.n?(alto?'<span class="at">'+pa+'</span>':pa)+' com 3 d.u. ou menos':'')+
+      apoioHTML('Mediana líquida',f1(r.medL),'d.u.','tempo com o cartório')+
+      apoioHTML('Espera do cliente',f1(r.mEsp),'d.u.','exigência e suspensão')+
+      apoioHTML('1ª qualificação',pct(r.n?r.prim/r.n*100:null).replace('%',''),'%',r.prim+' sem exigência')+
+      apoioHTML('Cancelamentos',pct(Tc?Nc/Tc*100:null).replace('%',''),'%',Nc+' de '+Tc+' · KPI-02 comp.'+(X.length?' · '+X.length+' só no Tri7':''))+
+      apoioHTML('Volume',String(r.total),'atos',pesquisaTotal()?'fora '+pesquisaTotal()+' pesquisa'+(pesquisaTotal()>1?'s':'')+' qualificada'+(pesquisaTotal()>1?'s':''):'atos RI do período')+
+      apoioHTML('Pela central',tudo.length?pct(cO/tudo.length*100).replace('%',''):'—','%',cO+' de '+tudo.length+' registrados e cancelados'+(filtroOrig?' · filtro ativo':''))+
+      '</dl>' + (r.aberto? '<div class="banner warn" style="grid-column:1/-1;margin:0">'+r.aberto+' ato(s) fora do prazo em aberto. Registre o motivo na aba <b>Fora do prazo</b> para levá-lo à curva normal.</div>':'') + (r.I? '<div class="banner warn" style="grid-column:1/-1;margin:0">'+r.I+' ato(s) sem histórico suficiente ficaram fora do cálculo. Reimporte o mês com a Produção por Etapa começando 2 meses antes.</div>':'');
     renderTendencia(); renderGraficos();
   }
+
+  // 0.13.0: cartão de indicador oficial e item da faixa de apoio
+  function sparkHTML(vals, meta){ var v=vals.filter(function(x){ return x!=null&&!isNaN(x); }); if (v.length<2) return '';
+    var W=300, H=40, lo=Math.min.apply(null,v.concat(meta!=null?[meta]:[])), hi=Math.max.apply(null,v.concat(meta!=null?[meta]:[])); if (hi===lo){ hi+=1; lo-=1; }
+    var n=vals.length, x=function(i){ return 4+(W-12)*i/(n-1); }, y=function(t){ return 4+(H-10)*(1-(t-lo)/(hi-lo)); }, d='', ult=-1;
+    vals.forEach(function(t,i){ if (t==null||isNaN(t)) return; d+=(d?' L':'M')+x(i).toFixed(1)+','+y(t).toFixed(1); ult=i; });
+    return '<svg class="spark" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" aria-hidden="true">'+(meta!=null?'<line x1="0" x2="'+W+'" y1="'+y(meta).toFixed(1)+'" y2="'+y(meta).toFixed(1)+'" stroke="var(--ink-3)" stroke-dasharray="4 3" stroke-width="1"/>':'')+
+      '<path d="'+d+'" fill="none" stroke="var(--serie)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>'+(ult>=0?'<circle cx="'+x(ult).toFixed(1)+'" cy="'+y(vals[ult]).toFixed(1)+'" r="3.5" fill="var(--serie)" stroke="var(--surface)" stroke-width="2"/>':'')+'</svg>'; }
+  var SELO_OK='<svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="7.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5.5 9.2l2.3 2.3 4.7-4.9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var SELO_PEND='<svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="7.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.5 2"/></svg>';
+  function seloHTML(id, mes, filtro){ if (!mes) return '<span class="selo neutro" title="Escolha um mês no Período para ver o lançamento">acumulado</span>';
+    var T=kpiTravado(mes,id); if (T) return '<span class="selo ok" title="Valor travado: '+esc(String(T.n))+' / '+esc(String(T.d))+(filtro?' · o cartão mostra o filtro de origem, o lançado é o total':'')+'">'+SELO_OK+'Lançado em '+fmtData(String(T.em||'').slice(0,10)).slice(0,5)+'</span>';
+    return '<span class="selo pend" title="Ainda não marcado como lançado em Lançar KPIs">'+SELO_PEND+'Ainda não lançado</span>'; }
+  function oficialHTML(id, nome, valor, un, base, meta, sit, metaTxt, serie, metaSerie, mes, filtro){
+    return '<div class="kpi ofk"><div class="ofk-h"><span class="ofk-id">'+id+'</span>'+seloHTML(id,mes,filtro)+'</div><div class="ofk-nm">'+esc(nome)+'</div>'+
+      '<div class="ofk-v num">'+valor+(un?'<small>'+un+'</small>':'')+'</div><div class="ofk-b num">'+base+'</div>'+
+      '<div class="ofk-m">'+(sit?'<span class="pill '+sit.c+'">'+(sit.c==='good'?'✓ ':sit.c==='crit'?'✕ ':'')+sit.t+'</span>':'')+'<span>'+metaTxt+'</span></div>'+sparkHTML(serie,metaSerie)+'</div>'; }
+  function apoioHTML(t,v,un,s){ return '<div><dt>'+t+'</dt><dd class="num">'+v+(un&&v!=='—'?'<small>'+un+'</small>':'')+'</dd><p>'+s+'</p></div>'; }
   function kpi(l,v,s,cls){ return '<div class="kpi '+(cls||'')+'"><span class="l">'+l+'</span><span class="v">'+v+'</span><span class="s">'+s+'</span></div>'; }
 
   function renderSelect(){
