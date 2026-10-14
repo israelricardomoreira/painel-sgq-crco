@@ -1,5 +1,6 @@
 /* Painel SGQ · CRCO — js/inconformidades.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inconformidades.js']='0.13.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inconformidades.js']='0.14.0';
+  var INC_PASSO=50;
   function incRecs(){ var out=[]; Object.keys(state.inconf).sort().forEach(function(m){ if (state.periodo==='todos'||state.periodo===m) out=out.concat(state.inconf[m]); }); return out; }
   function incTodos(){ var out=[]; Object.keys(state.inconf).forEach(function(m){ out=out.concat(state.inconf[m]); }); return out; }
   function ovDe(r){ var o=state.incCat[r.id]; return typeof o==='string'?{cat:o}:(o||{}); }
@@ -61,10 +62,14 @@
     var lista=recs.filter(function(r){ return (!state.incFiltroCat||catDe(r)===state.incFiltroCat) && (!state.incFiltroPessoa||r.r===state.incFiltroPessoa); })
       .sort(function(a,b){ return a.d<b.d?1:-1; });
     var opts=Motor.CATS_ERRO;
+    // 0.14.0: a lista mostra 50 por vez; volta para 50 quando muda o mês, a serventia ou o filtro
+    var sig=[state.periodo,atrAtual(),svModo(),state.incFiltroCat||'',state.incFiltroPessoa||''].join('|');
+    if (state.incLimSig!==sig){ state.incLimSig=sig; state.incLim=INC_PASSO; }
+    var lim=Math.min(state.incLim||INC_PASSO, lista.length);
     h+='<div class="sub-h" style="margin-top:16px">Registros ('+lista.length+')</div><div class="scroll" style="max-height:480px"><table class="tleft"><thead><tr><th>Data</th><th>Documento</th><th>Pessoa</th><th title="Quem prenotou no Tri7 — só consulta, não aponta responsável">Deu entrada (Tri7)</th><th>Tipo</th><th>Erro (nome)</th><th>Observação</th></tr></thead><tbody>'+
-      lista.slice(0,400).map(function(r){ var c=catDe(r), man=!!ovDe(r).cat;
+      lista.slice(0,lim).map(function(r){ var c=catDe(r), man=!!ovDe(r).cat;
         return '<tr data-incid="'+esc(r.id)+'"><td>'+fmtData(r.d)+'</td><td>'+protLink(r.c)+' <span class="mut">'+esc(r.t)+'</span></td><td class="tl">'+esc(r.r)+'</td><td class="tl mut">'+(function(){ var L=r.t==='RI'?andIndice()[String(r.c)]:null, e=L&&L.filter(function(x){return x.s==='PN'||x.s==='PA';})[0]; return e?esc(nomeLogin(e.u)):'—'; })()+'</td><td><select class="mini" data-incgsel="1" aria-label="Interno ou externo"'+(ovDe(r).g?' style="border-color:var(--brand)"':'')+'><option value="I"'+(grupoDe(r)==='I'?' selected':'')+'>Interno</option><option value="E"'+(grupoDe(r)==='E'?' selected':'')+'>Externo</option></select></td>'+
         '<td><select class="mini" data-inccatsel="1" aria-label="Erro"'+(man?' style="border-color:var(--brand)"':'')+'>'+opts.map(function(o){ return '<option'+(o===c?' selected':'')+'>'+esc(o)+'</option>'; }).join('')+'</select></td>'+
-        '<td class="tl" style="min-width:280px">'+esc(r.o)+'</td></tr>'; }).join('')+'</tbody></table></div>'+(lista.length>400?'<p class="hint">Mostrando 400 de '+lista.length+'. Escolha um mês ou filtre.</p>':'');
+        '<td class="tl" style="min-width:280px">'+esc(r.o)+'</td></tr>'; }).join('')+'</tbody></table></div>'+(lista.length>lim?'<div class="inc-mais"><span class="hint">Mostrando '+lim+' de '+lista.length+'.</span> <button class="btn sm" type="button" data-incmais="1">Mostrar mais '+Math.min(INC_PASSO,lista.length-lim)+'</button>'+(lista.length-lim>INC_PASSO?' <button class="btn sm" type="button" data-incmais="todos">Mostrar todos</button>':'')+'</div>':(lista.length>INC_PASSO?'<p class="hint">Mostrando todos os '+lista.length+'.</p>':''));
     $('tabK1').innerHTML=h;
   }

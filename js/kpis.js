@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/kpis.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/kpis.js']='0.13.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/kpis.js']='0.14.0';
   function compLabel(m){ var p=m.split('-'); return p[1]+'. '+MES_C[+p[1]-1]+'/'+p[0]; }
   function evidLabel(m){ var p=m.split('-'); return MES_C[+p[1]-1]+' '+p[0]; }
   function mesAnt(m){ var p=m.split('-').map(Number); p[1]--; if(!p[1]){ p[1]=12; p[0]--; } return p[0]+'-'+(p[1]<10?'0':'')+p[1]; }
@@ -163,6 +163,7 @@
       '<span class="chip'+(feitos===vis.length?' ok':'')+'">'+feitos+' de '+vis.length+' lançados</span>'+
       '<label class="lc-chk"><input type="checkbox" id="lancTodos"'+(state.lancTodos?' checked':'')+'> mostrar ocultos</label>'+(podeEscrever?'<button class="btn sm" type="button" id="kpiEdBtn">Editar indicadores</button>':'')+
       '<span class="spacer"></span><button class="btn sm" type="button" id="memBtn" title="Planilha com o cálculo de cada KPI deste mês, ato por ato, com fórmulas do Excel — para anexar no ANOREG+">Baixar memória de cálculo (.xlsx)</button>'+'</div>'+'';
+    h+=saudeAvisoLanc(m); // 0.14.0: avisa fonte incompleta do mês antes de lançar
     // 0.13.0: lista do mês à esquerda e o indicador escolhido à direita (no celular aparecem todos, um embaixo do outro)
     if (!state.lancSel || !vis.some(function(K){ return K.id===state.lancSel; })){ var pend=vis.filter(function(K){ return !L[K.id]; })[0]; state.lancSel=(pend||vis[0]||{}).id; }
     h+='<div class="lc-lay"><nav class="lc-lista" aria-label="Indicadores do mês">'+vis.map(function(K){ var o=kpiValor(K.id,m), sit=kpiSituacao(K,o), res=o?(o.r!=null&&!K.cont?numBR(o.r)+(K.minutos||K.den===100?'':'%'):numBR(o.n)):'—';

@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/prazos.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/prazos.js']='0.13.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/prazos.js']='0.14.0';
   function pintarGeral(atos){
     var r=resumo(atos);
     // 0.13.0: indicadores oficiais em destaque (valor, meta, situação, linha do ano e selo de lançado); o apoio fica numa faixa
@@ -49,7 +49,8 @@
 
   function renderSelect(){
     var sel=$('selMes'), mm={}; (atrAtual()==='RI'?[state.docs]:svModo()==='todas'?[state.docs,state.serv]:[state.serv]).forEach(function(o){ Object.keys(o).forEach(function(m){ mm[m]=1; }); }); var meses=Object.keys(mm).sort().reverse();
-    var html='<option value="todos">Todos os meses ('+meses.length+')</option>'+meses.map(function(m){ return '<option value="'+m+'">'+nomeMes(m)+'</option>'; }).join('');
+    var jn=(window.nuvem&&window.nuvem.janela)?window.nuvem.janela():null, ant=jn&&jn.temAnteriores&&!jn.completo; // 0.14.0: abre com 12 meses; os anteriores entram por pedido
+    var html='<option value="todos">'+(ant?'Últimos 12 meses':'Todos os meses')+' ('+meses.length+')</option>'+meses.map(function(m){ return '<option value="'+m+'">'+nomeMes(m)+'</option>'; }).join('')+(ant?'<option value="__ant">Carregar meses anteriores…</option>':'');
     if (sel.innerHTML!==html) sel.innerHTML=html;
     if (!state.periodoEscolhido){ var fech=meses.filter(function(m){ return m<mesHoje(); })[0]; if (fech){ if (state.periodo!==fech){ state.periodo=fech; state.lancMes=fech; } } } // 0.11.0: abre no último mês fechado até você escolher outro período
     if (state.periodo!=='todos' && meses.indexOf(state.periodo)<0) state.periodo='todos';

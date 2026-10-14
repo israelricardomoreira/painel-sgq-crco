@@ -10,6 +10,9 @@
   var MIN_INATIVO = CFG.minutosInatividade || 30;
   var sb = null, perfil = null, usuario = null;
   var cache = {}, ouvintes = {};
+  // 0.14.0: coleções guardadas por mês (id AAAA-MM) que abrem só com os últimos N meses
+  var COL_MES=['meses','logs','serv','andam','cert','inconf','senhas'];
+  var janela={corte:(function(n){ var d=new Date(), a=d.getFullYear(), m=d.getMonth()+1-(n-1); while (m<1){ m+=12; a--; } return a+'-'+(m<10?'0':'')+m; })(Math.max(1,+(CFG.mesesAbertura||12))), temAnteriores:null, completo:false};
   var resolverPronto, pronto = new Promise(function(r){ resolverPronto = r; });
 
   function $(id){ return document.getElementById(id); }
@@ -76,9 +79,13 @@
       if (p.error || !p.data){ tela('<p class="nl-tit">Acesso não liberado</p><p class="nl-txt">Seu login funcionou, mas este usuário ainda não tem permissão no painel. Peça ao administrador para incluí-lo (tabela <code>perfis</code>).</p><p class="nl-rod"><button type="button" class="lnk" id="nlSair">Sair</button></p>');
         $('nlSair').addEventListener('click',sair); return; }
       perfil=p.data;
-      return lerPaginado(function(){ return sb.from('docs').select('colecao,id,dados').eq('arquivado',false).neq('colecao','brutos').order('colecao').order('id'); })
-        .then(function(rows){ rows.forEach(function(r){ (cache[r.colecao]=cache[r.colecao]||{})[r.id]=r.dados; });
-          $('nuvemLogin').hidden=true; barraUsuario(); vigiarInatividade(); resolverPronto(); });
+      // 0.14.0: abre com os últimos 12 meses das coleções mensais; o resto (configuração, justificativas, KPIs…) vem inteiro
+      return Promise.all([
+        lerPaginado(function(){ return sb.from('docs').select('colecao,id,dados').eq('arquivado',false).not('colecao','in','('+['brutos'].concat(COL_MES).join(',')+')').order('colecao').order('id'); }),
+        lerPaginado(function(){ return sb.from('docs').select('colecao,id,dados').eq('arquivado',false).in('colecao',COL_MES).gte('id',janela.corte).order('colecao').order('id'); })
+      ]).then(function(rr){ rr[0].concat(rr[1]).forEach(function(r){ (cache[r.colecao]=cache[r.colecao]||{})[r.id]=r.dados; });
+          $('nuvemLogin').hidden=true; barraUsuario(); vigiarInatividade(); resolverPronto();
+          sb.from('docs').select('id').eq('arquivado',false).in('colecao',COL_MES).lt('id',janela.corte).limit(1).then(function(r){ janela.temAnteriores=!r.error && !!(r.data&&r.data.length); if (window.aoMudarJanela) window.aoMudarJanela(); }); });
     }).catch(function(e){ tela('<p class="nl-tit">Não consegui carregar os dados</p><p class="nl-txt">'+esc(e.message)+'</p><p class="nl-rod"><button type="button" class="lnk" id="nlTentar">Tentar de novo</button></p>'); $('nlTentar').addEventListener('click',carregar); });
   }
   function barraUsuario(){
@@ -117,13 +124,27 @@
 
   window.claude={ use:function(nome){ return pronto.then(function(){ return nome==='db'?dbApi:nome==='user'?userApi:nome==='downloads'?dlApi:null; }); } };
   // funções extras: backup, restauração e dados brutos
-  window.NUVEM_VERSAO='0.13.0'; // 0.11.0: conferida pelo app.js para avisar arquivos de versões diferentes
+  window.NUVEM_VERSAO='0.14.0'; // 0.11.0: conferida pelo app.js para avisar arquivos de versões diferentes
   window.nuvem={
     papel:function(){ return perfil&&perfil.papel; },
     nome:function(){ return (perfil&&perfil.nome)||(usuario&&usuario.email)||''; },
     gravar:gravar,
     ler:function(col,id){ return sb.from('docs').select('dados').eq('colecao',col).eq('id',id).eq('arquivado',false).maybeSingle().then(function(r){ if (r.error) throw erroBanco(r.error); return r.data?r.data.dados:null; }); },
     lerColecao:function(col){ return lerPaginado(function(){ return sb.from('docs').select('id,dados').eq('colecao',col).eq('arquivado',false).order('id'); }); },
+    // 0.14.0: versões anteriores (tabela docs_versoes, criada pelo versoes.sql; só o administrador lê)
+    versoes:function(n){ return sb.from('docs_versoes').select('id,colecao,doc_id,acao,arquivado,era_de,substituida_em,email,bytes').order('id',{ascending:false}).limit(n||300).then(function(r){
+      if (r.error){ var e=erroBanco(r.error); if (/docs_versoes|does not exist|schema cache|PGRST205|42P01/i.test((r.error.message||'')+' '+(r.error.code||''))) e.code='sem_tabela'; throw e; } return r.data||[]; }); },
+    versaoDados:function(id){ return sb.from('docs_versoes').select('id,colecao,doc_id,acao,dados,arquivado').eq('id',id).maybeSingle().then(function(r){ if (r.error) throw erroBanco(r.error); return r.data; }); },
+    // volta um registro para uma versão guardada: grava de novo o conteúdo antigo (ou arquiva, se ele não existia)
+    voltarVersao:function(v){
+      if (v.acao==='criou') return dbApi.doc(v.colecao+'/'+v.doc_id).delete();
+      return gravar(v.colecao,v.doc_id,v.dados).then(function(){ if (v.arquivado) return dbApi.doc(v.colecao+'/'+v.doc_id).delete(); }); },
+    janela:function(){ return {corte:janela.corte, temAnteriores:janela.temAnteriores, completo:janela.completo}; },
+    // carrega os meses anteriores ao corte e avisa o painel (os ouvintes recebem a coleção inteira de novo)
+    carregarAnteriores:function(){ if (janela.completo) return Promise.resolve(0);
+      return lerPaginado(function(){ return sb.from('docs').select('colecao,id,dados').eq('arquivado',false).in('colecao',COL_MES).lt('id',janela.corte).order('colecao').order('id'); })
+        .then(function(rows){ var cols={}; rows.forEach(function(r){ (cache[r.colecao]=cache[r.colecao]||{})[r.id]=r.dados; cols[r.colecao]=1; });
+          janela.completo=true; janela.temAnteriores=rows.length>0; Object.keys(cols).forEach(emitir); if (window.aoMudarJanela) window.aoMudarJanela(); return rows.length; }); },
     lerTudo:function(){ return lerPaginado(function(){ return sb.from('docs').select('colecao,id,dados').eq('arquivado',false).order('colecao').order('id'); }); }
   };
 

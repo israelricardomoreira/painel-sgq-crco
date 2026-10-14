@@ -1,13 +1,13 @@
 /* Painel SGQ · CRCO — js/navegacao.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/navegacao.js']='0.13.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/navegacao.js']='0.14.0';
   function pgVisLer(){ try{ return JSON.parse(localStorage.getItem('crco-pgvis')||'{}')||{}; }catch(e){ return {}; } }
   function pgVisDef(aba,on){ state.pgVis[aba]=on; try{ localStorage.setItem('crco-pgvis',JSON.stringify(state.pgVis)); }catch(e){} pgVisSw(); render(); }
   function pgVisSw(){ var el=$('pgVisSw'); if (el) el.innerHTML=''; var bv=$('btnVis'), k=state.aba; if (bv) bv.setAttribute('aria-pressed',(k==='vis'||(PG_VIS[k]&&state.pgVis[k]))?'true':'false'); }
   function menuAbrir(sim){ document.body.classList.toggle('menu-aberto',!!sim); $('menuFundo').hidden=!sim; }
   function irAba(k){ if (k==='imp' && !podeEscrever) k='geral'; if (typeof svModo==='function' && svModo()==='cert' && (k==='geral'||SO_SERV.indexOf(k)>=0)) k='cer'; state.aba=k; $('pgGeral').hidden=k!=='geral'; $('pgConteudo').hidden=k==='geral'||k==='imp'; $('importar').hidden=k!=='imp'; $('pgTitulo').textContent=TITULOS[k]||''; pgVisSw(); menuAbrir(false); window.scrollTo(0,0); if (k==='geral'){ if (state.sujo&&state.sujo.geral) pagPendente('geral'); else renderGraficos(); } document.querySelectorAll('.tab').forEach(function(b){ b.setAttribute('aria-selected',b.dataset.tab===k?'true':'false'); });
-    var MAP={nat:'tabNat',k1:'tabK1',cer:'tabCer',eta:'tabEta',fp:'tabFp',ex:'tabEx',nao:'tabNao',at:'tabAt',tri:'tabTri',lanc:'tabLanc',rel:'tabRel',met:'tabMet',des:'tabDes',vis:'tabVis',cfg:'tabCfg'}; Object.keys(MAP).forEach(function(x){ $(MAP[x]).hidden=state.aba!==x; });
+    var MAP={nat:'tabNat',k1:'tabK1',cer:'tabCer',eta:'tabEta',fp:'tabFp',ex:'tabEx',nao:'tabNao',at:'tabAt',tri:'tabTri',lanc:'tabLanc',rel:'tabRel',met:'tabMet',des:'tabDes',vis:'tabVis',cfg:'tabCfg',sau:'tabSau'}; Object.keys(MAP).forEach(function(x){ $(MAP[x]).hidden=state.aba!==x; });
     if (state.sujo && ['rel','tri','lanc','at'].indexOf(k)>=0) delete state.sujo[k]; else if (k!=='geral') pagPendente(k);
-    if (k==='rel') renderRel(); if (k==='cfg') renderCfg(); if (k==='tri') renderTri(); if (k==='imp') renderExcluir();  if (k==='lanc') renderLanc(); if (k==='at') renderAtend(); if (k==='des') renderDes(); if (k==='vis') renderVis(); var bv=$('btnVis'); if (bv) bv.setAttribute('aria-pressed',(k==='vis'||(PG_VIS[k]&&state.pgVis[k]))?'true':'false'); }
+    if (k==='rel') renderRel(); if (k==='cfg') renderCfg(); if (k==='sau') renderSau(); if (k==='tri') renderTri(); if (k==='imp') renderExcluir();  if (k==='lanc') renderLanc(); if (k==='at') renderAtend(); if (k==='des') renderDes(); if (k==='vis') renderVis(); var bv=$('btnVis'); if (bv) bv.setAttribute('aria-pressed',(k==='vis'||(PG_VIS[k]&&state.pgVis[k]))?'true':'false'); }
   function avRascunho(t){ var row=t.closest&&t.closest('#tabEx tr[data-cod]'); if (!row||!t.matches('select.mini,input.mini')) return false;
     var cod=row.dataset.cod, a=atoPorCod(cod); if (!a) return true; var res=row.querySelector('select').value, ob=row.querySelector('input').value.trim(), sv=state.aval[idDoc(cod)]||{};
     if ((sv.resultado||'')===res && (sv.obs||'')===ob) delete state.avDraft[cod]; else state.avDraft[cod]={res:res,obs:ob};

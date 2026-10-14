@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/dados.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/dados.js']='0.13.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/dados.js']='0.14.0';
  // 0.x = em validação; vira 1.0.0 depois da apresentação ao Oficial
   // 0.11.0: proteção de versão — index.html, motor.js e nuvem.js levam a versão; se algum arquivo ficou de outra entrega, avisa no topo
   function checarVersoes(ver){ ver=ver||APP_VERSAO; var el=document.getElementById('avisoVersao'); if (!el) return; var meta=document.querySelector('meta[name="painel-versao"]'), dif=[];
@@ -132,4 +132,42 @@
     var wsL=XLSX.utils.aoa_to_sheet(leia); wsL['!cols']=[{wch:18},{wch:120}]; XLSX.utils.book_append_sheet(wb, wsL, 'Leia-me');
     XLSX.writeFile(wb, 'Memoria de calculo KPIs - '+compLabel(m).replace(/[\/. ]+/g,'-')+'.xlsx');
     toast('Memória de cálculo baixada');
+  }
+  // ——— 0.14.0: histórico de gravações (versão anterior de cada registro) ———
+  var HV_NOME={meses:'RI · atos',logs:'RI · linha do tempo',brutos:'dados brutos do VHL',serv:'outras serventias',andam:'Tri7 · andamentos',cert:'certidões',inconf:'inconformidades',senhas:'senhas',kpi09:'folha (KPI-09)',kpis:'lançamento de KPI',justificativas:'justificativa',avaliacoes:'avaliação de exigências',inc_cat:'categoria de erro',config:'configuração',feedback:'feedback'};
+  var HV_IMPORT={meses:1,logs:1,brutos:1,serv:1,andam:1,cert:1,inconf:1,senhas:1,kpi09:1};
+  function hvRotulo(v){ var n=HV_NOME[v.colecao]||v.colecao, id=String(v.doc_id); var m=id.match(/(\d{4}-\d{2})$/); return n+(m?' · '+nomeMes(m[1]):(v.colecao==='config'?' · '+id:v.colecao==='brutos'?' · '+id:'')); }
+  // agrupa as versões por gravação: mesma pessoa, mesmo tipo (importação ou ajuste manual) e menos de 90 s entre uma e outra
+  function hvGrupos(L){ var G=[], ab={}; L.forEach(function(v){ var t=Date.parse(v.substituida_em), cl=HV_IMPORT[v.colecao]?'imp':'man', k=cl+'|'+v.email, g=ab[k];
+      if (g && g.tMin-t<90000){ g.L.push(v); g.tMin=t; } else { g=ab[k]={email:v.email, tMax:t, tMin:t, L:[v]}; G.push(g); } });
+    G.sort(function(a,b){ return b.tMax-a.tMax; });
+    G.forEach(function(g,i){ var por={}; g.L.forEach(function(v){ var k=v.colecao+'/'+v.doc_id; if (!por[k]||v.id<por[k].id) por[k]=v; }); g.docs=Object.keys(por).map(function(k){ return por[k]; }); g.i=i;
+      g.imp=g.docs.some(function(v){ return HV_IMPORT[v.colecao]; });
+      var depois={}; G.slice(0,i).forEach(function(h){ h.L.forEach(function(v){ depois[v.colecao+'/'+v.doc_id]=1; }); }); g.depois=g.docs.filter(function(v){ return depois[v.colecao+'/'+v.doc_id]; }).length; });
+    return G; }
+  function hvData(ms){ var d=new Date(ms); return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+String(d.getFullYear()).slice(2)+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
+  function renderHist(){
+    var el=$('histVersoes'); if (!el) return; if (!window.nuvem||!window.nuvem.versoes){ el.innerHTML='<p class="hint">Disponível só no painel publicado.</p>'; return; }
+    el.innerHTML='<p class="hint">Carregando…</p>';
+    window.nuvem.versoes(300).then(function(L){ state.hvL=L; var G=state.hvG=hvGrupos(L), tudo=!!state.hvTudo, V=G.filter(function(g){ return tudo||g.imp; });
+      var h='<div class="ctl" style="margin:0 0 8px"><label class="lc-chk"><input type="checkbox" id="hvTudo"'+(tudo?' checked':'')+'> mostrar também lançamentos, justificativas e configuração</label></div>';
+      if (!L.length){ el.innerHTML=h+'<p class="hint">Nenhuma versão guardada ainda. Elas começam a aparecer na primeira gravação depois de rodar o <b>versoes.sql</b>.</p>'; return; }
+      h+=V.slice(0,30).map(function(g,k){
+        return '<details class="hv-g"'+(k===0?' open':'')+'><summary><b>'+hvData(g.tMax)+'</b> · '+esc(g.email||'?')+' · '+g.docs.length+' registro'+(g.docs.length>1?'s':'')+(g.imp?' <span class="chip">importação</span>':'')+'</summary><ul>'+
+          g.docs.map(function(v){ return '<li>'+esc(hvRotulo(v))+' <span class="mut">— '+(v.acao==='criou'?'era novo (desfazer arquiva)':v.acao==='arquivou'?'foi arquivado':'alterado')+'</span></li>'; }).join('')+'</ul>'+
+          (g.depois?'<p class="hint">Atenção: '+g.depois+' destes registros foram gravados de novo depois. Desfazer volta eles para antes desta gravação, e as mudanças posteriores deles também saem.</p>':'')+
+          (podeEscrever?'<div class="hv-acoes"><button class="btn sm" type="button" data-hvdesfazer="'+g.i+'">Desfazer esta gravação</button></div>':'')+'</details>'; }).join('')+
+        (V.length>30?'<p class="hint">Mostrando as 30 gravações mais recentes.</p>':'')+(V.length?'':'<p class="hint">Nenhuma importação nas versões guardadas.</p>');
+      el.innerHTML=h;
+    }).catch(function(e){ el.innerHTML=e.code==='sem_tabela'?'<div class="banner warn">O histórico ainda não foi ligado no banco. Rode o arquivo <b>versoes.sql</b> no Supabase (SQL Editor › New query › colar › Run) e clique de novo.</div>':'<p class="hint">Não consegui ler o histórico: '+esc(e.message)+'</p>'; });
+  }
+  function hvDesfazer(i){
+    var g=(state.hvG||[])[i]; if (!g) return;
+    var txt='Desfazer a gravação de '+hvData(g.tMax)+'?\n\n'+g.docs.map(function(v){ return '• '+hvRotulo(v)+(v.acao==='criou'?' (será arquivado)':' (volta como era antes)'); }).join('\n')+(g.depois?'\n\nAtenção: '+g.depois+' registro(s) foram gravados de novo depois e também voltam.':'')+'\n\nO estado de agora também fica guardado no histórico, então dá para refazer.';
+    if (!confirm(txt)) return;
+    var b=document.querySelector('[data-hvdesfazer="'+i+'"]'); if (b){ b.disabled=true; b.textContent='Desfazendo…'; }
+    var p=Promise.resolve(), n=0, recalc=g.docs.some(function(v){ return v.colecao==='brutos'; });
+    g.docs.forEach(function(v){ p=p.then(function(){ return window.nuvem.versaoDados(v.id); }).then(function(x){ if (!x) throw new Error('versão '+v.id+' não encontrada'); n++; if (b) b.textContent='Desfazendo '+n+'/'+g.docs.length+'…'; return window.nuvem.voltarVersao(x); }); });
+    p.then(function(){ toast('Gravação desfeita: '+n+' registro(s) voltaram'+(recalc?'. Os dados brutos voltaram também; use Recalcular só se quiser refazer os meses com a versão atual do painel':'')); render(); renderExcluir(); renderHist(); })
+     .catch(function(e){ toast('Parei no meio ('+n+' de '+g.docs.length+'): '+(e&&e.message||'erro')+'. Confira e tente de novo'); renderHist(); });
   }

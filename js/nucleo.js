@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/nucleo.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/nucleo.js']='0.13.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/nucleo.js']='0.14.0';
   // ——— tema (automático / claro / escuro) e barra lateral recolhida: preferências deste navegador
   function prefLer(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
   function prefGravar(k,v){ try{ if (v==null) localStorage.removeItem(k); else localStorage.setItem(k,v); }catch(e){} }
@@ -86,15 +86,15 @@
   function pagPendente(k){ var f=state.sujo&&state.sujo[k]; if (!f) return; delete state.sujo[k]; f(); }
   function render0(){
     renderAtrSelect(); renderSelect(); var atos=todosAtos();
-    if (atrAtual()!=='RI'){ if (SO_RI.indexOf(state.aba)>=0 || (svModo()==='todas'&&SO_SERV.indexOf(state.aba)>=0)) irAba('geral'); renderAtr(); pag('k1',function(){ renderK1([]); }); pag('at',renderAtend); pag('rel',function(){ if (!FOCO('#tabRel textarea')) renderRel(); }); pag('lanc',function(){ if (!FOCO('#tabLanc input[type=text],#tabLanc textarea')) renderLanc(); }); pag('met',renderMetodo); return; }
+    if (atrAtual()!=='RI'){ if (SO_RI.indexOf(state.aba)>=0 || (svModo()==='todas'&&SO_SERV.indexOf(state.aba)>=0)) irAba('geral'); renderAtr(); pag('k1',function(){ renderK1([]); }); pag('at',renderAtend); pag('rel',function(){ if (!FOCO('#tabRel textarea')) renderRel(); }); pag('lanc',function(){ if (!FOCO('#tabLanc input[type=text],#tabLanc textarea')) renderLanc(); }); pag('met',renderMetodo); pag('sau',renderSau); return; }
     var vazio=!atos.length && !Object.keys(state.inconf).length && !Object.keys(state.cert).length && !Object.keys(state.senhas).length;
     $('secTendencia').hidden = Object.keys(state.docs).length<2;
     if (vazio){
       $('kpis').innerHTML='<div class="panel empty" style="grid-column:1/-1"><b>Nenhum mês carregado ainda</b>Abra <b>Importar dados</b> no menu e solte as planilhas do VHL. Os resultados ficam salvos aqui e cada mês novo vai se somando.</div>';
       ['tabNat','tabK1','tabCer','tabEta','tabNao','tabFp','tabEx','tabRel'].forEach(function(id){ $(id).innerHTML='<div class="empty">Sem dados para o período.</div>'; });
-      pag('lanc',function(){ if (!FOCO('#tabLanc input[type=text],#tabLanc textarea')) renderLanc(); }); pag('tri',function(){ if (!FOCO('#tabTri input')) renderTri(); }); pag('at',renderAtend); pag('geral',renderGraficos); pag('met',renderMetodo); return;
+      pag('lanc',function(){ if (!FOCO('#tabLanc input[type=text],#tabLanc textarea')) renderLanc(); }); pag('tri',function(){ if (!FOCO('#tabTri input')) renderTri(); }); pag('at',renderAtend); pag('geral',renderGraficos); pag('met',renderMetodo); pag('sau',renderSau); return;
     }
     pag('geral',function(){ pintarGeral(atos); });
     pag('nat',function(){ renderNat(atos); }); pag('eta',function(){ renderEta(atos); }); pag('nao',function(){ renderNao(atos); }); pag('fp',function(){ renderFp(atos); }); pag('ex',function(){ renderEx(atos); }); pag('k1',function(){ renderK1(atos); }); pag('cer',renderCer);
-    pag('rel',function(){ if (!FOCO('#tabRel textarea')) renderRel(); }); pag('lanc',function(){ if (!FOCO('#tabLanc input[type=text],#tabLanc textarea')) renderLanc(); }); pag('tri',function(){ if (!FOCO('#tabTri input')) renderTri(); }); pag('at',renderAtend); pag('met',renderMetodo);
+    pag('rel',function(){ if (!FOCO('#tabRel textarea')) renderRel(); }); pag('lanc',function(){ if (!FOCO('#tabLanc input[type=text],#tabLanc textarea')) renderLanc(); }); pag('tri',function(){ if (!FOCO('#tabTri input')) renderTri(); }); pag('at',renderAtend); pag('met',renderMetodo); pag('sau',renderSau);
   }

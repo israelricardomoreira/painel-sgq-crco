@@ -1,8 +1,8 @@
 /* Painel SGQ · CRCO — js/inicio.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inicio.js']='0.13.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inicio.js']='0.14.0';
   // 0.12.0: confere logo de saída se todos os arquivos do painel vieram da mesma entrega
-  var ARQUIVOS_APP=["js/nucleo.js", "js/prazos.js", "js/inconformidades.js", "js/relatorios.js", "js/kpis.js", "js/atendimento.js", "js/ficha.js", "js/configuracao.js", "js/tri7.js", "js/serventias.js", "js/dados.js", "js/graficos.js", "js/desempenho.js", "js/visual.js", "js/certidoes.js", "js/importar.js", "js/navegacao.js", "js/inicio.js"];
-  try{ checarVersoes('0.13.0'); }catch(e){ var avv=document.getElementById('avisoVersao'); if (avv){ avv.hidden=false; avv.textContent='Faltam arquivos do painel ou eles são de versões diferentes. Suba de novo todos os arquivos da entrega e recarregue a página.'; } }
+  var ARQUIVOS_APP=["js/nucleo.js", "js/prazos.js", "js/inconformidades.js", "js/relatorios.js", "js/kpis.js", "js/atendimento.js", "js/ficha.js", "js/configuracao.js", "js/tri7.js", "js/serventias.js", "js/dados.js", "js/graficos.js", "js/desempenho.js", "js/visual.js", "js/certidoes.js", "js/importar.js", "js/saude.js", "js/navegacao.js", "js/inicio.js"];
+  try{ checarVersoes('0.14.0'); }catch(e){ var avv=document.getElementById('avisoVersao'); if (avv){ avv.hidden=false; avv.textContent='Faltam arquivos do painel ou eles são de versões diferentes. Suba de novo todos os arquivos da entrega e recarregue a página.'; } }
   var $=function(id){ return document.getElementById(id); };
   var TEMAS={auto:['◐ Auto','Tema: automático (segue o computador)'],claro:['☀ Claro','Tema: claro'],escuro:['☾ Escuro','Tema: escuro']};
   var temaAtual=temaAplicar(prefLer('crco-tema')||'auto');
@@ -155,7 +155,7 @@
   var KPIS_PADRAO=null;
 
   // ——— versão, dados brutos, recálculo, backup e memória de cálculo (site no GitHub + Supabase)
-  var APP_VERSAO='0.13.0';
+  var APP_VERSAO='0.14.0';
   // 0.11.0: a biblioteca de planilhas (≈310 KB) só é baixada quando precisa — importar, recalcular ou baixar a memória de cálculo
   var XLSX_URL='xlsx.full.min.js?v=0.20.3', XLSX_SRI='sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT', xlsxProm=null;
   var BRUTO_COLS={prazo:['tipo de documento','codigo','natureza','ingresso','finalizacao','prazo','tempo'], etapa:['codigo','data execucao','etapa','responsavel','prazo'], demanda:['codigo','status']};
@@ -217,7 +217,7 @@
   state.calAno=new Date().getFullYear();
 
   // ——— eventos
-  $('selMes').addEventListener('change',function(e){ state.periodoEscolhido=true; state.periodo=e.target.value; if (state.periodo!=='todos') state.lancMes=state.periodo; render(); });
+  $('selMes').addEventListener('change',function(e){ if (e.target.value==='__ant'){ e.target.value=state.periodo; toast('Carregando meses anteriores…'); window.nuvem.carregarAnteriores().then(function(n){ toast(n?'Meses anteriores carregados':'Não há meses anteriores no banco'); }).catch(function(x){ toast('Não consegui carregar: '+x.message); }); return; } state.periodoEscolhido=true; state.periodo=e.target.value; if (state.periodo!=='todos') state.lancMes=state.periodo; render(); });
   var drop=$('drop'), fin=$('fileIn');
   drop.addEventListener('click',function(){ fin.click(); });
   drop.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); fin.click(); } });
@@ -281,6 +281,11 @@
     if (t.dataset && t.dataset.anreset){ var ck=t.closest('.lc-card').dataset.kpi, dr=lancDoc(state.lancMes); if (dr.v[ck]) delete dr.v[ck].a; lancSalvar(state.lancMes); return renderLanc(); }
     if (t.id==='fbSalvar') return salvarDevolutiva();
     if (t.dataset && t.dataset.incsetor){ state.incSetor=t.dataset.incsetor; renderK1(todosAtos()); return renderRel(); }
+    if (t.id==='btnHist') return renderHist();
+    if (t.dataset && t.dataset.hvdesfazer!=null) return hvDesfazer(+t.dataset.hvdesfazer);
+    if (t.dataset && t.dataset.goSau){ return irAba('sau'); }
+    if (t.dataset && t.dataset.carregarAnt){ t.disabled=true; t.textContent='Carregando…'; window.nuvem.carregarAnteriores().then(function(n){ toast(n?'Carreguei '+n+' registro(s) dos meses anteriores':'Não há meses anteriores no banco'); renderSau(); renderSelect(); }).catch(function(e){ toast('Não consegui carregar: '+e.message); renderSau(); }); return; }
+    if (t.dataset && t.dataset.incmais){ var sc=document.querySelector('#tabK1 .scroll[style*="480"]'), top=sc?sc.scrollTop:0; state.incLim=t.dataset.incmais==='todos'?1e9:(state.incLim||INC_PASSO)+INC_PASSO; renderK1(todosAtos()); var sc2=document.querySelector('#tabK1 .scroll[style*="480"]'); if (sc2) sc2.scrollTop=top; return; }
     if (t.dataset && t.dataset.inclimpar){ state.incFiltroCat=null; state.incFiltroPessoa=null; return renderK1(todosAtos()); }
     var ic=t.closest&&t.closest('[data-inccat]'); if (ic){ state.incFiltroCat = state.incFiltroCat===ic.dataset.inccat?null:ic.dataset.inccat; return renderK1(todosAtos()); }
     var ip=t.closest&&t.closest('tr[data-incpessoa]'); if (ip){ state.incFiltroPessoa = state.incFiltroPessoa===ip.dataset.incpessoa?null:ip.dataset.incpessoa; return renderK1(todosAtos()); }
@@ -327,9 +332,10 @@
   });
   var PG_VIS={k1:1,at:1,cer:1,nao:1,nat:1};
   state.pgVis=pgVisLer(); // 1.10.4: a chave de dentro da página saiu; o estado aparece no botão do topo
-  var TITULOS={des:'Desempenho · ritmo e linha normal',vis:'Gráficos',geral:'Painel geral',nat:'Prazos · por natureza',eta:'Prazos · por etapa',fp:'Prazos · fora do prazo',ex:'Prazos · exigências',nao:'Prazos · cancelados e especiais',k1:'Inconformidades',imp:'Importar dados',cer:'Certidões',at:'Atendimento',rel:'Relatórios por pessoa',tri:'Quem fez · Tri7',lanc:'Lançar KPIs no ANOREG+',met:'Como é calculado',cfg:'Configuração do painel'};
+  var TITULOS={des:'Desempenho · ritmo e linha normal',vis:'Gráficos',geral:'Painel geral',nat:'Prazos · por natureza',eta:'Prazos · por etapa',fp:'Prazos · fora do prazo',ex:'Prazos · exigências',nao:'Prazos · cancelados e especiais',k1:'Inconformidades',imp:'Importar dados',cer:'Certidões',at:'Atendimento',rel:'Relatórios por pessoa',tri:'Quem fez · Tri7',lanc:'Lançar KPIs no ANOREG+',met:'Como é calculado',cfg:'Configuração do painel',sau:'Saúde dos dados'};
   document.addEventListener('change',function(e){
     var t=e.target; if (avRascunho(t)) return;
+    if (t.id==='hvTudo'){ state.hvTudo=t.checked; return renderHist(); }
     if (t.id==='relSel'){ state.relSel=t.value; return renderRel(); }
     if (t.dataset && t.dataset.kpf==='sentido'){ var mi=t.closest('tr').querySelector('[data-kpf="metaV"]'); if (mi) mi.disabled=t.value==='baseline'; return; }
     if (t.dataset && t.dataset.srvprazo!=null){ var vp=t.value.trim().replace(',','.'); if (vp===''||isNaN(+vp)) state.prazosServ[t.dataset.srvprazo]=null; else state.prazosServ[t.dataset.srvprazo]=Math.max(0,Math.round(+vp)); salvarPrazosServ(); return renderAtr(); }
@@ -426,6 +432,8 @@
     db.collection('cert').onSnapshot(function(snap){ var m={}; snap.docs.forEach(function(d){ var x=d.data(); if (x&&x.recs) m[x.mes||d.id]={raw:x,recs:Motor.decodificarCert(x)}; }); state.cert=m; agendarRender(); }, function(){});
   });
   }
+  // 0.14.0: a nuvem avisa quando descobre (ou carrega) meses anteriores aos 12 da abertura
+  window.aoMudarJanela=function(){ renderSelect(); if (state.aba==='sau') renderSau(); };
   // 0.13.0: o menu da conta fecha ao clicar fora
   document.addEventListener('click',function(e){ var u=document.getElementById('umenu'); if (u && u.open && !u.contains(e.target)) u.open=false; });
   // 0.13.0: fundo escuro da ficha lateral; fecha com Esc ou clicando fora

@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/importar.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/importar.js']='0.13.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/importar.js']='0.14.0';
   function salvarCfg(){ if (dbPronto&&podeEscrever) db.doc('config/geral').set({feriadosExtras:state.extras, expIni:state.cfg.expIni, expFim:state.cfg.expFim, intim:null}).catch(function(){ toast('Não consegui salvar a configuração'); }); }
 
   function avDoc(a,res,ob){ return res?{codigo:a.c,mes:a.mes,natureza:a.natOrig||a.nat,exigencias:a.nex,resultado:res,obs:ob,em:new Date().toISOString()}:null; }
@@ -145,7 +145,15 @@
       return p.then(function(){ return {ri:nRI, serv:nS}; });
     });
   }
+  // 0.14.0: se a importação mexe num mês que não foi carregado (antes dos 12 da abertura), carrega antes de juntar — senão o mês guardado seria substituído
   function salvar(){
+    var jn=(window.nuvem&&window.nuvem.janela)?window.nuvem.janela():null; if (!jn||jn.completo||!jn.corte) return salvar0();
+    var ms=[]; if (state.resInc) ms=ms.concat(Object.keys(state.resInc)); if (state.resAnd) ms=ms.concat(Object.keys(state.resAnd.ev||{}),Object.keys(state.resAnd.cert||{})); if (state.resCert) ms=ms.concat(Object.keys(state.resCert));
+    if (!ms.some(function(m){ return m<jn.corte; })) return salvar0();
+    var b=$('btnSalvar'); if (b){ b.disabled=true; b.textContent='Carregando meses anteriores…'; }
+    window.nuvem.carregarAnteriores().then(function(){ setTimeout(salvar0,60); }).catch(function(){ if (b){ b.disabled=false; b.textContent='Salvar e atualizar o painel'; } toast('Não consegui carregar os meses anteriores — nada foi salvo'); });
+  }
+  function salvar0(){
     if (!dbPronto||!podeEscrever){ toast('Banco de dados indisponível — nada foi salvo'); return; }
     var a=state.arquivos, docs=[], btn=$('btnSalvar'), org=function(t){ return state.nomes[t].join(', '); };
     function aviso(t){ if (btn) btn.textContent=t; }
