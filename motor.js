@@ -225,7 +225,7 @@ var Motor = (function(){
       var iso=isoDeDia(dia), mes=iso.slice(0,7);
       var rec={c:cod,t:tipo,n:String(r['natureza']||'').trim(),r:String(r['responsavel']||'').trim(),p:+r['peso']||0,
         g:/externo/i.test(String(r['grupo de inconformidade']||''))?'E':'I',j:String(r['justificativa']||'').trim(),o:String(r['observacao']||'').trim(),d:iso};
-      var id=hash([rec.c,rec.d,rec.r,rec.j,rec.o].join('|')); rec.o=mascarar(rec.o); rec.j=mascarar(rec.j); // o id usa o texto original: reimportar a mesma planilha não duplica, k=id, n=1; while (vistos[k]) { if (vistos[k]===2) return; k=id+'-'+(++n); }
+      var id=hash([rec.c,rec.d,rec.r,rec.j,rec.o].join('|')); rec.o=mascarar(rec.o); rec.j=mascarar(rec.j); /* o id usa o texto original: reimportar a mesma planilha não duplica (0.10.7: a declaração de k estava presa neste comentário) */ var k=id, n=1; while (vistos[k]) { k=id+'-'+(++n); }
       vistos[k]=1; rec.id=k; (out[mes]=out[mes]||[]).push(rec);
     });
     return out;
