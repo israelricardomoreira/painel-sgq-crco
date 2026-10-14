@@ -1675,7 +1675,7 @@
   }
 
   // ——— versão, dados brutos, recálculo, backup e memória de cálculo (site no GitHub + Supabase)
-  var APP_VERSAO='0.10.8'; // 0.x = em validação; vira 1.0.0 depois da apresentação ao Oficial
+  var APP_VERSAO='0.10.9'; // 0.x = em validação; vira 1.0.0 depois da apresentação ao Oficial
   // Dados brutos: só as colunas que o cálculo usa (sem título, solicitante ou nome de parte)
   function brutosMontar(){
     var S=XLSX.SSF, out={};
