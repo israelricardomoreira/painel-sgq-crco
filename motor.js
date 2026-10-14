@@ -6,7 +6,8 @@ var Motor = (function(){
   function diaDeIso(s){ var p=s.split('-'); return Math.round(Date.UTC(+p[0],+p[1]-1,+p[2])/DIA); }
   function paraDia(v, SSF){
     if (v==null || v==='') return null;
-    if (typeof v==='number'){ var o=SSF.parse_date_code(v); if(!o) return null; return Math.round(Date.UTC(o.y,o.m-1,o.d)/DIA); }
+    if (typeof v==='number'){ if (!SSF){ if (v<61) return null; var di=Math.floor(v), x=86400*(v-di), tt=Math.floor(x); if (x-tt>0.9999) tt++; if (tt>=86400) di++; return di-25569; } // mesmo arredondamento do SSF.parse_date_code // 0.11.0: sem a biblioteca de planilhas carregada, converte o número de série do Excel direto (dia 0 = 30/12/1899)
+      var o=SSF.parse_date_code(v); if(!o) return null; return Math.round(Date.UTC(o.y,o.m-1,o.d)/DIA); }
     if (v instanceof Date) return Math.round(Date.UTC(v.getFullYear(),v.getMonth(),v.getDate())/DIA);
     var s=String(v).trim(), m;
     if ((m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})/))) return Math.round(Date.UTC(+m[3],+m[2]-1,+m[1])/DIA);
@@ -351,7 +352,7 @@ var Motor = (function(){
         ets:f[7]?f[7].split(';').map(function(x){ var q=x.split(':'); return {et:doc.ets[+q[0]], rp:doc.resps[+q[1]], d:+q[2], pz:+q[3]}; }):[]}; });
   }
 
-  return {limitePrazo:limitePrazo, mascarar:mascarar, processarServ:processarServ, codificarServ:codificarServ, decodificarServ:decodificarServ, tipoServ:tipoServ, processarAndam:processarAndam, codificarAndam:codificarAndam, decodificarAndam:decodificarAndam, andChave:andChave, AND_NOME:AND_NOME, isoMin:isoMin, processar:processar, processarInconf:processarInconf, processarCert:processarCert, codificarCert:codificarCert, decodificarCert:decodificarCert, horasUteis:horasUteis, limiteCert:limiteCert, feriadoSet:feriadoSet, feriadosNomeados:feriadosNomeados, nomearErro:nomearErro, CATS_ERRO:CATS_ERRO, detectar:detectar, codificar:codificar, decodificar:decodificar, criarCalendario:criarCalendario, diaDeIso:diaDeIso, isoDeDia:isoDeDia, codificarLog:codificarLog, decodificarLog:decodificarLog, paraDia:paraDia, semAcento:semAcento, linhas:linhas};
+  return {VERSAO:'0.11.0', limitePrazo:limitePrazo, mascarar:mascarar, processarServ:processarServ, codificarServ:codificarServ, decodificarServ:decodificarServ, tipoServ:tipoServ, processarAndam:processarAndam, codificarAndam:codificarAndam, decodificarAndam:decodificarAndam, andChave:andChave, AND_NOME:AND_NOME, isoMin:isoMin, processar:processar, processarInconf:processarInconf, processarCert:processarCert, codificarCert:codificarCert, decodificarCert:decodificarCert, horasUteis:horasUteis, limiteCert:limiteCert, feriadoSet:feriadoSet, feriadosNomeados:feriadosNomeados, nomearErro:nomearErro, CATS_ERRO:CATS_ERRO, detectar:detectar, codificar:codificar, decodificar:decodificar, criarCalendario:criarCalendario, diaDeIso:diaDeIso, isoDeDia:isoDeDia, codificarLog:codificarLog, decodificarLog:decodificarLog, paraDia:paraDia, semAcento:semAcento, linhas:linhas};
 })();
 if (typeof module!=='undefined') module.exports=Motor;
 // MOTOR-FIM ———————————————————————————————————————————————————

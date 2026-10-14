@@ -125,14 +125,15 @@
       kpi('KPI-02 · dentro do prazo',pctK(r.kpi),r.dentro+' de '+r.n+' registrados'+(r.J?' · '+r.J+' justificado'+(r.J>1?'s':''):''),'hero'),
       (function(){ var eb=est(r.R.map(function(a){return a.bruto;})); return kpi('Mediana bruta',f1(r.medB)+' <small style="font-size:.9rem">d.u.</small>','média '+f1(r.mB)+(eb.moda!=null?' · mais comum '+eb.moda:'')+' · 90% em até '+f1(eb.p90)); })(),
       (function(){ var fo=r.R.filter(function(a){return a.dentro&&a.bruto!=null;}).map(function(a){return a.lim-a.bruto;}), ef=est(fo), apert=fo.filter(function(x){return x<=3;}).length;
-        return kpi('Folga até o limite',(ef.n?f1(ef.mediana):'—')+' <small style="font-size:.9rem">d.u.</small>','mediana · '+(ef.n?pct(apert/ef.n*100)+' registrados com 3 d.u. ou menos de folga':''),apert/Math.max(1,ef.n)>0.05?'canc':''); })(),
+        var pa=ef.n?pct(apert/ef.n*100):'', alto=apert/Math.max(1,ef.n)>0.05;
+        return kpi('Folga até o limite',(ef.n?f1(ef.mediana):'—')+' <small style="font-size:.9rem">d.u.</small>','mediana · '+(ef.n?(alto?'<span class="at">'+pa+'</span>':pa)+' registrados com 3 d.u. ou menos de folga':'')); })(), // 0.11.0: vermelho só para fora da meta; o alerta fica no texto
       kpi('Mediana líquida',f1(r.medL)+' <small style="font-size:.9rem">d.u.</small>','média '+f1(r.mL)+' · tempo com o cartório'),
       kpi('Espera do cliente',f1(r.mEsp)+' <small style="font-size:.9rem">d.u.</small>','média por ato · exigência/suspensão'),
       kpi('Aprovados na 1ª qualificação',pct(r.n?r.prim/r.n*100:null),r.prim+' sem exigência · '+r.comEx+' com exigência'),
-      (function(){ var X=cancSoTri7Periodo(), N=r.N+X.length, T=r.total+X.length; return kpi('KPI-02 complementar · cancelamento',pct(T?N/T*100:null),N+' de '+T+' atos · cancelado, devolvido ou caducou'+(X.length?' · inclui '+X.length+' cancelado'+(X.length>1?'s':'')+' só no Tri7':''),'canc'); })(),
-      kpi('Volume RI',String(r.total+pesquisaTotal()),'inclui '+pesquisaTotal()+' pesquisas e consultas'),
+      (function(){ var X=cancSoTri7Periodo(), N=r.N+X.length, T=r.total+X.length; return kpi('KPI-02 complementar · cancelamento',pct(T?N/T*100:null),N+' de '+T+' atos · cancelado, devolvido ou caducou'+(X.length?' · inclui '+X.length+' cancelado'+(X.length>1?'s':'')+' só no Tri7':'')); })(),
+      kpi('Volume RI',String(r.total),'atos RI do período'+(pesquisaTotal()?' · fora '+pesquisaTotal()+' pesquisa'+(pesquisaTotal()>1?'s':'')+' qualificada'+(pesquisaTotal()>1?'s':'')+' (consulta, não é ato)':'')), // 0.11.0: Pesquisa Qualificada e Informação Verbal não entram no RI
       (function(){ var tudo=[]; Object.keys(state.docs).forEach(function(m){ if (state.periodo==='todos'||state.periodo===m) tudo=tudo.concat(state.docs[m].atos.filter(function(a){ return a.cat==='R'||a.cat==='N'; })); });
-        var c=tudo.filter(function(a){ return origemAto(a)==='central'; }).length; return kpi('Origem dos protocolos',tudo.length?pct(c/tudo.length*100)+' <small style="font-size:.9rem">central</small>':'—',c+' pela central (ONR) · '+(tudo.length-c)+' balcão'+((state.riOrig||'todas')!=='todas'?' · <b>filtro: '+(state.riOrig==='central'?'só central':'só balcão')+'</b>':'')); })()
+        var c=tudo.filter(function(a){ return origemAto(a)==='central'; }).length; return kpi('Origem dos protocolos',tudo.length?pct(c/tudo.length*100)+' <small style="font-size:.9rem">central</small>':'—',c+' pela central (ONR) · '+(tudo.length-c)+' balcão · de '+tudo.length+' registrados e cancelados'+((state.riOrig||'todas')!=='todas'?' · <b>filtro: '+(state.riOrig==='central'?'só central':'só balcão')+'</b>':'')); })()
     ].join('') + (r.aberto? '<div class="banner warn" style="grid-column:1/-1;margin:0">'+r.aberto+' ato(s) fora do prazo em aberto. Registre o motivo na aba <b>Fora do prazo</b> para levá-lo à curva normal.</div>':'') + (r.I? '<div class="banner warn" style="grid-column:1/-1;margin:0">'+r.I+' ato(s) sem histórico suficiente ficaram fora do cálculo. Reimporte o mês com a Produção por Etapa começando 2 meses antes.</div>':'');
     renderTendencia(); renderGraficos();
   }
@@ -142,6 +143,7 @@
     var sel=$('selMes'), mm={}; (atrAtual()==='RI'?[state.docs]:svModo()==='todas'?[state.docs,state.serv]:[state.serv]).forEach(function(o){ Object.keys(o).forEach(function(m){ mm[m]=1; }); }); var meses=Object.keys(mm).sort().reverse();
     var html='<option value="todos">Todos os meses ('+meses.length+')</option>'+meses.map(function(m){ return '<option value="'+m+'">'+nomeMes(m)+'</option>'; }).join('');
     if (sel.innerHTML!==html) sel.innerHTML=html;
+    if (!state.periodoEscolhido){ var fech=meses.filter(function(m){ return m<mesHoje(); })[0]; if (fech){ if (state.periodo!==fech){ state.periodo=fech; state.lancMes=fech; } } } // 0.11.0: abre no último mês fechado até você escolher outro período
     if (state.periodo!=='todos' && meses.indexOf(state.periodo)<0) state.periodo='todos';
     sel.value=state.periodo;
   }
@@ -260,7 +262,7 @@
       (function(){ var eb=est(r.R.map(function(a){return a.bruto;})); return kpi('Bruto',f1(r.medB)+' <small style="font-size:.9rem">mediana</small>','média '+f1(r.mB)+(eb.moda!=null?' · mais comum '+eb.moda:'')+' · 90% em até '+f1(eb.p90)+' d.u.'+(eb.n<MIN_N?' · poucos atos':'')); })()+
       kpi('Líquido',f1(r.medL)+' <small style="font-size:.9rem">mediana</small>','média '+f1(r.mL)+' d.u.')+
       kpi('Espera do cliente',f1(r.mEsp),'média d.u. por ato')+
-      kpi('Cancelamento',pct(r.total?r.N/r.total*100:null),r.N+' de '+r.total+' atos','canc')+'</div>'+
+      kpi('Cancelamento',pct(r.total?r.N/r.total*100:null),r.N+' de '+r.total+' atos')+'</div>'+
       '<div class="two"><div><div class="sub-h">Onde o tempo vai · média por etapa</div><div class="legend" style="margin-bottom:2px"><span><span class="dot" style="background:var(--s-liq)"></span>dentro da meta da etapa</span><span><span class="dot" style="background:var(--s-bruto)"></span>acima da meta</span><span>▏ meta</span></div>'+htmlEtapas(etapasAgg(r.R),12)+'</div>'+
       '<div><div class="sub-h">Distribuição · dias úteis brutos até o registro</div>'+histograma(r.R)+'</div></div>'+
       '<div class="sub-h" style="margin-top:16px">Atos ('+lista.length+')</div>'+
@@ -275,7 +277,7 @@
 
   function renderEta(atos){
     var R=atos.filter(function(a){return a.cat==='R';}), lista=etapasAgg(R);
-    $('tabEta').innerHTML='<div class="sec-h"><h2>Por etapa</h2><span class="note">Média de dias úteis que o ato fica em cada etapa, até o registro · traço = meta pelo nome da etapa · “90% ≤” = em 90% das passagens o ato saiu da etapa nesse tempo</span></div>'+
+    $('tabEta').innerHTML='<div class="sec-h"><span class="note">Média de dias úteis que o ato fica em cada etapa, até o registro · traço = meta pelo nome da etapa · “90% ≤” = em 90% das passagens o ato saiu da etapa nesse tempo</span></div>'+
       '<div class="legend"><span><span class="dot" style="background:var(--s-liq)"></span>dentro da meta</span><span><span class="dot" style="background:var(--s-bruto)"></span>acima da meta</span></div>'+htmlEtapas(lista)+
       '<p class="hint" style="margin-top:12px">Imprimir Ficha e Arquivamento acontecem depois do registro e não entram aqui nem no prazo.</p>';
   }
@@ -303,7 +305,7 @@
     var abertosT=R.filter(function(a){return !justDe(a);}), just=R.filter(function(a){return !!justDe(a);});
     var abertos=abertosT.filter(obrig), antigos=abertosT.filter(function(a){ return !obrig(a); });
     var opts=Object.keys(MOT_JUST).map(function(k){ return '<option value="'+k+'">'+MOT_JUST[k]+'</option>'; }).join('');
-    var h='<div class="sec-h"><h2>Fora do prazo</h2><span class="note">Atos registrados acima do limite: 20 d.u.; com retorno, 5 d.u. após o retorno (mínimo 20, máximo 25). Com motivo registrado, contam como dentro do prazo e saem das médias.</span></div>';
+    var h='<div class="sec-h"><span class="note">Atos registrados acima do limite: 20 d.u.; com retorno, 5 d.u. após o retorno (mínimo 20, máximo 25). Com motivo registrado, contam como dentro do prazo e saem das médias.</span></div>';
     h+='<div class="kpis" style="margin-bottom:14px">'+kpi('Em aberto',String(abertos.length),'aguardando motivo · desde '+compLabel(marco()),abertos.length?'canc':'')+kpi('Justificados',String(just.length),'levados à curva normal')+(antigos.length?kpi('Anteriores ao marco',String(antigos.length),'sem justificativa · opcional'):'')+'</div>';
     function linhasFp(lista){ return '<div class="scroll"><table class="tleft"><thead><tr><th>Código</th><th>Natureza</th><th>Ingresso</th><th>Registro</th><th>Bruto</th><th>Limite</th><th>Motivo</th><th>Observação</th><th></th></tr></thead><tbody>'+
       lista.map(function(a){ return '<tr data-cod="'+esc(a.c)+'"><td>'+protLink(a.c)+'</td><td class="tl">'+esc(a.nat)+'</td><td>'+fmtData(a.ing)+'</td><td>'+fmtData(a.reg)+(a.regSG?' <span class="pill" title="Data do Selos Gerados no Tri7; a última Revisão Oficial no VHL foi em '+fmtData(a.regSG)+'">selo</span>':'')+'</td><td>'+a.bruto+'</td><td>'+a.lim+'</td>'+
@@ -391,10 +393,10 @@
         '<div class="kpis" style="margin-bottom:14px">'+kpi('Documentos com inconformidade',DS.length?pct(com/DS.length*100):'—',com+' de '+DS.length+' finalizados','hero')+kpi('Inconformidades registradas',String(recs.length),(recs.length-ext)+' internas · '+ext+' externas')+'</div>';
       var msA=Object.keys(state.serv).sort(); if (msA.length) h+='<div class="sub-h">Mês a mês</div><div class="tbl-wrap"><table style="max-width:620px"><thead><tr><th>Mês</th><th>Finalizados</th><th>Com inconformidade</th><th>%</th><th>Registros no mês</th></tr></thead><tbody>'+
         msA.map(function(m){ var dm=selDocsMes(m), c=dm.filter(function(d){ return IC[String(d.c).toUpperCase()]; }).length, rg=(state.inconf[m]||[]).filter(incOk).length; return '<tr><td>'+nomeMes(m)+'</td><td>'+dm.length+'</td><td>'+c+'</td><td><b>'+(dm.length?pct(c/dm.length*100):'—')+'</b></td><td class="mut">'+rg+'</td></tr>'; }).join('')+'</tbody></table></div>'; }
-    else { var h='<div class="sec-h"><h2>KPI-01 · Inconformidades</h2><span class="note">KPI-01 = % dos atos RI registrados no período que tiveram ao menos 1 inconformidade, ligada ao ato pelo código (independe da data do registro da inconformidade).</span></div>';
+    else { var h='<div class="sec-h"><span class="note">KPI-01 = % dos atos RI registrados no período que tiveram ao menos 1 inconformidade, ligada ao ato pelo código (independe da data do registro da inconformidade).</span></div>';
     h+='<div class="kpis" style="margin-bottom:14px">'+
       kpi('KPI-01 · atos com inconformidade',pct(k.k),k.c+' de '+k.n+' registrados','hero')+
-      kpi('KPI-01 complementar · erro externo',pct(k.ke),k.e+' atos · erro que saiu do cartório',k.e?'canc':'')+
+      kpi('KPI-01 complementar · erro externo',pct(k.ke),k.e+' atos · erro que saiu do cartório')+
       kpi('Inconformidades registradas',String(recs.length),(recs.length-ext)+' internas · '+ext+' externas')+'</div>';
     // tabela mensal (RI)
     var meses=Object.keys(state.docs).sort();
@@ -438,17 +440,17 @@
   // ——— aba Relatórios (o que aparece na tela é o que sai impresso)
   var downloads=null;
   var REL_CSS='@page{size:A4;margin:14mm 12mm}'+
-    '.relsheet{--bg:#fff;--surface:#fff;--surface-2:#f1efeb;--line:#e3dfd8;--ink:#2b2926;--ink-2:#5d5952;--ink-3:#8f897f;--brand:#e8590c;--brand-soft:#fde8da;--crit:#b3362f;--good:#1f7a4d;--c1:#2a78d6;--c2:#eb6834;--c3:#1baf7a;--c4:#eda100;--c5:#e87ba4;--c6:#008300;color-scheme:light;-webkit-print-color-adjust:exact;print-color-adjust:exact}.relsheet *{-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    '.relsheet{--bg:#fff;--surface:#fff;--surface-2:#f1efeb;--line:#e3dfd8;--ink:#2b2926;--ink-2:#5d5952;--ink-3:#6f695f;--brand:#e8590c;--brand-soft:#fde8da;--crit:#b3362f;--good:#1f7a4d;--c1:#2a78d6;--c2:#eb6834;--c3:#1baf7a;--c4:#eda100;--c5:#e87ba4;--c6:#008300;color-scheme:light;-webkit-print-color-adjust:exact;print-color-adjust:exact}.relsheet *{-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
     '.relsheet svg{width:100%;height:auto;display:block}.relsheet svg text{font-family:"Segoe UI",Arial,sans-serif;fill:#5d5952}'+
     '.relsheet .diaria{background:#fde8da;border-radius:8px;padding:10px 12px;font-size:13px;margin:0 0 10px;break-inside:avoid}'+
     '.relsheet .rgraf{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.relsheet .rg{border:1px solid #e3dfd8;border-radius:8px;padding:8px 10px;break-inside:avoid;min-width:0}.relsheet .rg.w{grid-column:1/-1}.relsheet .rg b{display:block;font-size:11.5px}.relsheet .rg small{display:block;color:#716a60;font-size:9.5px;margin-bottom:4px}'+
     '.relsheet .hb{display:flex;flex-direction:column;gap:4px}.relsheet .hb-row{display:grid;grid-template-columns:minmax(80px,40%) 1fr auto;gap:6px;align-items:center;font-size:10.5px}.relsheet .hb-n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#5d5952}.relsheet .hb-t{height:9px;background:#f1efeb;border-radius:3px;overflow:hidden}.relsheet .hb-t i{display:block;height:100%}.relsheet .hb-v{text-align:right;font-variant-numeric:tabular-nums}'+
-    '.relsheet .leg{display:flex;flex-wrap:wrap;gap:10px;font-size:10px;color:#5d5952;margin-top:3px}.relsheet .leg i,.relsheet .dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px}.relsheet .gm-vazio{font-size:10.5px;color:#8f897f;padding:16px 0;text-align:center}'+
+    '.relsheet .leg{display:flex;flex-wrap:wrap;gap:10px;font-size:10px;color:#5d5952;margin-top:3px}.relsheet .leg i,.relsheet .dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px}.relsheet .gm-vazio{font-size:10.5px;color:#6f695f;padding:16px 0;text-align:center}'+
     '@media (max-width:640px){.relsheet .rgraf{grid-template-columns:1fr}}'+
     '.relsheet{font-family:"Segoe UI",Arial,sans-serif;color:#2b2926;font-size:11.5px;background:#fff;max-width:860px;margin:0 auto;padding:26px 28px;line-height:1.45}'+
     '.relsheet header{border-bottom:3px solid #FC6506;padding-bottom:10px;margin-bottom:14px;display:flex;justify-content:space-between;gap:16px;align-items:flex-end;flex-wrap:wrap}'+
     '.relsheet h1{font-size:19px;margin:0 0 3px;color:#2b2926}.relsheet h2{font-size:12px;margin:20px 0 8px;color:#343434;text-transform:uppercase;letter-spacing:.05em;border-left:4px solid #FC6506;padding-left:8px}'+
-    '.relsheet .rmeta{color:#716a60;font-size:11px}.relsheet .org{font-weight:700;color:#FC6506;font-size:12px}'+
+    '.relsheet .rmeta{color:#716a60;font-size:11px}.relsheet .org{font-weight:700;color:#a8420a;font-size:12px}'+
     '.relsheet .tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.relsheet .tile{border:1px solid #e3dfd8;border-radius:8px;padding:8px 10px;break-inside:avoid}'+
     '.relsheet .tile b{display:block;font-size:18px;color:#2b2926}.relsheet .tile span{color:#716a60;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em}.relsheet .tile .rmeta{font-size:10px}'+
     '.relsheet table{width:100%;border-collapse:collapse;margin-top:4px}.relsheet th,.relsheet td{border-bottom:1px solid #e3dfd8;padding:5px 6px;text-align:left;vertical-align:top;color:#2b2926;white-space:normal;background:transparent;position:static}'+
@@ -480,7 +482,7 @@
     if (!state.etBCarr && window.nuvem && dbPronto){ state.etBCarr=true;
       window.nuvem.lerColecao('brutos').then(function(rows){ var E=[], info={};
         rows.forEach(function(x){ if (x.id.indexOf('prazo-')===0) brutoDecod(x.dados).forEach(function(o){ info[String(o['codigo'])]={t:String(o['tipo de documento']||'').trim(), nat:String(o['natureza']||'').trim()}; }); });
-        rows.forEach(function(x){ if (x.id.indexOf('etapa-')!==0) return; brutoDecod(x.dados).forEach(function(o){ var c=String(o['codigo']==null?'':o['codigo']).trim(), d=Motor.paraDia(o['data execucao'],XLSX.SSF), rp=String(o['responsavel']||'').trim(); if (!c||d==null||!rp) return; var i=info[c]||{}; E.push({c:c,d:d,rp:rp,t:i.t||null,nat:i.nat||''}); }); });
+        rows.forEach(function(x){ if (x.id.indexOf('etapa-')!==0) return; brutoDecod(x.dados).forEach(function(o){ var c=String(o['codigo']==null?'':o['codigo']).trim(), d=Motor.paraDia(o['data execucao'],window.XLSX?XLSX.SSF:null), rp=String(o['responsavel']||'').trim(); if (!c||d==null||!rp) return; var i=info[c]||{}; E.push({c:c,d:d,rp:rp,t:i.t||null,nat:i.nat||''}); }); });
         state.etB=E; state._pd=null; render(); if (state.aba==='rel') renderRel(); })
       .catch(function(){ state.etBCarr=false; toast('Não consegui ler as execuções para a média diária'); }); }
     return null;
@@ -608,7 +610,7 @@
     var h=cabecalhoRel('Relatório geral — qualidade e produção da equipe','Período: '+nomePeriodo()+(state.incSetor==='ri'?' · inconformidades só RI':''));
     h+='<h2>Indicadores</h2>'+tilesRel([['KPI-01',pct(k1.k),k1.c+' de '+k1.n+' atos RI'],['KPI-01 complementar',pct(k1.ke),'erro externo'],['Taxa da equipe',pct(D.taxaEq),'inconformidades ÷ documentos'],['Certidões no prazo',cr.length?pctK(cok/cr.length*100):'—',cr.length?cok+' de '+cr.length:'']]);
     h+='<h2>Por pessoa</h2><table><thead><tr><th>Pessoa</th><th class="n">Documentos</th><th class="n">Dias ativos</th><th class="n">Por dia ativo</th><th class="n">Execuções</th><th class="n">Inconf.</th><th class="n">Taxa</th><th>Leitura</th><th class="n">Externas</th><th class="n">Certidões</th><th class="n">Entradas</th><th class="n">Exig. redigidas</th><th class="n">Registros</th></tr></thead><tbody>'+
-      linhas.map(function(x){ var lt=x.taxa!=null?x.lt:null; return '<tr><td>'+esc(x.nome)+'</td><td class="n">'+(x.docs||'—')+'</td><td class="n">'+(x.md&&x.md.Y?x.md.Y+' <span style="color:#8f897f">de '+x.md.Z+'</span>':'—')+'</td><td class="n"><b>'+(x.md&&x.md.W!=null?numBR(x.md.W,1):'—')+'</b></td><td class="n">'+(x.ex||'—')+'</td><td class="n">'+x.inc+'</td><td class="n">'+(x.taxa==null?'—':pct(x.taxa))+'</td><td class="'+(lt&&lt.sig==='acima'?'acima':lt&&lt.sig==='abaixo'?'bom':'')+'">'+(lt?lt.txt:'—')+'</td><td class="n">'+(x.ext||'')+'</td><td class="n">'+(x.cert||'')+'</td><td class="n">'+(x.ent||'')+'</td><td class="n">'+(x.rex||'')+'</td><td class="n">'+(x.sg||'')+'</td></tr>'; }).join('')+'</tbody></table>'+
+      linhas.map(function(x){ var lt=x.taxa!=null?x.lt:null; return '<tr><td>'+esc(x.nome)+'</td><td class="n">'+(x.docs||'—')+'</td><td class="n">'+(x.md&&x.md.Y?x.md.Y+' <span style="color:#6f695f">de '+x.md.Z+'</span>':'—')+'</td><td class="n"><b>'+(x.md&&x.md.W!=null?numBR(x.md.W,1):'—')+'</b></td><td class="n">'+(x.ex||'—')+'</td><td class="n">'+x.inc+'</td><td class="n">'+(x.taxa==null?'—':pct(x.taxa))+'</td><td class="'+(lt&&lt.sig==='acima'?'acima':lt&&lt.sig==='abaixo'?'bom':'')+'">'+(lt?lt.txt:'—')+'</td><td class="n">'+(x.ext||'')+'</td><td class="n">'+(x.cert||'')+'</td><td class="n">'+(x.ent||'')+'</td><td class="n">'+(x.rex||'')+'</td><td class="n">'+(x.sg||'')+'</td></tr>'; }).join('')+'</tbody></table>'+
       '<p class="nota">'+(prodDiaria()?'Dias ativos = dias úteis com ao menos uma execução no VHL (de quantos dias úteis teve o período); por dia ativo = documentos dessa serventia ÷ dias ativos. ':'Média por dia ativo ainda carregando. ')+'Entradas, exigências redigidas (que viraram nota) e registros (selos gerados) vêm do Tri7. Taxa = inconformidades ÷ documentos trabalhados no VHL, só com '+MIN_PROD+'+ documentos no período. Leitura: "acima" ou "abaixo do esperado" só quando a pessoa foge, com 95% de confiança, da faixa normal para o volume dela (já contando a variação natural entre funções).</p>';
     var ld=linhas.filter(function(x){ return x.md&&x.md.Y>=5; }).sort(function(a,b){ return b.md.W-a.md.W; });
     if (ld.length) h+='<h2>Produção média por dia ativo</h2><div class="rg">'+gBarrasH(ld.map(function(x){ return {nome:x.nome, v:Math.round(x.md.W*10)/10, extra:x.md.X+' documentos em '+x.md.Y+' dias ativos (de '+x.md.Z+' dias úteis)', go:goPessoa(x.nome)}; }))+'</div><p class="nota">Só pessoas com 5 ou mais dias ativos no período.</p>';
@@ -661,7 +663,9 @@
   function mmss(min){ var t=Math.round(min*60); return Math.floor(t/60)+'m'+String(t%60).padStart(2,'0')+'s'; }
   // valores já lançados no ANOREG+ (IND-SGQ-001, export de 01/10/2026) — base para a tendência
   // KPI-01, KPI-02 e KPI-13 saíram daqui na 1.10.0: o painel calcula pelos dados importados
-  var HIST={
+  // 0.11.0: estes valores agora ficam no banco (kpis/AAAA-MM, campo hist). A tabela abaixo só semeia o banco na primeira abertura de quem grava
+  // e serve de reserva enquanto isso não acontece. Para corrigir um mês, digite o valor em Lançar KPIs (o digitado vale mais que o histórico).
+  var HIST_SEMENTE={
     '2026-01':{'KPI-03 (Comp.)':[99.4,100],'KPI-08':[0,27],'KPI-09':[210.27,4725]},
     '2026-02':{'KPI-03 (Comp.)':[92.4,100],'KPI-08':[0,27],'KPI-09':[24,4185]},
     '2026-03':{'KPI-03 (Comp.)':[92.2,100],'KPI-08':[0,28],'KPI-09':[16,4752]},
@@ -694,6 +698,14 @@
   ];
   function kpiDef(id){ for (var i=0;i<KPIS.length;i++) if (KPIS[i].id===id) return KPIS[i]; return null; }
   function kpEntrada(m,id){ var d=state.kp[m]; return (d&&d.v&&d.v[id])||{}; }
+  function histDe(m,id){ var d=state.kp[m]; if (d&&d.hist) return d.hist[id]||null; return (HIST_SEMENTE[m]&&HIST_SEMENTE[m][id])||null; }
+  var histMigrado=false;
+  function histMigrar(){ if (histMigrado || !dbPronto || !podeEscrever || !window.nuvem) return; histMigrado=true;
+    var p=Promise.resolve(), n=0;
+    Object.keys(HIST_SEMENTE).forEach(function(m){ p=p.then(function(){ return window.nuvem.ler('kpis',m).then(function(x){ if (x&&x.hist) return;
+      var doc={mes:m, v:(x&&x.v)||{}, lanc:(x&&x.lanc)||{}, hist:JSON.parse(JSON.stringify(HIST_SEMENTE[m]))};
+      return db.doc('kpis/'+m).set(doc).then(function(){ n++; state.kp[m]=Object.assign({},state.kp[m]||{mes:m,v:doc.v,lanc:doc.lanc},{hist:doc.hist}); }); }); }); });
+    p.then(function(){ if (n) toast('Histórico dos KPIs manuais guardado no banco ('+n+' meses)'); }).catch(function(){ histMigrado=false; }); }
 
   // KPI-09: leitura do Rel. Eventos de Apuração por Período (mesma regra da Calculadora KPI-09)
   var K9_AUS=['Atestado médico','Outros Atestados','Faltas abonadas'], K9_LEG=['Licença maternidade','Licença paternidade','Auxílio-doença (INSS)','Auxilio-doenca (INSS)'],
@@ -735,7 +747,7 @@
     return {n:o?o.n:null, d:o?o.d:null, r:o?o.r:null, sit:kpiSituacao(K,o), txt:txt, em:new Date().toISOString(), ver:APP_VERSAO};
   }
   function kpiValorVivo(id, m, semTexto){
-    var K=kpiDef(id), e=kpEntrada(m,id), h=HIST[m]&&HIST[m][id], o=null;
+    var K=kpiDef(id), e=kpEntrada(m,id), h=histDe(m,id), o=null;
     if (K.auto==='k1' && state.docs[m]){
       var todos=incTodos(), d=state.docs[m], temInc=(state.inconf[m]||[]).length>0;
       if (todos.length){
@@ -799,7 +811,7 @@
     return ((df<0)===menorMelhor?'melhorou':'piorou')+' em relação a '+nomeMes(mm);
   }
   function lancMeses(){
-    var s={}; [state.docs,state.k9,state.kp,HIST,state.senhas].forEach(function(o){ Object.keys(o||{}).forEach(function(m){ if (/^\d{4}-\d{2}$/.test(m)) s[m]=1; }); });
+    var s={}; [state.docs,state.k9,state.kp,HIST_SEMENTE,state.senhas].forEach(function(o){ Object.keys(o||{}).forEach(function(m){ if (/^\d{4}-\d{2}$/.test(m)) s[m]=1; }); });
     var h=mesHoje(); s[h]=1; s[mesAnt(h)]=1; return Object.keys(s).sort().reverse();
   }
   function cp(lab, val, cls){ var v=val==null?'':String(val); return '<button type="button" class="cp'+(cls?' '+cls:'')+'" data-cp="'+esc(v)+'" title="Clique para copiar"><span class="cpl">'+lab+'</span><span class="cpv">'+(v?esc(v):'<i>vazio</i>')+'</span></button>'; }
@@ -824,7 +836,7 @@
     return {html:h+'<div class="lc-nota">'+nota.join(' · ')+'</div>', txt:txt, sit:sit};
   }
   function cardEntrada(K,m){
-    var e=kpEntrada(m,K.id), h=HIST[m]&&HIST[m][K.id];
+    var e=kpEntrada(m,K.id), h=histDe(m,K.id);
     function inp(campo,lab,ph,val){ return '<label class="lc-in"><span>'+lab+'</span><input type="text" inputmode="decimal" data-kpin="'+campo+'" value="'+esc(val!=null?val:'')+'" placeholder="'+esc(ph||'')+'"></label>'; }
     if (K.auto==='k8'){ var hc=state.k9[m]?state.k9[m].headcount:''; return inp('adm','Admissões','0',e.adm)+inp('desl','Desligamentos','0',e.desl)+inp('ativos','Colaboradores ativos',hc?String(hc)+' (do KPI-09)':'',e.ativos); }
     if (K.auto && !(K.auto==='k13' && !state.senhas[m])) return '';
@@ -839,7 +851,7 @@
     var m=state.lancMes, L=(state.kp[m]&&state.kp[m].lanc)||{};
     var vis=KPIS.filter(function(K){ return state.lancTodos || !K.fora; });
     var feitos=vis.filter(function(K){ return L[K.id]; }).length;
-    var h='<div class="sec-h"><h2>Lançar KPIs no ANOREG+</h2><span class="note">Clique em qualquer campo para copiar e cole na linha do IND-SGQ-001. O Resultado o ANOREG+ calcula sozinho.</span></div>'+
+    var h='<div class="sec-h"><span class="note">Clique em qualquer campo para copiar e cole na linha do IND-SGQ-001. O Resultado o ANOREG+ calcula sozinho.</span></div>'+
       '<div class="search"><select id="lancMes" aria-label="Competência">'+ms.map(function(x){ return '<option value="'+x+'"'+(x===m?' selected':'')+'>'+compLabel(x)+'</option>'; }).join('')+'</select>'+
       '<span class="chip'+(feitos===vis.length?' ok':'')+'">'+feitos+' de '+vis.length+' lançados</span>'+
       '<label class="lc-chk"><input type="checkbox" id="lancTodos"'+(state.lancTodos?' checked':'')+'> mostrar ocultos</label>'+(podeEscrever?'<button class="btn sm" type="button" id="kpiEdBtn">Editar indicadores</button>':'')+
@@ -1479,8 +1491,8 @@
       if (SO_RI.indexOf(k)>=0) b.hidden=!(modo==='ri'||(modo==='cert'&&k==='cer'));
       else if (SO_SERV.indexOf(k)>=0) b.hidden=modo==='todas'||modo==='cert'; });
     var grp=null, alg=false; Array.prototype.forEach.call($('menu').children,function(el){ if (el.classList.contains('menu-grp')){ if (grp) grp.hidden=!alg; grp=el; alg=false; } else if (el.classList.contains('tab') && !el.hidden) alg=true; }); if (grp) grp.hidden=!alg;
-    var sm=$('brandSub'); if (sm) sm.textContent=modo==='ri'?'CRCO · RI · KPI-02 · Art. 205 e Art. 9º §1º da Lei 6.015/73':'CRCO · '+selNome();
-    var mk=document.querySelector('.brand .mark'); if (mk) mk.textContent=modo==='todas'?'SGQ':svAtual()==='RTD/PJ'?'TD':svAtual()==='Apoio'?'AP':svAtual();
+    var sm=$('brandSub'); if (sm) sm.textContent='Sistema de Gestão da Qualidade · '+(modo==='ri'?'Registro de Imóveis':selNome()); // 0.11.0: subtítulo diz a serventia, sem citação técnica
+    // 0.11.0: a marca fica SGQ; a serventia aparece no subtítulo
   }
   function servPorMesSel(){ var o={}; Object.keys(state.serv).sort().forEach(function(m){ o[m]=selDocsMes(m); }); return o; }
   function servTiles(D){
@@ -1492,7 +1504,7 @@
       kpi('Finalizados',String(D.length),state.periodo==='todos'?'no período importado':nomeMes(state.periodo))+
       kpi('Mediana até finalizar',e.n?f1(e.mediana)+' <small style="font-size:.9rem">d.u.</small>':'—',e.n?'média '+f1(e.media)+(e.moda!=null?' · mais comum '+e.moda:'')+' · 90% em até '+f1(e.p90):'')+
       kpi('Tempo de atuação',tAt.n?fmtMS(tAt.mediana):'—',tAt.n?'mediana por documento (cronômetro do VHL)':'sem cronômetro registrado')+
-      kpi('Com inconformidade',D.length?pct(comInc/D.length*100):'—',comInc+' de '+D.length+' documentos finalizados',comInc?'canc':'');
+      kpi('Com inconformidade',D.length?pct(comInc/D.length*100):'—',comInc+' de '+D.length+' documentos finalizados');
   }
   function servGraficosHTML(){
     var PM=servPorMesSel(), ks=Object.keys(PM).sort(), i0=-1; ks.forEach(function(m,i){ if (i0<0&&PM[m].length) i0=i; }); if (i0<0) return '<div class="empty">Sem documentos nesta seleção.</div>'; var ms=ks.slice(i0).slice(-12); // 1.10.4: mês sem documento aparece com 0
@@ -1675,7 +1687,19 @@
   }
 
   // ——— versão, dados brutos, recálculo, backup e memória de cálculo (site no GitHub + Supabase)
-  var APP_VERSAO='0.10.9'; // 0.x = em validação; vira 1.0.0 depois da apresentação ao Oficial
+  var APP_VERSAO='0.11.0'; // 0.x = em validação; vira 1.0.0 depois da apresentação ao Oficial
+  // 0.11.0: proteção de versão — index.html, motor.js e nuvem.js levam a versão; se algum arquivo ficou de outra entrega, avisa no topo
+  function checarVersoes(){ var el=$('avisoVersao'); if (!el) return; var meta=document.querySelector('meta[name="painel-versao"]'), dif=[];
+    var v={'index.html':meta?meta.getAttribute('content'):'(sem versão)','motor.js':(window.Motor&&Motor.VERSAO)||'(antigo)'}; if (window.nuvem) v['nuvem.js']=window.NUVEM_VERSAO||'(antigo)';
+    Object.keys(v).forEach(function(f){ if (v[f]!==APP_VERSAO) dif.push(f+' '+v[f]); });
+    el.hidden=!dif.length; if (dif.length) el.innerHTML='<b>Arquivos de versões diferentes.</b> O app.js é da '+esc(APP_VERSAO)+', mas '+esc(dif.join(', '))+'. Suba de novo todos os arquivos da entrega e recarregue a página. Até lá, não importe nem lance nada.'; }
+  setTimeout(checarVersoes,0);
+  // 0.11.0: a biblioteca de planilhas (≈310 KB) só é baixada quando precisa — importar, recalcular ou baixar a memória de cálculo
+  var XLSX_URL='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js', XLSX_SRI='sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw', xlsxProm=null;
+  function precisaXLSX(){ if (window.XLSX) return Promise.resolve(window.XLSX); if (xlsxProm) return xlsxProm;
+    xlsxProm=new Promise(function(ok,falha){ var sc=document.createElement('script'); sc.src=XLSX_URL; if (XLSX_SRI){ sc.integrity=XLSX_SRI; sc.crossOrigin='anonymous'; }
+      sc.onload=function(){ window.XLSX?ok(window.XLSX):falha(new Error('biblioteca de planilhas não carregou')); }; sc.onerror=function(){ xlsxProm=null; falha(new Error('não consegui baixar a biblioteca de planilhas (verifique a internet)')); }; document.head.appendChild(sc); });
+    return xlsxProm; }
   // Dados brutos: só as colunas que o cálculo usa (sem título, solicitante ou nome de parte)
   function brutosMontar(){
     var S=XLSX.SSF, out={};
@@ -1707,7 +1731,7 @@
     if (!window.nuvem) return;
     if (!confirm('Recalcular todos os meses com a regra atual do painel, a partir dos dados brutos guardados?\n\nOs resultados salvos serão substituídos pelos recalculados. Justificativas, avaliações e lançamentos continuam como estão.')) return;
     var b=$('btnRecalc'); b.disabled=true; b.textContent='Recalculando…';
-    window.nuvem.lerColecao('brutos').then(function(rows){
+    precisaXLSX().then(function(){ return window.nuvem.lerColecao('brutos'); }).then(function(rows){
       var P=[], E=[], D=[]; rows.forEach(function(x){ var d=brutoDecod(x.dados); if (x.id.indexOf('prazo-')===0) P=P.concat(d); else if (x.id.indexOf('etapa-')===0) E=E.concat(d); else if (x.id==='demanda') D=D.concat(d); });
       if (!P.length || !E.length) throw new Error('Não há dados brutos guardados ainda. Importe as planilhas (ou restaure o backup inicial).');
       return recalcDeBrutos(function(t){ b.textContent=t; }).then(function(r){ return r.ri; });
@@ -1768,7 +1792,6 @@
     var incMes=(state.inconf[m]||[]).filter(function(r){return r.t==='RI';});
     var lf=incMes.map(function(r){ return [xData(r.d), r.c, grupoDe(r)==='E'?'Externo':'Interno', catDe(r), r.o]; });
     XLSX.utils.book_append_sheet(wb, xFolha(['Data','Documento','Tipo','Erro','Observação'], lf, [11,11,9,30,80]), 'Inconformidades do mês');
-    var den1=d.atos.length+((d.raw&&d.raw.pesquisa)||0);
     resumo.push(['KPI-01','Taxa de não conformidade interna (RI) — atos com inconformidade', xF("SUM('KPI-01'!D2:D"+(nR+1)+')'), xF("COUNTA('KPI-01'!A2:A"+(nR+1)+')'), 'Aba KPI-01: atos registrados no mês com ao menos 1 inconformidade (de qualquer data) ÷ atos registrados.']);
     // KPI-09 (sem nomes: só matrícula)
     var k9=state.k9[m];
@@ -1805,7 +1828,7 @@
   var MES_AB=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
   function mesesGraficos(){
     var s={}; [state.docs,state.cert,state.senhas,state.k9,state.inconf,state.serv].forEach(function(o){ Object.keys(o||{}).forEach(function(m){ if (/^\d{4}-\d{2}$/.test(m)) s[m]=1; }); });
-    Object.keys(HIST).forEach(function(m){ s[m]=1; });
+    Object.keys(HIST_SEMENTE).forEach(function(m){ s[m]=1; }); Object.keys(state.kp).forEach(function(m){ if (state.kp[m]&&state.kp[m].hist) s[m]=1; });
     return Object.keys(s).sort().slice(-12);
   }
   function fmtG(v,un){ if (v==null||isNaN(v)) return '—'; return un==='%'?numBR(v,1)+'%':un==='min'?numBR(v,2)+' min':un==='d.u.'?numBR(v,1)+' d.u.':un==='pp'?numBR(v,1)+' p.p.':numBR(v,v%1?1:0); }
@@ -1846,7 +1869,7 @@
       {t:'KPI-09 · absenteísmo', un:'%', v:serieKPI('KPI-09',ms), meta:metaDe('KPI-09',4), menor:true, ir:'lanc', zero:true},
       {t:'KPI-03 · satisfação', un:'', v:serieKPI('KPI-03',ms), meta:metaDe('KPI-03',80), ir:'lanc'},
       {t:'KPI-03 comp. · Google', un:'', v:serieKPI('KPI-03 (Comp.)',ms), meta:metaDe('KPI-03 (Comp.)',80), ir:'lanc'},
-      {t:'Volume RI (atos + pesquisas)', un:'', v:ms.map(function(m){ var d=state.docs[m]; return d?d.atos.length+((d.raw&&d.raw.pesquisa)||0):null; }), ir:'nat', zero:true}
+      {t:'Volume RI (atos, sem pesquisas qualificadas)', un:'', v:ms.map(function(m){ var d=state.docs[m]; return d?d.atos.length:null; }), ir:'nat', zero:true}
     ];
     el.innerHTML=cards.filter(function(c){ return c.v.some(function(v){return v!=null&&!isNaN(v);}); }).map(function(c){
       var idx=-1; c.v.forEach(function(v,i){ if (v!=null&&!isNaN(v)) idx=i; }); var ant=-1; for (var i=idx-1;i>=0;i--){ if (c.v[i]!=null&&!isNaN(c.v[i])){ ant=i; break; } }
@@ -2211,7 +2234,7 @@
     if (modo==='ri'||modo==='cert'){
       aplicarTri7(); var atos=todosAtos(), r=resumo(atos), msR=ms.filter(function(m){ return state.docs[m]; });
       if (modo==='ri'){
-        cards.push(vzCard('Volume de protocolos','atos por mês · clique no mês para ver só ele em Por natureza',gLinhas(msR,[{nome:'Atos',cor:'var(--c1)',v:msR.map(function(m){ return atosDoMes(m).length; })}],{titulo:'Volume',area:true,irMes:'nat'}),'vz-wide'));
+        cards.push(vzCard('Volume de protocolos','atos RI por mês, sem pesquisas qualificadas · clique no mês para ver só ele em Por natureza',gLinhas(msR,[{nome:'Atos',cor:'var(--c1)',v:msR.map(function(m){ return atosDoMes(m).length; })}],{titulo:'Volume',area:true,irMes:'nat'}),'vz-wide'));
         cards.push(vzCard('KPI-02 · no prazo','% por mês · clique no mês para ver os fora do prazo',gLinhas(msR,[{nome:'No prazo',cor:'var(--c1)',v:msR.map(function(m){ var x=resumo(atosDoMes(m)); return x.n?x.kpi:null; })}],{titulo:'KPI-02',un:'%',W:360,H:210,irMes:'fp'})));
         var tud=atos.filter(function(a){ return a.cat==='R'||a.cat==='N'; }), cenL=tud.filter(function(a){ return origemAto(a)==='central'; }), balL=tud.filter(function(a){ return origemAto(a)!=='central'; });
         cards.push(vzCard('Origem dos protocolos',per+' · clique na fatia para listar',gRosca([{nome:'Balcão',v:balL.length,cor:'var(--c1)',go:goLista('Protocolos de balcão','atos',balL)},{nome:'Central (ONR)',v:cenL.length,cor:'var(--c2)',go:goLista('Protocolos da central (ONR)','atos',cenL)}],{titulo:'Origem'})));
@@ -2449,7 +2472,7 @@
       kpi(ri?'Mediana bruta':'Mediana',e.n?numBR(e.mediana,1)+' <small style="font-size:.9rem">d.u.</small>':'—',e.n?'média '+numBR(e.media,1)+(e.moda!=null?' · mais comum '+e.moda+' ('+pct(e.modaPct)+')':'')+' · 90% em até '+numBR(e.p90,1)+(e.n<MIN_N?' · poucos casos':''):'')+
       (ri?kpi('Mediana líquida',m.eL.n?numBR(m.eL.mediana,1)+' <small style="font-size:.9rem">d.u.</small>':'—',m.eL.n?'média '+numBR(m.eL.media,1)+' · só o tempo com o cartório (sem suspensões)':''):'')+
       kpi('No prazo',m.pz[1]?pct(pp(m.pz)):'—',m.pz[1]?m.pz[0]+' de '+m.pz[1]:(ri?'':'sem prazo cadastrado (Configuração)'))+
-      (ri?kpi('Com exigência',pct(pp(m.exig)),m.exig[0]+' de '+m.exig[1]+' registrados')+kpi('Cancelados',pct(pp(m.canc)),m.canc[0]+' de '+m.canc[1],m.canc[0]?'canc':'')+kpi('Pela central (ONR)',pct(pp(m.cen)),m.cen[0]+' central · '+(m.cen[1]-m.cen[0])+' balcão'):'')+'</div>';
+      (ri?kpi('Com exigência',pct(pp(m.exig)),m.exig[0]+' de '+m.exig[1]+' registrados')+kpi('Cancelados',pct(pp(m.canc)),m.canc[0]+' de '+m.canc[1])+kpi('Pela central (ONR)',pct(pp(m.cen)),m.cen[0]+' central · '+(m.cen[1]-m.cen[0])+' balcão'):'')+'</div>';
     cards.push(vzCard('Volume por mês','clique no mês para ver só ele',gLinhas(ms,[{nome:'Volume',cor:'var(--c1)',v:ms.map(function(x){ return (porM[x]||[]).length||null; })}],{titulo:'Volume',area:true,zero:true,irMes:'nat'}),'vz-wide'));
     cards.push(vzCard('Mediana de dias úteis por mês',(ri?'bruto = do ingresso ao registro · líquido = só o tempo com o cartório (sem suspensões)':'dias úteis do ingresso ao fim · no RC e no RTD/PJ o VHL não traz as suspensões: só existe o tempo total'),gLinhas(ms,[{nome:ri?'Mediana bruta':'Mediana',cor:'var(--c1)',v:ms.map(function(x){ var v=(porM[x]||[]).map(nxDias).filter(function(y){ return y!=null; }); return v.length?mediana(v):null; })},{nome:'P90',cor:'var(--c2)',tracejado:true,v:ms.map(function(x){ var v=est((porM[x]||[]).map(nxDias).filter(function(y){ return y!=null; })); return v.n?v.p90:null; })}].concat(ri?[{nome:'Mediana líquida',cor:'var(--c3)',v:ms.map(function(x){ var v=(porM[x]||[]).map(nxLiq).filter(function(y){ return y!=null; }); return v.length?mediana(v):null; })}]:[]),{titulo:'Mediana por mês',un:'d.u.',zero:true,irMes:'nat',ref:ri?[{v:20,nome:'20 d.u.'}]:[]}),'vz-wide'));
     var comD=L.filter(function(x){ return nxDias(x)!=null; });
@@ -2571,7 +2594,7 @@
     var Bit=B.filter(function(x){return /inteiro teor/i.test(x.tipo);});
     var erros=0; Object.keys(state.cert).forEach(function(m){ if (state.periodo==='todos'||state.periodo===m) erros+=state.cert[m].raw.erros||0; });
     var pc=function(a){ return a.length?a.filter(function(x){return x.ok;}).length/a.length*100:null; };
-    var h='<div class="sec-h"><h2>Certidões</h2><span class="note">Horas úteis do pedido até a conclusão (Selos Gerados), no expediente de '+state.cfg.expIni+'h às '+state.cfg.expFim+'h. Prazos do art. 19 §10 da Lei 6.015/73.</span></div>';
+    var h='<div class="sec-h"><span class="note">Horas úteis do pedido até a conclusão (Selos Gerados), no expediente de '+state.cfg.expIni+'h às '+state.cfg.expFim+'h. Prazos do art. 19 §10 da Lei 6.015/73.</span></div>';
     h+='<div class="kpis" style="margin-bottom:14px">'+
       kpi('Certidões no prazo',pctK(pc(C)),ok+' de '+C.length+' concluídas','hero')+
       kpi('Central / online',pct(pc(O)),O.length+' pedidos · mediana '+fmtH(mediana(O.map(function(x){return x.hu;}))))+
@@ -2658,7 +2681,7 @@
       '<h3>Retorno de exigência (0.10.5)</h3>Com a regra "Reingresso só com retorno comprovado" ligada (padrão: a partir de out/2026), no Tri7, <b>Re-análise</b> só é retorno de exigência quando houve <b>Nota de Exigência</b> antes. <b>Revisão de Exigência</b> é a minuta da exigência (não é retorno), <b>Revisão Oficial</b> é a minuta do registro e <b>Selos Gerados</b> é o registro — salvo quando o protocolo tem Cancelado, Cancelado por Decurso de Prazo ou Cancelado por Desistência ou Impossibilidade, que decidem o cancelamento. Com essa regra, o limite de prazo + retorno só vale com retorno comprovado (Re-análise depois de Nota, ou a etapa Re-Análise do VHL); sem ele, vale o prazo da prenotação. Competências anteriores seguem a regra da época.'+
       '<h3>Configuração</h3>Prazos (do RI, por natureza e das outras serventias), regras de apuração, marco das pendências, amostra mínima, feriados e expediente ficam na página <b>Configuração</b>. Toda mudança vale a partir de uma competência, pede motivo e fica no histórico; meses já lançados continuam travados.'+
       '<h3>Prazo das outras serventias</h3>RC, RTD/PJ e Intimações usam o prazo cadastrado por natureza na Configuração. Sem prazo cadastrado, o painel mostra "sem prazo cadastrado" (não quer dizer que a lei não preveja prazo) e usa o P90 do período como referência. Amostras com menos de 30 documentos aparecem como "amostra pequena".'+
-      '<h3>Quem sai do KPI-02</h3><b>Pesquisa Qualificada</b> e <b>Informação Verbal - Visualização de Matrícula</b> (consultas: só contam no volume). <b>Não registrados</b>: com o Relatório de andamentos do Tri7, decidem os andamentos <b>Cancelado</b>, <b>Cancelado por Decurso de Prazo</b> ou <b>Cancelado por Desistência ou Impossibilidade</b> — se um deles existe, o título é cancelado, mesmo que o VHL mostre outra coisa. Sem o protocolo no Tri7, vale o VHL: status Cancelado, ou última etapa útil (ignorando Imprimir Ficha e Arquivamento) Cancelamento de Protocolo, Ofício de Cancelamento, Devolução Depósito Prévio, ONR – Envio do Recibo do Protocolo, ONR – Nota de Devolução ou Re-Análise sem Revisão Oficial depois. <b>Abertura de matrícula + Outros atos</b>: fluxo especial, acompanhado à parte. <b>Sem histórico</b>: atos que entraram antes do início da Produção por Etapa importada.'+
+      '<h3>Quem sai do KPI-02</h3><b>Pesquisa Qualificada</b> e <b>Informação Verbal - Visualização de Matrícula</b> (são consultas de matrícula, não atos: ficam fora do RI, inclusive do volume, e aparecem só como "fora N pesquisas qualificadas"). <b>Não registrados</b>: com o Relatório de andamentos do Tri7, decidem os andamentos <b>Cancelado</b>, <b>Cancelado por Decurso de Prazo</b> ou <b>Cancelado por Desistência ou Impossibilidade</b> — se um deles existe, o título é cancelado, mesmo que o VHL mostre outra coisa. Sem o protocolo no Tri7, vale o VHL: status Cancelado, ou última etapa útil (ignorando Imprimir Ficha e Arquivamento) Cancelamento de Protocolo, Ofício de Cancelamento, Devolução Depósito Prévio, ONR – Envio do Recibo do Protocolo, ONR – Nota de Devolução ou Re-Análise sem Revisão Oficial depois. <b>Abertura de matrícula + Outros atos</b>: fluxo especial, acompanhado à parte. <b>Sem histórico</b>: atos que entraram antes do início da Produção por Etapa importada.'+
       '<h3>Pendências a partir de '+compLabel(marco())+'</h3>Justificar fora do prazo e avaliar títulos com 2+ exigências é obrigatório só para atos finalizados a partir de '+compLabel(marco())+'. Os anteriores aparecem como opcionais e não contam como pendência.'+'<h3>Fora do prazo justificado</h3>Atos com prazo especial (Georreferenciamento, sobrestado a pedido do interessado, suscitação de dúvida, ordem judicial) ficam em aberto até você registrar o motivo. Com motivo, contam como dentro do prazo no KPI-02 e saem das médias e medianas, para não distorcer a curva normal.'+'<h3>KPI-02 complementar · cancelamento</h3>Atos cancelados, devolvidos ou com prenotação caducada, sobre o total de atos RI do período (sem consultas). Protocolos cancelados no Tri7 que ainda não foram finalizados no VHL entram no mês do cancelamento no Tri7 — no numerador e no denominador — e aparecem em Cancelados e especiais como "Cancelados no Tri7, ainda abertos no VHL". Só entram com a serventia em Todas ou RI completo. Cancelados também entram na avaliação mensal.'+'<h3>Exigências e pagamento (VHL + Tri7)</h3>Com o Relatório de andamentos do Tri7, a contagem é: <b>exigência = cada Nota de Exigência</b> (o documento que vai para o cliente; notas seguidas sem o título voltar por Re-análise são a mesma exigência reemitida e contam uma vez; Revisão de Exigência sozinha não conta, porque a pendência pode virar cobrança de custas). Parada que o VHL leu como exigência e o Tri7 mostra como <b>Custas Informadas</b> = pagamento. Parada que o VHL leu como exigência, sem Nota de Exigência nem Custas no Tri7 = <b>pagamento</b> (sem a nota, nada foi exigido do cliente). A ficha do protocolo mostra a conta de cada ato e a aba Exigências tem o filtro de divergências. Sem o protocolo no Tri7 (prenotado antes do relatório), vale só a regra do VHL abaixo. '+'Regra do VHL: quando o título fica parado fora do fluxo (dias úteis que nenhuma etapa explica) e consta como Suspenso no relatório de Demanda, houve uma suspensão. Se ele volta por <code>Re-Análise</code> ou <code>Revisão de Exigência</code>, foi <b>exigência</b> cumprida; se volta direto para Minuta, foi <b>pagamento</b> (ONR). Re-Análise sem suspensão (Revisão devolvendo ao analista) não conta como exigência. Aprovado na 1ª qualificação = registrado sem nenhuma exigência. Títulos com 2 ou mais exigências vão para avaliação: conforme (causa do cliente) ou não conforme (falha na qualificação).'+'<h3>Lançar KPIs · valor travado</h3>Ao marcar <b>lançado</b>, o painel guarda numerador, denominador, análise, data e versão do painel daquele mês. A partir daí o card, a tendência, os gráficos de KPI e a memória de cálculo usam o valor travado — melhorias do painel não mexem no que já está no ANOREG+. Se o cálculo de hoje der diferente, o card avisa. <b>Regra de correção:</b> mudança de regra vale daqui para frente (registrar no controle de alterações da ficha técnica); só se corrige um mês lançado quando for erro de dado <b>e</b> mudar a situação (Atende/Não atende) ou passar de 1 p.p. Para corrigir, desmarque lançado, confira e marque de novo. Anexe no ANOREG+ a memória de cálculo baixada no dia do lançamento.'+'<h3>KPI-13 · espera</h3>O KPI-13 oficial é a média da espera de <b>todas as filas</b>. Com a Serventia filtrada, a página Atendimento mostra "Espera média · serventia", só com as filas dela — não é o KPI-13.<h3>LGPD</h3>CPF e RG escritos na Observação das inconformidades são mascarados na importação (e nas já salvas, na primeira abertura de quem pode editar). Números de 11 dígitos só são mascarados quando o dígito verificador é de CPF válido, para não apagar números de OS. A sessão vale só enquanto o navegador estiver aberto.<h3>KPI-01 · inconformidades</h3>KPI-01 = atos RI registrados no período com ao menos 1 inconformidade ÷ atos RI registrados. A inconformidade é ligada ao ato pelo código, então não importa o mês em que foi registrada. Complementar = mesma conta só com erro externo. O nome do erro sai da Observação (regras por palavras-chave) e pode ser corrigido na lista. A taxa por pessoa divide as inconformidades pelos documentos que a pessoa trabalhou no VHL no período.'+'<h3>Certidões</h3>Base: Relatório de andamentos do Tri7 (andamento Selos Gerados dos pedidos de certidão), no horário local. Certidões emitidas automaticamente pelo usuário TRI7 (central SAEC, sem ação de ninguém) ficam fora. Meses antigos podem ter vindo da planilha Andamentos (horário corrigido em 3 horas); ao importar o relatório novo, ele prevalece no mesmo pedido e o resto continua. Conta horas úteis do pedido até os selos gerados, só dentro do expediente.'+'<h3>Quem fez · Tri7</h3>Do Relatório de andamentos do Tri7 sai, por protocolo, quem fez cada andamento (a coluna Usuário; Usuário destino é ignorado): <b>Prenotado</b> = quem deu entrada; <b>Revisão de Exigência</b> = quem redigiu a exigência e mandou revisar; <b>Nota de Exigência</b> = quem revisou e emitiu a nota; <b>Re-análise</b> = quem recebeu o título de volta; <b>Selos Gerados</b> = quem gerou os selos do registro. É informação de consulta e treinamento: o cruzamento com inconformidades não aponta responsável. Os prazos do KPI-02 continuam pela Revisão Oficial do VHL. Prazos (art. 19 §10 da Lei 6.015/73): inteiro teor 4 horas; ônus e ações / situação jurídica 1 dia útil; demais 5 dias úteis. Pedido de balcão = aparece como Certidão - RI no VHL, que também dá o tipo; os demais vêm da central e seguem o prazo de 4 horas. Certidões do fluxo de intimação ficam fora porque o prazo corre do pagamento.'+'<h3>Balcão × central (RI)</h3>Protocolo com natureza "ONR - …" veio pela central (e-protocolo); os demais são de balcão. O seletor de origem no topo (só no RI · Registro) filtra todas as páginas do RI; o KPI-02 lançado no ANOREG+ continua com todos. Certidão do RI cadastrada no VHL (Certidão - RI) é de balcão; a que só existe no Tri7 veio da central.'+'<h3>Serventias</h3>O filtro Serventia no topo vale para o site todo: RI (registro, intimações ou certidões), RC (registros ou certidões), RTD/PJ (registros ou certidões) ou Todas, que abre o comparativo com a participação % de cada serventia na produção do mês. Malote e Arquivo não são produção de serventia: o Malote aparece só como contagem de cadastros no mês. Senhas por fila: Registro de Imóveis → RI; Nascimento, Casamento e Óbito → RC; Títulos e Documentos/PJ → RTD/PJ. Prazos legais pré-preenchidos só onde há base expressa: certidão em 5 dias (Lei 6.015, art. 19; CRC: Prov. CNJ 149/2023, arts. 239-240, 5 dias úteis), casamento religioso com efeito civil em 24 h (art. 73 §2º), certidão de RTD em 5 dias úteis (art. 19 c/c art. 9º §1º). Os demais ficam em branco até você definir. Todos podem ser mudados na Configuração.'+'<h3>Outras atribuições</h3>RC, RTD, RPJ, Intimações, Malote Digital e Arquivo vêm do Prazo e Tempo Médio (todos os tipos de documento) e da Produção por Etapa do VHL. Tempo = dias úteis do ingresso à finalização (o dia do ingresso não conta). O prazo de cada natureza (dias úteis ou corridos) é definido por você na página <b>Configuração</b>; sem prazo, o painel mostra só os tempos. Atuação = cronômetro do VHL. Título e solicitante não são guardados.'+'<h3>Indicadores editáveis</h3>Em Lançar KPIs → Editar indicadores: nome, meta (texto copiado para o ANOREG+ e valor usado para Atende/Não atende e para os gráficos), sentido, frequência, ordem e quais aparecem. KPIs calculados pelo painel mantêm a fórmula; os novos são de lançamento manual.'+'<h3>Feriados</h3>Nacionais automáticos, inclusive Carnaval, Sexta-feira Santa e Corpus Christi. Feriados locais e dias em que o cartório funcionou num feriado nacional: no calendário da página <b>Configuração</b> (cada clique pede motivo e fica no histórico). Depois de mudar o calendário, use <b>Recalcular tudo</b> para o RI.'+
       '<h3>Meses salvos</h3>'+(meses.length?'<table style="max-width:560px"><thead><tr><th>Mês</th><th>Atos</th><th>Sem histórico</th><th>Atualizado</th></tr></thead><tbody>'+meses.map(function(m){ var d=state.docs[m]; return '<tr><td>'+nomeMes(m)+'</td><td>'+d.raw.total+'</td><td>'+d.raw.incompletos+'</td><td>'+new Date(d.raw.atualizadoEm).toLocaleDateString('pt-BR')+'</td></tr>'; }).join('')+'</tbody></table><p class="hint">Para apagar um mês, use <b>Importar dados › Excluir dados de um mês</b> — ele apaga o mês em todas as bases de uma vez.</p>':'Nenhum ainda.')+
       '</div>';
@@ -2667,7 +2690,7 @@
   // ——— importar dados: um lugar só. O painel reconhece cada planilha, junta com o que já tem e recalcula tudo (RI e demais atribuições)
   var IMP_TIPOS=[['prazo','chipPrazo','PAINEL-01 · Prazo e Tempo Médio'],['etapa','chipEtapa','PAINEL-02 · Produção por Etapa'],['demanda','chipDemanda','PAINEL-03 · Demanda suspensa'],['inconf','chipInconf','PAINEL-04 · Inconformidades'],['andam','chipAndam','Tri7 · Relatório de andamentos'],['tri7','chipTri7','Andamentos (Tri7) · antiga']];
   function lerArquivo(f){
-    return f.arrayBuffer().then(function(buf){
+    return precisaXLSX().then(function(){ return f.arrayBuffer(); }).then(function(buf){
       var wb=XLSX.read(buf,{type:'array'}), ws=wb.Sheets[wb.SheetNames[0]];
       var rows=XLSX.utils.sheet_to_json(ws,{raw:true,defval:null}), cab=rows.length?Object.keys(rows[0]):[];
       var tipo=senhasEhArquivo(cab)?'senhas':Motor.detectar(cab);
@@ -2731,7 +2754,7 @@
   }
   // recalcula RI (meses + logs) e demais atribuições (serv) a partir de todos os dados brutos guardados
   function recalcDeBrutos(aviso){
-    return window.nuvem.lerColecao('brutos').then(function(rows){
+    return precisaXLSX().then(function(){ return window.nuvem.lerColecao('brutos'); }).then(function(rows){
       var P=[], E=[], D=[]; rows.forEach(function(x){ var d=brutoDecod(x.dados); if (x.id.indexOf('prazo-')===0) P=P.concat(d); else if (x.id.indexOf('etapa-')===0) E=E.concat(d); else if (x.id==='demanda') D=D.concat(d); });
       if (!P.length) return {ri:0, serv:0};
       var p=Promise.resolve(), nRI=0, nS=0;
@@ -2846,7 +2869,7 @@
   function salvarFeriados(){ renderFeriados(); salvarCfg(); render(); }
 
   // ——— eventos
-  $('selMes').addEventListener('change',function(e){ state.periodo=e.target.value; if (state.periodo!=='todos') state.lancMes=state.periodo; render(); });
+  $('selMes').addEventListener('change',function(e){ state.periodoEscolhido=true; state.periodo=e.target.value; if (state.periodo!=='todos') state.lancMes=state.periodo; render(); });
   var drop=$('drop'), fin=$('fileIn');
   drop.addEventListener('click',function(){ fin.click(); });
   drop.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); fin.click(); } });
@@ -2894,7 +2917,7 @@
     var pl=t.closest&&t.closest('[data-prot]'); if (pl){ if (!pl.closest('#protBox')) goGuardar(); $('protIn').value=pl.dataset.prot; return fichaProtocolo(pl.dataset.prot); }
     if (t.id==='protFechar'){ state.protSel=null; $('protBox').hidden=true; return; }
     if (t.id==='protCopiar') return copiarTexto(state.protTxt, t);
-    if (t.id==='memBtn') return baixarMemoria(state.lancMes);
+    if (t.id==='memBtn'){ var mb=t, mt=mb.textContent; mb.disabled=true; mb.textContent='Preparando…'; return precisaXLSX().then(function(){ baixarMemoria(state.lancMes); }).catch(function(e){ toast(e.message); }).then(function(){ mb.disabled=false; mb.textContent=mt; }); }
     if (t.id==='btnBackup') return exportarBackup();
     if (t.id==='btnRestaurar') return $('restIn').click();
     if (t.id==='btnRecalc') return recalcularTudo();
@@ -3058,7 +3081,7 @@
     db.doc('config/geral').get().then(function(s){ if(s.exists){ var c=s.data(); state.extras=(c.feriadosExtras||[]).slice(); if (c.expIni!=null) state.cfg.expIni=c.expIni; if (c.expFim!=null) state.cfg.expFim=c.expFim; if (c.intim) state.cfg.intim=c.intim.slice(); renderFeriados(); agendarRender(); } }).catch(function(){});
     db.collection('logs').onSnapshot(function(snap){ snap.docs.forEach(function(d){ var x=d.data(); if (x&&x.rows!=null){ state.logs[d.id]=x; delete state.logCache[d.id]; } }); if (state.protSel) fichaProtocolo(state.protSel); }, function(){});
     db.collection('senhas').onSnapshot(function(snap){ snap.docs.forEach(function(d){ var x=d.data(); if (x&&x.rows) state.senhas[d.id]=senhasDecod(x); }); agendarRender(); }, function(){});
-    db.collection('kpis').onSnapshot(function(snap){ snap.docs.forEach(function(d){ var x=d.data(); if (x) state.kp[d.id]={mes:d.id,v:x.v||{},lanc:x.lanc||{}}; }); if (state.aba==='lanc') agendarRender(); }, function(){});
+    db.collection('kpis').onSnapshot(function(snap){ snap.docs.forEach(function(d){ var x=d.data(); if (x) state.kp[d.id]={mes:d.id,v:x.v||{},lanc:x.lanc||{},hist:x.hist||null}; }); if (state.aba==='lanc') agendarRender(); setTimeout(histMigrar,2500); }, function(){});
     db.collection('kpi09').onSnapshot(function(snap){ snap.docs.forEach(function(d){ var x=d.data(); if (x&&x.pessoas) state.k9[d.id]=x; }); if (state.aba==='lanc') agendarRender(); }, function(){});
     db.collection('feedback').onSnapshot(function(snap){ var m={}; snap.docs.forEach(function(d){ m[d.id]=d.data(); }); Object.assign(state.feedback,m); if (state.aba==='rel' && !document.activeElement.matches('#tabRel textarea')) renderRel(); }, function(){});
     db.doc('config/usuarios').get().then(function(s){ if (s.exists){ var u=s.data(); state.usr=Object.assign({},u.map||{}); if (state.aba==='tri') renderTri(); } }).catch(function(){});

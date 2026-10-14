@@ -6,6 +6,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex, nofollow">
+<meta name="painel-versao" content="0.11.0">
 <title>Painel SGQ · CRCO</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23c94f0a'/%3E%3Ctext x='16' y='21' font-family='Arial' font-size='12' font-weight='700' fill='white' text-anchor='middle'%3ESGQ%3C/text%3E%3C/svg%3E">
 <style>
@@ -13,7 +14,7 @@
 :root{
   --bg:#f7f6f4; --surface:#ffffff; --surface-2:#f1efeb; --line:#e3dfd8;
   --ink:#2b2926; --ink-2:#5d5952; --ink-3:#6f695f;
-  --brand:#c94f0a; --brand-soft:#fde8da;
+  --brand:#c94f0a; --brand-soft:#fde8da; --brand-ink:#a8420a; --mark-ink:#fff;
   --s-bruto:#e8590c; --s-liq:#2a78d6;
   --good:#1f7a4d; --good-soft:#e2f2e9; --warn:#8f5b00; --warn-soft:#fbefd6; --crit:#b3362f; --crit-soft:#fae3e1;
   --c1:#2a78d6; --c2:#eb6834; --c3:#1baf7a; --c4:#eda100; --c5:#e87ba4; --c6:#008300;
@@ -23,7 +24,7 @@
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
   --bg:#141210; --surface:#1c1a17; --surface-2:#252220; --line:#36322d;
   --ink:#efebe5; --ink-2:#bdb6ab; --ink-3:#9c958a;
-  --brand:#f07a35; --brand-soft:#3a2518;
+  --brand:#f07a35; --brand-soft:#3a2518; --brand-ink:#f07a35; --mark-ink:#1c1a17;
   --s-bruto:#d95926; --s-liq:#3987e5;
   --good:#5fc58f; --good-soft:#1b2d23; --warn:#e3b04f; --warn-soft:#30281a; --crit:#ec8a83; --crit-soft:#341f1d;
   --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500; --c5:#d55181; --c6:#008300;
@@ -31,7 +32,7 @@
 :root[data-theme="dark"]{
   --bg:#141210; --surface:#1c1a17; --surface-2:#252220; --line:#36322d;
   --ink:#efebe5; --ink-2:#bdb6ab; --ink-3:#9c958a;
-  --brand:#f07a35; --brand-soft:#3a2518;
+  --brand:#f07a35; --brand-soft:#3a2518; --brand-ink:#f07a35; --mark-ink:#1c1a17;
   --s-bruto:#d95926; --s-liq:#3987e5;
   --good:#5fc58f; --good-soft:#1b2d23; --warn:#e3b04f; --warn-soft:#30281a; --crit:#ec8a83; --crit-soft:#341f1d;
   --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500; --c5:#d55181; --c6:#008300;
@@ -72,7 +73,7 @@ svg .fatia[data-go]:hover,svg .seg-b[data-go]:hover{stroke:var(--ink);stroke-wid
 .hb{display:flex;flex-direction:column;gap:5px}
 .hb-row{display:grid;grid-template-columns:minmax(90px,38%) 1fr auto;align-items:center;gap:8px;font-size:.82rem}
 .cfg-t{width:100%;table-layout:fixed}.cfg-t th,.cfg-t td{white-space:normal;vertical-align:top;overflow-wrap:break-word}.cfg-t th:nth-child(1){width:56%}.cfg-t th:nth-child(2){width:30%}.cfg-t th:nth-child(3){width:14%}.cfg-t td:last-child{white-space:nowrap;text-align:right}.cfg-ed td{white-space:normal}.cfg-ed td{background:var(--surface-2,rgba(0,0,0,.03))}.cfg-form{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end}.cfg-form label{display:flex;flex-direction:column;gap:4px;font-size:.82rem}.cfg-mot{flex:1 1 280px}.cfg-mot input{width:100%}.cfg-bt{display:flex;gap:6px}.cfg-det{margin:8px 0}.cfg-det summary{cursor:pointer;font-weight:600;padding:6px 0}
-#ferLista{display:block!important}.cal-nav{display:flex;align-items:center;gap:10px;margin:10px 0}.cal-ano{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}.cal-mes{border:1px solid var(--line);border-radius:8px;padding:6px 8px}.cal-t{font-size:.8rem;font-weight:700;margin-bottom:4px}.cal-g{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}.cal-h{font-size:.65rem;color:var(--ink-3)}.cal-d{font:inherit;font-size:.72rem;border:0;border-radius:4px;padding:3px 0;background:transparent;color:var(--ink);cursor:pointer}.cal-d:hover{outline:1px solid var(--brand)}.cal-d:disabled{cursor:default}.cal-d.fds{color:var(--ink-3);background:var(--line);cursor:default}.cal-d.nac{background:#c0392b;color:#fff;font-weight:700}.cal-d.loc{background:var(--brand);color:#fff;font-weight:700}.cal-d.trab{background:transparent;color:#c0392b;text-decoration:line-through;outline:1px dashed #c0392b}.cal-leg{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;font-size:.78rem;align-items:center}.cal-leg i{display:inline-block;width:14px;height:14px;padding:0;margin-right:5px;vertical-align:-2px}
+#ferLista{display:block!important}.cal-nav{display:flex;align-items:center;gap:10px;margin:10px 0}.cal-ano{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}.cal-mes{border:1px solid var(--line);border-radius:8px;padding:6px 8px}.cal-t{font-size:.8rem;font-weight:700;margin-bottom:4px}.cal-g{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}.cal-h{font-size:.65rem;color:var(--ink-3)}.cal-d{font:inherit;font-size:.72rem;border:0;border-radius:4px;padding:3px 0;background:transparent;color:var(--ink);cursor:pointer}.cal-d:hover{outline:1px solid var(--brand)}.cal-d:disabled{cursor:default}.cal-d.fds{color:var(--ink-2);background:var(--line);cursor:default}.cal-d.nac{background:#c0392b;color:#fff;font-weight:700}.cal-d.loc{background:var(--brand);color:#fff;font-weight:700}.cal-d.trab{background:transparent;color:#c0392b;text-decoration:line-through;outline:1px dashed #c0392b}.cal-leg{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;font-size:.78rem;align-items:center}.cal-leg i{display:inline-block;width:14px;height:14px;padding:0;margin-right:5px;vertical-align:-2px}
 .hb-n{color:var(--ink-2);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.25;overflow-wrap:break-word}
 .tbl-fixa th:first-child,.tbl-fixa td:first-child{position:sticky;left:0;background:var(--surface);z-index:1}
 .hb-t{height:12px;background:var(--surface-2);border-radius:4px;overflow:hidden}
@@ -97,7 +98,7 @@ h1,h2,h3{margin:0;text-wrap:balance}
 
 .top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--line);margin-bottom:16px}
 .brand{display:flex;align-items:center;gap:10px;min-width:0}
-.mark{width:34px;height:34px;border-radius:9px;background:var(--brand);display:grid;place-items:center;color:#fff;font-weight:800;font-size:13px;flex-shrink:0}
+.mark{width:34px;height:34px;border-radius:9px;background:var(--brand);display:grid;place-items:center;color:var(--mark-ink);font-weight:800;font-size:13px;flex-shrink:0}
 .brand h1{font-size:1.15rem;font-weight:700}
 .brand small{display:block;color:var(--ink-3);font-size:.78rem}
 .spacer{flex:1}
@@ -105,13 +106,14 @@ h1,h2,h3{margin:0;text-wrap:balance}
 select{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:170px}
 .btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 13px;cursor:pointer;font-weight:600}
 .btn:hover{border-color:var(--ink-3)}
-.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:var(--mark-ink)}
 .btn.primary:hover{filter:brightness(1.05)}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .btn:focus-visible,select:focus-visible,input:focus-visible,.tab:focus-visible,tr.click:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 
 .banner{border-radius:10px;padding:10px 14px;font-size:.84rem;margin-bottom:14px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink-2)}
 .banner.warn{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
+.banner.crit{background:var(--crit-soft);border-color:transparent;color:var(--crit)}
 
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow);min-width:0}
 .section{margin-bottom:18px}
@@ -170,11 +172,12 @@ input.mini{width:220px}
 td.tl{white-space:normal;text-align:left;min-width:160px}
 table.tleft th,table.tleft td{text-align:left}
 .kpi.canc .v{color:var(--crit)}
+.kpi .s .at{color:var(--warn);font-weight:700}
 .cbar{display:inline-block;width:42px;height:6px;background:var(--surface-2);border-radius:3px;margin-right:7px;vertical-align:middle;overflow:hidden}
 .cbar span{display:block;height:100%;background:var(--crit);border-radius:3px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .segb{border:0;background:var(--surface);padding:6px 11px;cursor:pointer;font-weight:600;color:var(--ink-3);font-size:.82rem}
-.segb[aria-pressed=true]{background:var(--brand-soft);color:var(--brand)}
+.segb[aria-pressed=true]{background:var(--brand-soft);color:var(--brand-ink)}
 .segb:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 
 /* tabs */
@@ -184,7 +187,7 @@ table.tleft th,table.tleft td{text-align:left}
 
 .hm{border-collapse:separate;border-spacing:2px;width:auto}.hm th{font-size:.72rem;color:var(--ink-3);font-weight:600;padding:2px 6px;text-align:center;background:none}
 .hm td.hmc{min-width:46px;height:30px;text-align:center;font-size:.78rem;font-variant-numeric:tabular-nums;border-radius:4px;color:var(--ink);background:var(--surface-2);padding:0 4px;cursor:default}
-.hm td.b3,.hm td.b4{color:var(--surface);font-weight:700}
+.hm td.b3,.hm td.b4{color:#1c1a17;font-weight:700}
 
 .protf{display:flex;gap:6px}.protf input{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 10px;width:190px;font:inherit}
 .lnk{background:none;border:0;padding:0;color:var(--brand);font:inherit;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
@@ -267,7 +270,7 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
 .menu-grp{font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:700;padding:14px 10px 4px}
 .menu .tab{display:block;width:100%;text-align:left;border:0;border-radius:8px;padding:9px 10px;background:none;color:var(--ink-2);font-weight:600;font-size:.86rem;white-space:normal;border-bottom:0}
 .menu .tab:hover{background:var(--surface-2);color:var(--ink)}
-.menu .tab[aria-selected=true]{background:var(--brand-soft);color:var(--brand)}
+.menu .tab[aria-selected=true]{background:var(--brand-soft);color:var(--brand-ink)}
 .layout>.wrap{min-width:0;width:100%}
 .menu-btn{display:none;font-size:1.1rem;padding:6px 11px}
 .menu-recolher{margin-left:auto;padding:2px 9px;font-size:.95rem;line-height:1.2}
@@ -326,7 +329,7 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
 
 <div class="layout">
 <nav id="menu" class="menu" aria-label="Seções do painel">
-  <div class="menu-marca"><div class="mark">RI</div><b>Painel SGQ</b><button class="btn sm menu-recolher" id="btnRecolher" type="button" title="Recolher a barra lateral" aria-label="Recolher a barra lateral">«</button></div>
+  <div class="menu-marca"><div class="mark">SGQ</div><b>Painel SGQ</b><button class="btn sm menu-recolher" id="btnRecolher" type="button" title="Recolher a barra lateral" aria-label="Recolher a barra lateral">«</button></div>
   <button class="tab" type="button" data-tab="geral" aria-selected="true">Painel geral</button>
   <button class="tab" type="button" data-tab="vis" aria-selected="false">Modo visual</button>
   <div class="menu-grp">Prazos</div>
@@ -353,7 +356,7 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
 <div class="wrap">
   <header class="top">
     <button class="btn menu-btn" id="btnMenu" type="button" aria-label="Abrir menu de seções">☰</button>
-    <div class="brand"><div class="mark">RI</div><div><h1>Painel SGQ · CRCO</h1><small id="brandSub">CRCO · RI · KPI-02 · Art. 205 e Art. 9º §1º da Lei 6.015/73</small></div></div>
+    <div class="brand"><div class="mark">SGQ</div><div><h1>Painel SGQ · CRCO</h1><small id="brandSub">Sistema de Gestão da Qualidade</small></div></div>
     <div class="spacer"></div>
     <div class="ctl">
       <form id="protForm" class="protf" role="search"><input type="search" id="protIn" placeholder="Protocolo ou código (ex.: 120322, N4447)" aria-label="Buscar protocolo ou código"><button class="btn" type="submit">Ver ficha</button></form>
@@ -365,6 +368,7 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
     </div>
   </header>
 
+  <div id="avisoVersao" class="banner crit" hidden></div>
   <div id="avisoDb" class="banner" hidden></div>
   <div id="avisoBackup" class="banner warn" hidden></div>
   <section id="protBox" class="section panel" hidden style="margin-bottom:16px"></section>
@@ -394,7 +398,7 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
         <div class="sub-h">Como exportar (todo mês, do 1º ao último dia)</div>
         <ul class="hint" style="padding-left:18px;margin:0">
           <li><b>VHL · Dashboard</b>: exporte os painéis <b>PAINEL-01 Prazo e Tempo Médio</b>, <b>PAINEL-02 Produção por Etapa</b> (começando <b>2 meses antes</b>: para outubro, de 01/08 a 31/10), <b>PAINEL-03 Demanda suspensa no período</b>, <b>PAINEL-04 Consulta de inconformidades</b> (moderadas) e <b>PAINEL-05 Consulta de senhas</b>. Eles trazem todas as atribuições; não precisa filtrar por RI.</li>
-          <li><b>Tri7 (RI)</b>: Impressão › Movimentação › selecione <b>todos os tipos de pesquisa</b> › "Filtrar pela data do: <b>Andamento</b>" do primeiro ao último dia do mês (pega tudo o que aconteceu no mês, inclusive intimações antigas; o painel guarda por mês do andamento e não duplica) › o Tri7 aceita <b>10 andamentos por relatório</b>, então gere <b>2 relatórios</b> com o mesmo período: <b>Lote 1 (essencial: prazo e cancelamento)</b> 0011 Prenotado · 0504 Prenotado Automaticamente (SAEC/ONR) · 0326 Nota de Exigência · 0357 Re-análise · 0334 Revisão de Exigência · 0370 Custas Informadas (SAEC/ONR) · 0019 Selos Gerados · Cancelado por Desistência ou Impossibilidade · Cancelado por Decurso de Prazo · Cancelado — <b>Lote 2 (pagamento, registro e entrega)</b> Aguardando Pagamento · Pagamento Identificado (SAEC/ONR) · Pagamento Identificado (automático) · Título Apto a Registro (Pendente Pgto) · 0481 Revisão Oficial · Título Entregue Digitalmente · 0328 Recebido para Entrega · Qualificação Prévia · Análise · Pedido de Certidão Digital. As certidões vêm do Selos Gerados do Lote 1; o fluxo de intimação vem do VHL (PAINEL-02), então não precisa de lote de intimação › Pesquisar › baixe as 2 planilhas e solte as duas juntas aqui (o painel junta sem duplicar). A planilha de cancelados do Tri7 (Cancelados.xls) também pode ser solta aqui, sozinha.</li>
+          <li><b>Tri7 (RI)</b>: Impressão › Movimentação › selecione <b>todos os tipos de pesquisa</b> › "Filtrar pela data do: <b>Andamento</b>" do primeiro ao último dia do mês (pega tudo o que aconteceu no mês, inclusive intimações antigas; o painel guarda por mês do andamento e não duplica) › o Tri7 aceita <b>10 andamentos por relatório</b>, então gere <b>3 relatórios</b> com o mesmo período: <b>Lote 1 (essencial: prazo e cancelamento)</b> 0011 Prenotado · 0504 Prenotado Automaticamente (SAEC/ONR) · 0326 Nota de Exigência · 0357 Re-análise · 0334 Revisão de Exigência · 0370 Custas Informadas (SAEC/ONR) · 0019 Selos Gerados · Cancelado por Desistência ou Impossibilidade · Cancelado por Decurso de Prazo · Cancelado — <b>Lote 2 (pagamento, registro e entrega)</b> Aguardando Pagamento · Pagamento Identificado (SAEC/ONR) · Pagamento Identificado (automático) · Título Apto a Registro (Pendente Pgto) · 0481 Revisão Oficial · Título Entregue Digitalmente · 0328 Recebido para Entrega · Qualificação Prévia · Análise · Pedido de Certidão Digital — <b>Lote 3 (certidões automáticas, minuta e intimação)</b> 0221 Certidão Gerada Automaticamente · Erro Validação Certidão Automática · 0476 Minuta · 0251 Minuta Intimação · Minuta Publicação de Edital · 0479 Emissão de Certidão de Diligência › Pesquisar › baixe as 3 planilhas e solte as três juntas aqui (o painel junta sem duplicar). A planilha de cancelados do Tri7 (Cancelados.xls) também pode ser solta aqui, sozinha.</li>
           <li><b>Folha</b>: Rel. Eventos de Apuração por Período (ciclo 22 a 21), para o KPI-09.</li>
           <li>Pode soltar tudo junto ou um de cada vez, e reimportar quando quiser: o painel <b>junta</b> com o que já tem e recalcula — nada se perde.</li>
         </ul>
@@ -464,11 +468,10 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
 
 
 
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
-<script src="config.js"></script>
-<script src="nuvem.js"></script>
-<script src="motor.js"></script>
-<script src="app.js"></script>
+<script src="config.js?v=0.11.0"></script>
+<script src="nuvem.js?v=0.11.0"></script>
+<script src="motor.js?v=0.11.0"></script>
+<script src="app.js?v=0.11.0"></script>
 </body>
 </html>
