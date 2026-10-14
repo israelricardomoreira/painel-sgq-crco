@@ -1099,7 +1099,7 @@
         exp.push(['Registro',a.regSG?'<b>'+fmtData(a.reg)+'</b> — data do <b>Selos Gerados</b> no Tri7 (o registro saiu aí). A última Revisão Oficial no VHL foi em '+fmtData(a.regSG)+', depois do selo: é só o fechamento do fluxo.':'<b>'+fmtData(a.reg)+'</b> — data da última <b>Revisão Oficial</b> (quando o registro foi para o cliente). Imprimir Ficha e Arquivamento vêm depois e não contam.']);
         exp.push(['Bruto','<b>'+a.bruto+' dias úteis</b> entre o ingresso e o registro (o dia do ingresso não conta; sábados, domingos'+(feriados.length?' e feriados — '+feriados.join(', '):' e feriados')+' ficam fora).']); }
       else exp.push(['Bruto','<b>'+a.bruto+' dias úteis</b> — sem Revisão Oficial no histórico; usado o campo Prazo do VHL ('+a.pv+').']);
-      exp.push(['Limite','<b>'+a.lim+' dias úteis</b> — '+(a.retUsado?'o título voltou em '+fmtData(a.retUsado)+' ('+a.retDu+'º dia útil, '+(a.retFonte==='Tri7'?'Re-análise no Tri7':'Re-Análise no VHL')+'): retorno + 5 dias úteis para registrar (art. 188, §1º, III), nunca menos que 20'+(a.retDu>20?'. O retorno aparece depois do 20º dia útil — o cartório não registra título com prenotação vencida, então é erro de contagem/lançamento: vale 25':'')+'.':a.reing?'25 dias úteis: o título teve retorno'+(L&&L.st?' (constava nos Suspensos: '+esc(L.st)+')':'')+', mas sem data conhecida.':'20 dias úteis (art. 205 c/c art. 9º, §1º, da Lei 6.015/73).')+' '+(a.dentro?'<span class="pill good">dentro</span>':'<span class="pill crit">acima</span>')+(justDe(a)?' <span class="pill good">justificado: '+esc(MOT_JUST[justDe(a).motivo]||'')+'</span>':'')]);
+      var bLim=prazoBaseRI(a), mLim=cfgVal('ri.retornoMais',compAto(a)); exp.push(['Limite',(a.limCorr?'<b>'+a.limCorr+' dias corridos</b> — prazo próprio da natureza (Configuração): vence em '+fmtData(a.limVenc)+' (dia não útil passa para o próximo dia útil), o que equivale a '+a.lim+' dias úteis.':'<b>'+a.lim+' dias úteis</b> — '+(a.retUsado?'o título voltou em '+fmtData(a.retUsado)+' ('+a.retDu+'º dia útil, '+(a.retFonte==='Tri7'?'Re-análise no Tri7':'Re-Análise no VHL')+'): retorno + '+mLim+' dias úteis para registrar (art. 188, §1º, III), nunca menos que '+bLim+(a.retDu>bLim?'. O retorno aparece depois do '+bLim+'º dia útil — o cartório não registra título com prenotação vencida, então é erro de contagem/lançamento: vale '+(bLim+mLim):'')+'.':a.reing&&a.lim>bLim?(bLim+mLim)+' dias úteis: o título teve retorno'+(L&&L.st?' (constava nos Suspensos: '+esc(L.st)+')':'')+', mas sem data conhecida.':bLim+' dias úteis ('+(bLim===20?'art. 205 c/c art. 9º, §1º, da Lei 6.015/73':'prazo da Configuração')+').'))+' '+(a.dentro?'<span class="pill good">dentro</span>':'<span class="pill crit">acima</span>')+(justDe(a)?' <span class="pill good">justificado: '+esc(MOT_JUST[justDe(a).motivo]||'')+'</span>':'')]);
       if (a.liq!=null) exp.push(['Líquido','<b>'+a.liq+(a.liq===1?' dia útil':' dias úteis')+'</b> com o cartório = soma do Prazo de cada etapa até o registro: '+a.etapas.map(function(p){ return esc(p[0])+' '+p[1]; }).join(' + ')+(a.etapas.length?' = '+a.etapas.reduce(function(s,p){return s+p[1];},0):'')+(a.etapas.reduce(function(s,p){return s+p[1];},0)>a.bruto?' (limitado ao bruto)':'')+'.']);
       if (a.espera!=null) exp.push(['Espera','<b>'+a.espera+(a.espera===1?' dia útil':' dias úteis')+'</b> parado com o cliente (bruto − líquido).']);
       exp.push(['Retornos',(a.nex?a.nex+' exigência(s) cumprida(s)':'nenhuma exigência')+(a.npg?' · '+a.npg+' espera(s) de pagamento':'')+(a.nri?' · '+a.nri+' devolução(ões) interna(s)':'')+(a.nex>=2?' <span class="pill crit">2+ exigências</span>':'')+(a.exT?'<div class="mut" style="margin-top:3px">'+exExplica(a)+'</div>':'')]);
@@ -1176,9 +1176,12 @@
   function cfgVal(key, comp){ comp=comp||'9999-99'; var L=state.apur.itens[key]||[], v=null, achou=false; L.forEach(function(e){ if (e.de<=comp){ v=e.v; achou=true; } }); return (!achou||v===null)?cfgDef(key,comp):v; }
   function cfgS(key){ var v=state.apur.simples[key]; return v==null?CFG_SIMPLES[key].def:v; }
   function marco(){ return cfgS('pend.marco'); }
-  function prazoBaseRI(a){ var c=compAto(a), n=cfgVal('ri.prazoNat|'+a.nat,c); return n!=null?n:cfgVal('ri.prazoBase',c); }
+  function prazoBaseRI(a){ var c=compAto(a), n=cfgVal('ri.prazoNat|'+a.nat,c); if (n&&typeof n==='object') n=n.un==='c'?null:n.n; return n!=null&&n>=0?n:cfgVal('ri.prazoBase',c); }
+  // 0.10.7: prazo em dias corridos → vencimento = ingresso + N dias; caindo em dia não útil, vence no próximo dia útil (CC, art. 132, §1º); o limite vira o nº de dias úteis até o vencimento
+  function utilDia(du,d){ return du(d,d+1)===1; }
+  function vencCorridos(du, ing, n){ var f=ing+n; for (var i=0;i<30 && !utilDia(du,f);i++) f++; return f; }
   function nomeUsuario(){ try{ return (window.nuvem&&window.nuvem.nome&&window.nuvem.nome())||''; }catch(e){ return ''; } }
-  function cfgFmt(key, v){ var d=CFG_DEF[key]||CFG_SIMPLES[key]||{tipo:'num',un:'d.u.'}; if (v==null||(typeof v==='number'&&v<0)) return key.indexOf('ri.prazoNat|')===0?'herda':'sem prazo'; if (d.tipo==='bool') return v?'Sim':'Não'; if (d.tipo==='mes') return compLabel(v); return String(v)+(d.un?' '+d.un:''); }
+  function cfgFmt(key, v){ var d=CFG_DEF[key]||CFG_SIMPLES[key]||{tipo:'num',un:'d.u.'}; if (v==null||(typeof v==='number'&&v<0)) return key.indexOf('ri.prazoNat|')===0?'herda':'sem prazo'; if (typeof v==='object') return v.n+(v.un==='c'?' dias corridos':' d.u.'); if (d.tipo==='bool') return v?'Sim':'Não'; if (d.tipo==='mes') return compLabel(v); return String(v)+(d.un?' '+d.un:''); }
   function mesHoje(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2); }
   function apurLog(item, de, para, vale, motivo){ state.apur.hist.unshift({item:item, de:de, para:para, vale:vale, em:new Date().toISOString(), por:nomeUsuario(), motivo:motivo||''}); }
   function apurSalvar(){ state.apurVer++; if (dbPronto&&podeEscrever) db.doc('config/apuracao').set(state.apur).catch(function(){ toast('Não consegui salvar a configuração'); }); render(); renderCfg(); }
@@ -1200,7 +1203,8 @@
     var d=CFG_DEF[key]||CFG_SIMPLES[key]||{tipo:'num'}, simples=!!CFG_SIMPLES[key], atual=simples?cfgS(key):cfgVal(key,mesHoje()), campo;
     if (d.tipo==='bool') campo='<select id="cfgV" class="mini"><option value="1"'+(atual?' selected':'')+'>Sim</option><option value="0"'+(atual?'':' selected')+'>Não</option></select>';
     else if (d.tipo==='mes') campo='<select id="cfgV" class="mini">'+cfgMesesOpc(atual)+'</select>';
-    else campo='<input id="cfgV" type="number" min="0" max="365" class="mini" style="width:6em" value="'+esc(atual==null?'':atual)+'"'+(key.indexOf('serv.prazo|')===0||key.indexOf('ri.prazoNat|')===0?' placeholder="vazio = '+(key.indexOf('ri.')===0?'herda':'sem prazo')+'"':'')+'>';
+    else { var natK=key.indexOf('serv.prazo|')===0||key.indexOf('ri.prazoNat|')===0, nA=atual&&typeof atual==='object'?atual.n:(atual!=null&&atual>=0?atual:''), uA=atual&&typeof atual==='object'&&atual.un==='c'?'c':'u';
+      campo='<input id="cfgV" type="number" min="0" max="999" class="mini" style="width:6em" value="'+esc(nA)+'"'+(key.indexOf('serv.prazo|')===0||key.indexOf('ri.prazoNat|')===0?' placeholder="vazio = '+(key.indexOf('ri.')===0?'herda':'sem prazo')+'"':'')+'>'+(natK?' <select id="cfgUn" class="mini"><option value="u"'+(uA==='u'?' selected':'')+'>dias úteis</option><option value="c"'+(uA==='c'?' selected':'')+'>dias corridos</option></select>':''); }
     return '<div class="cfg-form"><label>Novo valor '+campo+'</label>'+(simples?'':'<label>Vale a partir de <select id="cfgDe" class="mini">'+cfgMesesOpc(mesHoje())+'</select></label>')+
       '<label class="cfg-mot">Motivo (obrigatório) <input id="cfgMot" type="text" class="mini" maxlength="300" placeholder="ex.: Lei, decisão da análise crítica, erro de cadastro"></label>'+
       '<span class="cfg-bt"><button type="button" class="btn sm" data-cfgsalvar="'+esc(key)+'">Salvar</button>'+(simples?'':'<button type="button" class="btn sm" data-cfgpadrao="'+esc(key)+'">Voltar ao padrão</button>')+'<button type="button" class="btn sm" data-cfgcancel="1">Cancelar</button></span>'+
@@ -1217,7 +1221,7 @@
     h+='<details class="cfg-det"'+(state.cfgEd&&state.cfgEd.indexOf('ri.prazoNat|')===0?' open':'')+'><summary>Prazo próprio por natureza do RI'+(espec.length?' · '+espec.length+' com prazo próprio':' · todas herdam o prazo da prenotação')+'</summary><p class="hint" style="margin:6px 0">Use para títulos com prazo diferente (ex.: incorporação, prazos especiais do art. 188). Vazio = herda o prazo da prenotação.</p><div class="tbl-wrap"><table class="cfg-t"><thead><tr><th class="tleft">Natureza</th><th class="tleft">Valor e vigência</th><th></th></tr></thead><tbody>'+
       nks.map(function(k){ return cfgLinha('ri.prazoNat|'+k,'<div class="hint" style="margin:2px 0 0">'+nat[k]+' protocolos registrados ou cancelados</div>'); }).join('')+'</tbody></table></div></details>';
     var sk={}; Object.keys(state.serv).forEach(function(m){ state.serv[m].forEach(function(d){ var s=svDe(d.t); if (!s||s==='Apoio') return; var k=d.t+'|'+d.nat; sk[k]=(sk[k]||0)+1; }); });
-    var sks=Object.keys(sk).sort(function(a,b){ return sk[b]-sk[a]; }), comP=sks.filter(function(k){ return cfgVal('serv.prazo|'+k,hoje)!=null; }).length;
+    var sks=Object.keys(sk).sort(function(a,b){ return sk[b]-sk[a]; }), comP=sks.filter(function(k){ var v=cfgVal('serv.prazo|'+k,hoje); return v!=null&&!(v<0); }).length;
     h+='<div class="sub-h" style="margin-top:16px">Prazos das outras serventias e das intimações</div><details class="cfg-det"'+(state.cfgEd&&state.cfgEd.indexOf('serv.prazo|')===0?' open':'')+'><summary>'+comP+' de '+sks.length+' naturezas com prazo cadastrado</summary><p class="hint" style="margin:6px 0">Prazo em dias úteis do ingresso à finalização (0 = no mesmo dia). Vazio = sem prazo cadastrado (o painel mostra a referência P90).</p><div class="tbl-wrap"><table class="cfg-t"><thead><tr><th class="tleft">Natureza</th><th class="tleft">Valor e vigência</th><th></th></tr></thead><tbody>'+
       sks.map(function(k){ var p=k.split('|'), b=PRAZOS_BASE[k]; return cfgLinha('serv.prazo|'+k,'<div class="hint" style="margin:2px 0 0">'+esc(p[0])+' · '+sk[k]+' documentos'+(b?' · base: '+esc(b):'')+'</div>'); }).join('')+'</tbody></table></div></details>';
     h+='<div class="sub-h" style="margin-top:16px">Regras de apuração</div><div class="tbl-wrap"><table class="cfg-t"><thead><tr><th class="tleft">Regra</th><th class="tleft">Valor e vigência</th><th></th></tr></thead><tbody>'+
@@ -1236,7 +1240,8 @@
     var d=CFG_DEF[key]||CFG_SIMPLES[key]||{tipo:'num'}, de=($('cfgDe')||{}).value||mesHoje(), v=null;
     if (t.dataset.cfgsalvar){ var raw=String(($('cfgV')||{}).value||'').trim().replace(',','.');
       if (d.tipo==='bool') v=raw==='1'; else if (d.tipo==='mes') v=raw; else if (raw===''){ v=CFG_SIMPLES[key]?CFG_SIMPLES[key].def:null; } else { if (isNaN(+raw)||+raw<0){ toast('Valor inválido'); return true; } v=Math.round(+raw); }
-      if (key.indexOf('serv.prazo|')===0 && raw==='') v=-1; } // -1 = sem prazo a partir da competência
+      if (key.indexOf('serv.prazo|')===0 && raw==='') v=-1;
+      var un=($('cfgUn')||{}).value; if (un==='c' && typeof v==='number' && v>=0) v={n:v, un:'c'}; } // dias úteis seguem como número (compatível) // -1 = sem prazo a partir da competência
     state.cfgEd=null; cfgMudar(key, v, de, mot); return true;
   }
   function ehCanc(st){ return st==='CD'||st==='CP'||st==='CC'; }
@@ -1267,6 +1272,8 @@
       a.retUsado=a.reg?(retT||(a.ret&&a.ret<=a.reg?a.ret:'')):''; a.retFonte=retT?'Tri7':a.retUsado?'VHL':'';
       a.lim=Motor.limitePrazo(a.reing||(retT?1:0), a.ing, a.retUsado, state.extras, prazoBaseRI(a), cfgVal('ri.retornoMais',compAto(a)));
     }
+    var pNat=cfgVal('ri.prazoNat|'+a.nat,compAto(a)); a.limCorr=null; a.limVenc=null;
+    if (pNat&&typeof pNat==='object'&&pNat.un==='c'&&a.ing){ var di=Motor.diaDeIso(a.ing), fv=vencCorridos(duCal(),di,pNat.n); a.limCorr=pNat.n; a.limVenc=Motor.isoDeDia(fv); a.lim=duCal()(di,fv); } // prazo próprio em dias corridos
     a.retDu=a.retUsado?duCal()(Motor.diaDeIso(a.ing),Motor.diaDeIso(a.retUsado)):null;
     a.dentro=a.bruto!=null && a.bruto<=a.lim; a.espera=(a.bruto!=null&&a.liq!=null)?Math.max(0,a.bruto-a.liq):null;
     if (!L || !L.some(function(e){ return e.s==='PN'||e.s==='PA'; })) return;
@@ -1426,8 +1433,9 @@
   function servDocs(tipo){ var out=[]; Object.keys(state.serv).sort().forEach(function(m){ if (state.periodo!=='todos'&&state.periodo!==m) return; state.serv[m].forEach(function(d){ if (!tipo||tipo==='__todas'||d.t===tipo) out.push(d); }); }); return out; }
   function servTipos(){ var c={}; Object.keys(state.serv).forEach(function(m){ state.serv[m].forEach(function(d){ c[d.t]=(c[d.t]||0)+1; }); });
     return Object.keys(c).sort(function(a,b){ var ia=SERV_ORD.indexOf(a), ib=SERV_ORD.indexOf(b); return (ia<0?99:ia)-(ib<0?99:ib) || c[b]-c[a]; }); }
-  function servDu(d){ if (d._du!=null && d._duV===state.extras.length) return d._du; var du=Motor.criarCalendario(state.extras||[]); d._du=du(d.ing,d.fin); d._duV=state.extras.length; return d._du; }
-  function servPrazo(d){ var v=cfgVal('serv.prazo|'+d.t+'|'+d.nat, d.mes||'9999-99'); return v==null||v<0?null:v; } // 0.10.6: com vigência (Configuração)
+  function servDu(d){ var kx=(state.extras||[]).join(','); if (d._du!=null && d._duV===kx) return d._du; var du=duServ(); d._du=du(d.ing,d.fin); d._duV=kx; return d._du; }
+  function servPrazo(d){ var v=cfgVal('serv.prazo|'+d.t+'|'+d.nat, d.mes||'9999-99'); if (v&&typeof v==='object'){ if (v.un!=='c') return v.n; var du=duServ(); return du(d.ing, vencCorridos(du,d.ing,v.n)); } return v==null||v<0?null:v; }
+  var duServK=null, duServF=null; function duServ(){ var k=(state.extras||[]).join(','); if (k!==duServK){ duServK=k; duServF=Motor.criarCalendario(state.extras||[]); } return duServF; } // 0.10.6: com vigência (Configuração)
   function servOk(d){ var p=servPrazo(d); return p==null?null:servDu(d)<=p; }
   function salvarPrazosServ(){ if (dbPronto&&podeEscrever) db.doc('config/prazos').set({map:state.prazosServ, em:new Date().toISOString()}).catch(function(){ toast('Não consegui salvar os prazos'); }); }
   // monta as outras atribuições a partir dos dados brutos guardados (Prazo + Produção por Etapa)
@@ -1509,7 +1517,7 @@
       '<div class="tbl-wrap"><table><thead><tr><th class="tleft">Natureza</th>'+(varios?'<th class="tleft">Tipo</th>':'')+'<th>Qtd.</th><th>Mediana</th><th>P90</th><th>Máx.</th><th>Atuação</th><th>Prazo (d.u.)</th><th>No prazo</th></tr></thead><tbody>'+
       nk.map(function(k){ var x=N[k], s=est(x.docs.map(servDu)), a=est(x.docs.map(function(d){return d.tempo;}).filter(function(v){return v>0;})), pz=state.prazosServ[k], cp=x.docs.filter(function(d){ return servPrazo(d)!=null; }), ok=cp.filter(servOk).length, base=PRAZOS_BASE[k];
         return '<tr class="click'+(state.srvNat===k?' sel':'')+'" data-srvnat="'+esc(k)+'"><td class="tleft">'+esc(x.nat)+'</td>'+(varios?'<td class="tleft mut">'+esc(x.t)+'</td>':'')+'<td class="num">'+x.docs.length+'</td><td class="num" data-tip="'+esc(estTip(s,' d.u.'))+'">'+f1(s.mediana)+'</td><td class="num">'+f1(s.p90)+'</td><td class="num">'+s.max+'</td><td class="num">'+(a.n?fmtMS(a.mediana):'—')+'</td>'+
-          '<td'+(base?' data-tip="'+esc(base)+'"':'')+'>'+(function(){ var v=cfgVal('serv.prazo|'+k,mesHoje()); return v==null||v<0?'<span class="mut">—</span>':String(v); })()+(podeEscrever?' <button type="button" class="lnk" data-cfgir="serv.prazo|'+esc(k)+'">alterar</button>':'')+'</td><td>'+(cp.length?'<span class="pill '+(ok===cp.length?'good':ok/cp.length>=.9?'warn':'crit')+'">'+pct(ok/cp.length*100)+'</span>':'<span class="mut">—</span>')+'</td></tr>'; }).join('')+'</tbody></table></div>';
+          '<td'+(base?' data-tip="'+esc(base)+'"':'')+'>'+(function(){ var v=cfgVal('serv.prazo|'+k,mesHoje()); return v==null||(typeof v==='number'&&v<0)?'<span class="mut">—</span>':typeof v==='object'?v.n+(v.un==='c'?' corridos':''):String(v); })()+(podeEscrever?' <button type="button" class="lnk" data-cfgir="serv.prazo|'+esc(k)+'">alterar</button>':'')+'</td><td>'+(cp.length?'<span class="pill '+(ok===cp.length?'good':ok/cp.length>=.9?'warn':'crit')+'">'+pct(ok/cp.length*100)+'</span>':'<span class="mut">—</span>')+'</td></tr>'; }).join('')+'</tbody></table></div>';
     if (state.srvNat && N[state.srvNat]) h+='<div class="sub-h" style="margin-top:12px">'+esc(N[state.srvNat].nat)+' · documentos (mais demorados primeiro)</div><div class="tbl-wrap" style="max-height:420px"><table class="tleft"><thead><tr><th>Código</th><th>Natureza</th><th>Ingresso</th><th>Finalização</th><th>d.u.</th><th>Prazo</th><th></th><th>Atuação</th></tr></thead><tbody>'+servLista(N[state.srvNat].docs)+'</tbody></table></div>';
     return h;
   }
@@ -1667,7 +1675,7 @@
   }
 
   // ——— versão, dados brutos, recálculo, backup e memória de cálculo (site no GitHub + Supabase)
-  var APP_VERSAO='0.10.6'; // 0.x = em validação; vira 1.0.0 depois da apresentação ao Oficial
+  var APP_VERSAO='0.10.7'; // 0.x = em validação; vira 1.0.0 depois da apresentação ao Oficial
   // Dados brutos: só as colunas que o cálculo usa (sem título, solicitante ou nome de parte)
   function brutosMontar(){
     var S=XLSX.SSF, out={};
@@ -2812,8 +2820,28 @@
      .catch(function(){ toast('Não consegui excluir tudo — tente de novo'); b.disabled=false; });
   }
 
+  // 0.10.7: calendário do ano — mostra exatamente o que o cálculo usa como dia não útil; clique num dia útil marca feriado local, clique num feriado nacional marca "funcionou neste dia"
+  state.calAno=new Date().getFullYear();
   function renderFeriados(){
-    $('ferLista').innerHTML=state.extras.length?state.extras.slice().sort().map(function(d){ return '<span class="fer">'+fmtData(d)+'<button type="button" data-fer="'+d+'" aria-label="Remover '+fmtData(d)+'">×</button></span>'; }).join(''):'<span class="hint">Nenhum.</span>';
+    var el=$('ferLista'); if (!el) return; var A=state.calAno, nac={}; Motor.feriadosNomeados(A).forEach(function(x){ nac[x.d]=x.nome; });
+    var ex=state.extras||[], loc={}, trab={}; ex.forEach(function(s){ s=String(s); if (s.charAt(0)==='!') trab[Motor.diaDeIso(s.slice(1))]=1; else loc[Motor.diaDeIso(s)]=1; });
+    var du=duServ(), nN=0, nL=0, nT=0, uteis=0, hoje=Math.floor(Date.now()/864e5)-(new Date().getTimezoneOffset()>0?0:0);
+    var MES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    var h='<div class="cal-nav"><button type="button" class="btn sm" data-calano="-1" aria-label="Ano anterior">◀</button><b>'+A+'</b><button type="button" class="btn sm" data-calano="1" aria-label="Próximo ano">▶</button></div><div class="cal-ano">';
+    for (var mm=0; mm<12; mm++){
+      var d0=Math.round(Date.UTC(A,mm,1)/864e5), d1=Math.round(Date.UTC(A,mm+1,1)/864e5), w0=((d0%7)+7+4)%7;
+      h+='<div class="cal-mes"><div class="cal-t">'+MES[mm]+'</div><div class="cal-g"><span class="cal-h">D</span><span class="cal-h">S</span><span class="cal-h">T</span><span class="cal-h">Q</span><span class="cal-h">Q</span><span class="cal-h">S</span><span class="cal-h">S</span>';
+      for (var b=0;b<w0;b++) h+='<span></span>';
+      for (var d=d0; d<d1; d++){ var w=((d%7)+7+4)%7, iso=Motor.isoDeDia(d), dia=+iso.slice(8), cls='cal-d', tip=fmtData(iso), clic='';
+        if (w===0||w===6){ cls+=' fds'; tip+=' · fim de semana'; }
+        else if (nac[d]&&trab[d]){ cls+=' trab'; tip+=' · '+nac[d]+' — o cartório funcionou (conta como dia útil) · clique para voltar a ser feriado'; clic=' data-calnac="'+iso+'"'; nT++; uteis++; }
+        else if (nac[d]){ cls+=' nac'; tip+=' · feriado nacional: '+nac[d]+' · clique se o cartório funcionou'; clic=' data-calnac="'+iso+'"'; nN++; }
+        else if (loc[d]){ cls+=' loc'; tip+=' · feriado local (seu) · clique para tirar'; clic=' data-calloc="'+iso+'"'; nL++; }
+        else { tip+=' · dia útil · clique para marcar feriado local'; clic=' data-calloc="'+iso+'"'; uteis++; }
+        h+='<button type="button" class="'+cls+'"'+(podeEscrever?clic:' disabled')+' data-tip="'+esc(tip)+'" aria-label="'+esc(tip)+'">'+dia+'</button>'; }
+      h+='</div></div>'; }
+    h+='</div><div class="cal-leg"><span><i class="cal-d nac"></i>feriado nacional ('+nN+' em dia de semana)</span><span><i class="cal-d loc"></i>feriado local seu ('+nL+')</span><span><i class="cal-d trab"></i>feriado em que o cartório funcionou ('+nT+')</span><span><i class="cal-d fds"></i>fim de semana</span><span><b>'+uteis+'</b> dias úteis em '+A+'</span></div>';
+    el.innerHTML=h;
   }
   function salvarFeriados(){ renderFeriados(); salvarCfg(); render(); }
 
@@ -2826,7 +2854,7 @@
   ['dragenter','dragover'].forEach(function(t){ drop.addEventListener(t,function(e){ e.preventDefault(); drop.classList.add('over'); }); });
   ['dragleave','drop'].forEach(function(t){ drop.addEventListener(t,function(e){ e.preventDefault(); drop.classList.remove('over'); }); });
   drop.addEventListener('drop',function(e){ if(e.dataTransfer.files.length) receber(e.dataTransfer.files); });
-  $('ferAdd').addEventListener('click',function(){ var v=$('ferData').value; if(!v) return; if(state.extras.indexOf(v)<0){ state.extras.push(v); apurLog('Feriado local','—',fmtData(v),'imediato',''); apurSalvar(); } $('ferData').value=''; salvarFeriados(); });
+  if ($('ferAdd')) $('ferAdd').addEventListener('click',function(){ var v=$('ferData').value; if(!v) return; if(state.extras.indexOf(v)<0){ state.extras.push(v); apurLog('Feriado local','—',fmtData(v),'imediato',''); apurSalvar(); } $('ferData').value=''; salvarFeriados(); });
   document.addEventListener('click',function(e){
     var t=e.target;
     if (t.dataset && (t.dataset.cfged||t.dataset.cfgcancel||t.dataset.cfgsalvar||t.dataset.cfgpadrao) && cfgClique(t)) return;
@@ -2886,6 +2914,12 @@
     if (t.id==='btnLimpar') return limparArquivos();
     if (t.id==='btnExcluirMes') return excluirMes();
     if (t.id==='fecharDet'){ state.natSel=null; return render(); }
+    if (t.dataset && t.dataset.calano){ state.calAno+=+t.dataset.calano; return renderFeriados(); }
+    if (t.dataset && (t.dataset.calloc||t.dataset.calnac)){ var iso=t.dataset.calloc||t.dataset.calnac, nac=!!t.dataset.calnac, tem=nac?state.extras.indexOf('!'+iso)>=0:state.extras.indexOf(iso)>=0;
+      var txt=nac?(tem?'Voltar '+fmtData(iso)+' a ser feriado nacional':'Marcar que o cartório FUNCIONOU em '+fmtData(iso)+' (feriado nacional passa a contar como dia útil)'):(tem?'Tirar o feriado local de '+fmtData(iso):'Marcar '+fmtData(iso)+' como feriado local (dia sem expediente)');
+      var mot=window.prompt(txt+'\n\nMotivo (obrigatório — fica no histórico):',''); if (mot==null) return; mot=String(mot).trim(); if (!mot){ toast('Sem motivo, nada foi mudado'); return; }
+      var k=nac?'!'+iso:iso; if (tem) state.extras=state.extras.filter(function(x){ return x!==k; }); else state.extras.push(k);
+      apurLog(nac?'Feriado nacional (dia trabalhado)':'Feriado local', tem?(nac?'funcionou':'feriado'):(nac?'feriado':'dia útil'), tem?(nac?'feriado':'dia útil'):(nac?'funcionou':'feriado'), fmtData(iso), mot); apurSalvar(); return salvarFeriados(); }
     if (t.dataset && t.dataset.fer){ var fx=t.dataset.fer; state.extras=state.extras.filter(function(d){return d!==fx;}); apurLog('Feriado local',fmtData(fx),'removido','imediato',''); apurSalvar(); return salvarFeriados(); }
     if (t.dataset && t.dataset.nxnat!=null){ var nn=t.dataset.nxnat, ix=state.nx.sel.indexOf(nn); if (ix>=0) state.nx.sel.splice(ix,1); else state.nx.sel.push(nn); return render(); }
     if (t.dataset && t.dataset.nxrm!=null){ state.nx.sel=state.nx.sel.filter(function(x){ return x!==t.dataset.nxrm; }); return render(); }

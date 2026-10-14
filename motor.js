@@ -25,10 +25,14 @@ var Motor = (function(){
     f.push(p-48,p-47,p-2,p+60); // Carnaval seg/ter, Sexta-feira Santa, Corpus Christi
     return f;
   }
+  // 0.10.7: extras = feriados locais ('AAAA-MM-DD') e dias em que o cartório funcionou num feriado nacional ('!AAAA-MM-DD')
+  function aplicarExtras(set, extras){ (extras||[]).forEach(function(s){ s=String(s); if (s.charAt(0)!=='!') set[diaDeIso(s)]=1; }); (extras||[]).forEach(function(s){ s=String(s); if (s.charAt(0)==='!') delete set[diaDeIso(s.slice(1))]; }); return set; }
+  function feriadosNomeados(a){ var p=pascoa(a), L=[]; [[1,1,'Confraternização Universal'],[4,21,'Tiradentes'],[5,1,'Dia do Trabalho'],[9,7,'Independência'],[10,12,'Nossa Senhora Aparecida'],[11,2,'Finados'],[11,15,'Proclamação da República'],[11,20,'Consciência Negra'],[12,25,'Natal']].forEach(function(x){ L.push({d:Math.round(Date.UTC(a,x[0]-1,x[1])/DIA),nome:x[2]}); });
+    L.push({d:p-48,nome:'Carnaval (segunda)'},{d:p-47,nome:'Carnaval (terça)'},{d:p-2,nome:'Sexta-feira Santa'},{d:p+60,nome:'Corpus Christi'}); return L; }
   function criarCalendario(extras){
     var set={};
     for (var a=2022;a<=2032;a++) feriadosNacionais(a).forEach(function(d){ set[d]=1; });
-    (extras||[]).forEach(function(s){ set[diaDeIso(s)]=1; });
+    aplicarExtras(set, extras);
     return function diasUteis(a,b){ // conta [a,b): exclui o dia do começo? -> igual ao VHL: inclui a, exclui b
       if (a==null||b==null) return null; if (b<=a) return 0;
       var n=0; for (var d=a; d<b; d++){ var w=((d%7)+7+4)%7; if (w!==0&&w!==6&&!set[d]) n++; } return n;
@@ -233,7 +237,7 @@ var Motor = (function(){
   }
   function isoMin(n){ return new Date(n*60000).toISOString().slice(0,16); }
   function minIso(s){ var p=s.split(/[-T:]/); return Math.round(Date.UTC(+p[0],+p[1]-1,+p[2],+p[3],+p[4])/60000); }
-  function feriadoSet(extras){ var set={}; for (var a=2022;a<=2032;a++) feriadosNacionais(a).forEach(function(d){ set[d]=1; }); (extras||[]).forEach(function(s){ set[diaDeIso(s)]=1; }); return set; }
+  function feriadoSet(extras){ var set={}; for (var a=2022;a<=2032;a++) feriadosNacionais(a).forEach(function(d){ set[d]=1; }); return aplicarExtras(set, extras); }
   function horasUteis(a,b,fer,h0,h1){ // a,b em minutos "ingênuos"
     if (a==null||b==null||b<=a) return 0; var t=0, d0=Math.floor(a/1440), d1=Math.floor(b/1440);
     for (var d=d0; d<=d1; d++){ var w=((d%7)+7+4)%7; if (w===0||w===6||fer[d]) continue;
@@ -347,7 +351,7 @@ var Motor = (function(){
         ets:f[7]?f[7].split(';').map(function(x){ var q=x.split(':'); return {et:doc.ets[+q[0]], rp:doc.resps[+q[1]], d:+q[2], pz:+q[3]}; }):[]}; });
   }
 
-  return {limitePrazo:limitePrazo, mascarar:mascarar, processarServ:processarServ, codificarServ:codificarServ, decodificarServ:decodificarServ, tipoServ:tipoServ, processarAndam:processarAndam, codificarAndam:codificarAndam, decodificarAndam:decodificarAndam, andChave:andChave, AND_NOME:AND_NOME, isoMin:isoMin, processar:processar, processarInconf:processarInconf, processarCert:processarCert, codificarCert:codificarCert, decodificarCert:decodificarCert, horasUteis:horasUteis, limiteCert:limiteCert, feriadoSet:feriadoSet, nomearErro:nomearErro, CATS_ERRO:CATS_ERRO, detectar:detectar, codificar:codificar, decodificar:decodificar, criarCalendario:criarCalendario, diaDeIso:diaDeIso, isoDeDia:isoDeDia, codificarLog:codificarLog, decodificarLog:decodificarLog, paraDia:paraDia, semAcento:semAcento, linhas:linhas};
+  return {limitePrazo:limitePrazo, mascarar:mascarar, processarServ:processarServ, codificarServ:codificarServ, decodificarServ:decodificarServ, tipoServ:tipoServ, processarAndam:processarAndam, codificarAndam:codificarAndam, decodificarAndam:decodificarAndam, andChave:andChave, AND_NOME:AND_NOME, isoMin:isoMin, processar:processar, processarInconf:processarInconf, processarCert:processarCert, codificarCert:codificarCert, decodificarCert:decodificarCert, horasUteis:horasUteis, limiteCert:limiteCert, feriadoSet:feriadoSet, feriadosNomeados:feriadosNomeados, nomearErro:nomearErro, CATS_ERRO:CATS_ERRO, detectar:detectar, codificar:codificar, decodificar:decodificar, criarCalendario:criarCalendario, diaDeIso:diaDeIso, isoDeDia:isoDeDia, codificarLog:codificarLog, decodificarLog:decodificarLog, paraDia:paraDia, semAcento:semAcento, linhas:linhas};
 })();
 if (typeof module!=='undefined') module.exports=Motor;
 // MOTOR-FIM ———————————————————————————————————————————————————
