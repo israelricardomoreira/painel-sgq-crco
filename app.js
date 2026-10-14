@@ -1687,7 +1687,7 @@
   }
 
   // ——— versão, dados brutos, recálculo, backup e memória de cálculo (site no GitHub + Supabase)
-  var APP_VERSAO='0.11.0'; // 0.x = em validação; vira 1.0.0 depois da apresentação ao Oficial
+  var APP_VERSAO='0.11.1'; // 0.x = em validação; vira 1.0.0 depois da apresentação ao Oficial
   // 0.11.0: proteção de versão — index.html, motor.js e nuvem.js levam a versão; se algum arquivo ficou de outra entrega, avisa no topo
   function checarVersoes(){ var el=$('avisoVersao'); if (!el) return; var meta=document.querySelector('meta[name="painel-versao"]'), dif=[];
     var v={'index.html':meta?meta.getAttribute('content'):'(sem versão)','motor.js':(window.Motor&&Motor.VERSAO)||'(antigo)'}; if (window.nuvem) v['nuvem.js']=window.NUVEM_VERSAO||'(antigo)';
@@ -1695,7 +1695,7 @@
     el.hidden=!dif.length; if (dif.length) el.innerHTML='<b>Arquivos de versões diferentes.</b> O app.js é da '+esc(APP_VERSAO)+', mas '+esc(dif.join(', '))+'. Suba de novo todos os arquivos da entrega e recarregue a página. Até lá, não importe nem lance nada.'; }
   setTimeout(checarVersoes,0);
   // 0.11.0: a biblioteca de planilhas (≈310 KB) só é baixada quando precisa — importar, recalcular ou baixar a memória de cálculo
-  var XLSX_URL='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js', XLSX_SRI='sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw', xlsxProm=null;
+  var XLSX_URL='xlsx.full.min.js?v=0.20.3', XLSX_SRI='sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT', xlsxProm=null;
   function precisaXLSX(){ if (window.XLSX) return Promise.resolve(window.XLSX); if (xlsxProm) return xlsxProm;
     xlsxProm=new Promise(function(ok,falha){ var sc=document.createElement('script'); sc.src=XLSX_URL; if (XLSX_SRI){ sc.integrity=XLSX_SRI; sc.crossOrigin='anonymous'; }
       sc.onload=function(){ window.XLSX?ok(window.XLSX):falha(new Error('biblioteca de planilhas não carregou')); }; sc.onerror=function(){ xlsxProm=null; falha(new Error('não consegui baixar a biblioteca de planilhas (verifique a internet)')); }; document.head.appendChild(sc); });
