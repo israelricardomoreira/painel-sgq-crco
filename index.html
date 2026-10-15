@@ -6,7 +6,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex, nofollow">
-<meta name="painel-versao" content="0.18.0">
+<meta name="painel-versao" content="0.19.0">
 <title>Painel SGQ · CRCO</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23c94f0a'/%3E%3Ctext x='16' y='21' font-family='Arial' font-size='12' font-weight='700' fill='white' text-anchor='middle'%3ESGQ%3C/text%3E%3C/svg%3E">
 <style>
@@ -189,6 +189,7 @@ table.tleft th,table.tleft td{text-align:left}
 .hm{border-collapse:separate;border-spacing:2px;width:auto}.hm th{font-size:12px;color:var(--ink-3);font-weight:600;padding:2px 6px;text-align:center;background:none}
 .hm td.hmc{min-width:46px;height:30px;text-align:center;font-size:12px;font-variant-numeric:tabular-nums;border-radius:4px;color:var(--ink);background:var(--surface-2);padding:0 4px;cursor:default}
 .hm td.b3,.hm td.b4{color:#000;font-weight:700}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .hm td.b3{color:#fff} } :root[data-theme="dark"] .hm td.b3{color:#fff} /* 0.19.0: faixa 3 no escuro pede texto claro */
 
 .protf{display:flex;gap:6px}.protf input{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 10px;width:190px;font:inherit}
 .lnk{background:none;border:0;padding:0;color:var(--brand);font:inherit;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
@@ -415,6 +416,17 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
 .eq-aud{border-color:var(--serie)}.eq-ft{color:var(--warn);font-weight:700}
 .eq-f{flex-wrap:wrap;gap:8px}
 .eq-set{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 12px}.eq-set .chip{cursor:pointer}.eq-set .chip.on{border-color:var(--serie);background:var(--surface-2);color:var(--ink);font-weight:600}.eq-set .hint{margin-left:6px}
+/* 0.19.0: Meus painéis */
+.pn-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}.pn-nome{font-size:15px}.pn-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:12px}
+.pn-card.largo{grid-column:1/-1}.pn-acoes{display:inline-flex;gap:8px;margin-left:auto;font-size:12px;flex-wrap:wrap}.pn-desc{font-size:12px;color:var(--ink-3);margin:8px 0 0}.pn-nota{font-size:12.5px;color:var(--ink-2);margin:4px 0 0}
+.pn-num{display:flex;flex-direction:column;gap:6px;align-items:flex-start;padding:8px 0}.pn-num b{font-size:34px;line-height:1.1}.pn-num small{color:var(--ink-3)}
+.pn-ad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px;border-top:1px solid var(--line);padding-top:10px}.pn-ad div{display:flex;flex-direction:column;gap:2px;min-width:0}.pn-ad span,.pn-ad small{font-size:11.5px;color:var(--ink-3)}.pn-ad b{font-size:18px}
+.pn-ed{margin-bottom:14px}.pn-ed-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:10px}.pn-ed label,.pn-ed-l{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--ink-2)}.pn-ed-l{margin-top:12px}.pn-ed-l>span{font-weight:600}
+.pn-ed small{color:var(--ink-3)}.pn-ed select,.pn-ed input[type=text],.pn-ed input[type=number],.pn-ed input[type=month]{max-width:100%}.pn-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.pn-row label{flex-direction:row;align-items:center}
+.pn-fl{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px;margin:3px 0}.pn-fl.add select[multiple]{max-width:100%}.pn-b{border-left:3px solid var(--line);padding-left:10px;margin-top:6px;display:flex;flex-direction:column;gap:6px}
+.pn-fmts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:8px}.pn-fmt{border:1px solid var(--line);border-radius:8px;padding:8px 10px;cursor:pointer;background:var(--surface)}.pn-fmt.on{border-color:var(--serie);box-shadow:inset 0 0 0 1px var(--serie)}
+.pn-ed-g>.pn-ed-l{grid-column:1/-1}.pn-ed label.lc-chk{flex-direction:row;align-items:center;gap:6px}.pn-prev .gm-card{max-width:680px}.pn-ed input[type=text],.pn-ed input[type=number],.pn-ed input[type=month]{padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink);font:inherit}
+.pn-fmt input{position:absolute;opacity:0;pointer-events:none}.pn-fmt:focus-within{outline:2px solid var(--serie)}.pn-fmt b{font-size:13px;color:var(--ink)}.pn-prev{margin-top:14px}.pn-t td,.pn-t th{white-space:nowrap}
 /* 0.18.0: Aprendizagem */
 .apr-c{margin-bottom:12px}.apr-c.fim{opacity:.85}.apr-h{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
 .apr-ms{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.apr-m{display:flex;flex-direction:column;gap:3px;align-items:flex-start;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 10px;font:inherit;font-size:12.5px;color:var(--ink-2);cursor:pointer}.apr-m.on{border-color:var(--serie);outline:2px solid var(--serie)}
@@ -445,6 +457,7 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
   <div class="menu-marca"><div class="mark">SGQ</div><b>Painel SGQ</b><button class="btn sm menu-recolher" id="btnRecolher" type="button" title="Recolher a barra lateral" aria-label="Recolher a barra lateral">«</button></div>
   <button class="tab" type="button" data-tab="geral" aria-selected="true">Painel geral</button>
   <button class="tab" type="button" data-tab="vis" aria-selected="false">Gráficos</button>
+  <button class="tab" type="button" data-tab="pn" aria-selected="false">Meus painéis</button>
   <div class="menu-grp">Prazos</div>
   <button class="tab" type="button" data-tab="nat" aria-selected="false">Por natureza</button>
   <button class="tab" type="button" data-tab="eta" aria-selected="false">Por etapa</button>
@@ -573,6 +586,7 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
     <div id="tabSau" hidden></div>
     <div id="tabEqp" hidden></div>
     <div id="tabApr" hidden></div>
+    <div id="tabPn" hidden></div>
     <div id="tabVis" hidden></div>
     <div id="tabCfg" hidden>
       <div id="cfgCorpo"></div>
@@ -597,29 +611,30 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
-<script src="config.js?v=0.18.0"></script>
-<script src="nuvem.js?v=0.18.0"></script>
-<script src="motor.js?v=0.18.0"></script>
-<script src="js/nucleo.js?v=0.18.0"></script>
-<script src="js/prazos.js?v=0.18.0"></script>
-<script src="js/inconformidades.js?v=0.18.0"></script>
-<script src="js/relatorios.js?v=0.18.0"></script>
-<script src="js/kpis.js?v=0.18.0"></script>
-<script src="js/atendimento.js?v=0.18.0"></script>
-<script src="js/ficha.js?v=0.18.0"></script>
-<script src="js/configuracao.js?v=0.18.0"></script>
-<script src="js/tri7.js?v=0.18.0"></script>
-<script src="js/serventias.js?v=0.18.0"></script>
-<script src="js/dados.js?v=0.18.0"></script>
-<script src="js/graficos.js?v=0.18.0"></script>
-<script src="js/desempenho.js?v=0.18.0"></script>
-<script src="js/visual.js?v=0.18.0"></script>
-<script src="js/certidoes.js?v=0.18.0"></script>
-<script src="js/importar.js?v=0.18.0"></script>
-<script src="js/saude.js?v=0.18.0"></script>
-<script src="js/equipe.js?v=0.18.0"></script>
-<script src="js/aprendizagem.js?v=0.18.0"></script>
-<script src="js/navegacao.js?v=0.18.0"></script>
-<script src="js/inicio.js?v=0.18.0"></script>
+<script src="config.js?v=0.19.0"></script>
+<script src="nuvem.js?v=0.19.0"></script>
+<script src="motor.js?v=0.19.0"></script>
+<script src="js/nucleo.js?v=0.19.0"></script>
+<script src="js/prazos.js?v=0.19.0"></script>
+<script src="js/inconformidades.js?v=0.19.0"></script>
+<script src="js/relatorios.js?v=0.19.0"></script>
+<script src="js/kpis.js?v=0.19.0"></script>
+<script src="js/atendimento.js?v=0.19.0"></script>
+<script src="js/ficha.js?v=0.19.0"></script>
+<script src="js/configuracao.js?v=0.19.0"></script>
+<script src="js/tri7.js?v=0.19.0"></script>
+<script src="js/serventias.js?v=0.19.0"></script>
+<script src="js/dados.js?v=0.19.0"></script>
+<script src="js/graficos.js?v=0.19.0"></script>
+<script src="js/desempenho.js?v=0.19.0"></script>
+<script src="js/visual.js?v=0.19.0"></script>
+<script src="js/certidoes.js?v=0.19.0"></script>
+<script src="js/importar.js?v=0.19.0"></script>
+<script src="js/saude.js?v=0.19.0"></script>
+<script src="js/equipe.js?v=0.19.0"></script>
+<script src="js/aprendizagem.js?v=0.19.0"></script>
+<script src="js/construtor.js?v=0.19.0"></script>
+<script src="js/navegacao.js?v=0.19.0"></script>
+<script src="js/inicio.js?v=0.19.0"></script>
 </body>
 </html>
