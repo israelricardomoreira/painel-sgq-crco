@@ -1,13 +1,15 @@
 /* Painel SGQ · CRCO — js/equipe.js (0.15.0: página "Equipe e funções" e o que ela leva para o relatório por pessoa)
  * Quem faz o quê (VHL · Produção por Etapa + Tri7 · andamentos e certidões) e comparação só com quem faz a mesma tarefa
  * na mesma natureza. Não soma funções diferentes, não faz ranking, não usa ausência nem atestado. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/equipe.js']='0.15.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/equipe.js']='0.16.0';
   var EQ_CORES=['var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)','var(--c6)'], EQ_OUTRAS='var(--ink-3)';
   var EQ_TRI={PN:'Prenotação',PA:'Prenotação',RE:'Revisão de exigência',NE:'Nota de exigência',RA:'Re-análise (entrada)',CI:'Custas informadas',SG:'Selos / registro',RC:'Recebido para entrega',CD:'Cancelamento',CP:'Cancelamento',CC:'Cancelamento'};
   // nome da função a partir da etapa do VHL: tira o prazo do nome ("Análise - 1 D", "4H - Análise" e "Análise - 2 D" viram "Análise")
   function eqFn(et){ var s=String(et||'').replace(/\s+/g,' ').trim();
     s=s.replace(/^\d+\s*[HD]\s*-\s*/i,'').replace(/\s*-\s*\d+\s*[HD]$/i,'').replace(/\s*-\s*\d+[HD]$/i,'').trim();
     return s||String(et||''); }
+  // prazo que o próprio nome da etapa traz: "1 D" = 1 dia útil, "4H" = meio dia, "2H" = 1/4
+  function eqMetaEt(et){ var s=String(et||''), m=s.match(/(\d+)\s*D\b/i)||s.match(/^(\d+)D\s*-/i); if (m) return +m[1]; m=s.match(/(\d+)\s*H\b/i); if (m) return Math.round(+m[1]/8*100)/100; return null; }
   function eqOculto(k){ return !!(state.eqOcl&&state.eqOcl[k]); }
   function eqSalvarOcl(){ if (dbPronto&&podeEscrever) db.doc('config/equipe').set({ocultos:state.eqOcl||{}}).catch(function(){ toast('Não consegui salvar a lista de ocultos'); }); }
   function eqMesDia(d){ return new Date(d*864e5).toISOString().slice(0,7); }
@@ -19,26 +21,27 @@
     var modo=svModo(), chave=[modo,svAtual(),subAtual(),state.riOrig||'todas',state.grVer,Object.keys(state.docs).length,Object.keys(state.logs).length,Object.keys(state.serv).length,state.andVer||0,Object.keys(state.cert).length,Object.keys(state.usr||{}).length].join('|');
     if (state._eqX&&state._eqX.k===chave) return state._eqX.v;
     var X=[];
-    function add(nome,fn,nat,m,pz,c,src){ if (!nome||!fn||!m) return; X.push({k:semAc(nome), nome:nome, fn:fn, nat:nat||'(sem natureza)', m:m, pz:(pz==null||isNaN(pz))?null:pz, c:String(c), src:src}); }
+    function add(nome,fn,nat,d,pz,c,src,et){ if (!nome||!fn||!d) return; d=String(d).slice(0,10); X.push({k:semAc(nome), nome:nome, fn:fn, nat:nat||'(sem natureza)', d:d, m:d.slice(0,7), pz:(pz==null||isNaN(pz))?null:pz, c:String(c), src:src, meta:et?eqMetaEt(et):null}); }
+    function dia(n){ return new Date(n*864e5).toISOString().slice(0,10); }
     if (modo==='ri'||modo==='todas'){
       Object.keys(state.docs).forEach(function(m){ if (!state.logs[m]) return; var map=state.logCache[m]||(state.logCache[m]=Motor.decodificarLog(state.logs[m]));
-        state.docs[m].atos.filter(origOk).forEach(function(a){ var L=map[a.c]; if (!L) return; L.ev.forEach(function(e){ add(e.rp,eqFn(e.et),a.nat,eqMesDia(e.d),e.pz,a.c,'VHL'); }); }); });
+        state.docs[m].atos.filter(origOk).forEach(function(a){ var L=map[a.c]; if (!L) return; L.ev.forEach(function(e){ add(e.rp,eqFn(e.et),a.nat,dia(e.d),e.pz,a.c,'VHL',e.et); }); }); });
       var nat=eqNatRI();
-      Object.keys(state.andam).forEach(function(m){ state.andam[m].forEach(function(e){ if (e.t!=='P'||!EQ_TRI[e.s]||!e.u||/^tri7$/i.test(e.u)) return; add(nomeLogin(e.u),EQ_TRI[e.s]+' (Tri7)',nat[String(e.n)]||'(ainda não finalizado)',Motor.isoMin(e.m).slice(0,7),null,e.n,'Tri7'); }); });
+      Object.keys(state.andam).forEach(function(m){ state.andam[m].forEach(function(e){ if (e.t!=='P'||!EQ_TRI[e.s]||!e.u||/^tri7$/i.test(e.u)) return; add(nomeLogin(e.u),EQ_TRI[e.s]+' (Tri7)',nat[String(e.n)]||'(ainda não finalizado)',Motor.isoMin(e.m).slice(0,10),null,e.n,'Tri7'); }); });
     }
-    if (modo==='cert'||modo==='todas') Object.keys(state.cert).forEach(function(m){ state.cert[m].recs.forEach(function(r){ if (!r.u||/^tri7$/i.test(r.u)) return; add(r.u,'Certidão (Tri7)',r.nat||'Certidão',String(r.i||m).slice(0,7),null,r.p,'Tri7'); }); });
+    if (modo==='cert'||modo==='todas') Object.keys(state.cert).forEach(function(m){ state.cert[m].recs.forEach(function(r){ if (!r.u||/^tri7$/i.test(r.u)) return; add(r.u,'Certidão (Tri7)',r.nat||'Certidão',String(r.i||(m+'-01')).slice(0,10),null,r.p,'Tri7'); }); });
     if (modo==='serv'||modo==='todas'||modo==='cert') Object.keys(state.serv).forEach(function(m){ state.serv[m].forEach(function(d){
       if (modo==='cert'){ if (semAc(d.t)!=='certidao - ri') return; } else if (modo==='serv'&&!docOk(d)) return; else if (modo==='todas'&&svDe(d.t)==='Apoio') return;
-      d.ets.forEach(function(e){ add(e.rp,eqFn(e.et),d.nat,e.d?eqMesDia(e.d):m,e.pz,d.c,'VHL'); }); }); });
+      d.ets.forEach(function(e){ add(e.rp,eqFn(e.et),d.nat,e.d?dia(e.d):m+'-01',e.pz,d.c,'VHL',e.et); }); }); });
     state._eqX={k:chave, v:X}; return X;
   }
   function eqPeriodo(){ return eqExecs().filter(function(x){ return eqNoPeriodo(x.m); }); }
   function eqMin(){ return state.eqMin||10; }
   // contagens: pessoa × função e função × natureza × pessoa
-  function eqContar(X){ var PF={}, F={}, FN={}, nomes={};
-    X.forEach(function(x){ nomes[x.k]=nomes[x.k]||x.nome; var p=PF[x.k]=PF[x.k]||{}; p[x.fn]=(p[x.fn]||0)+1; F[x.fn]=(F[x.fn]||0)+1;
+  function eqContar(X){ var PF={}, F={}, FN={}, nomes={}, U={};
+    X.forEach(function(x){ nomes[x.k]=nomes[x.k]||x.nome; var p=PF[x.k]=PF[x.k]||{}; p[x.fn]=(p[x.fn]||0)+1; F[x.fn]=(F[x.fn]||0)+1; var u=U[x.k]=U[x.k]||{}; if (!u[x.fn]||x.d>u[x.fn]) u[x.fn]=x.d;
       var f=FN[x.fn]=FN[x.fn]||{}, n=f[x.nat]=f[x.nat]||{}; n[x.k]=(n[x.k]||0)+1; });
-    return {PF:PF, F:F, FN:FN, nomes:nomes}; }
+    return {PF:PF, F:F, FN:FN, nomes:nomes, U:U}; }
   function eqNFuncoes(PF,k){ var mn=eqMin(); return Object.keys(PF[k]||{}).filter(function(f){ return PF[k][f]>=mn; }).length; }
   // funções e naturezas que dependem de uma só pessoa (contando as ocultas, sem mostrar o nome delas)
   function eqDependencias(Q){ var mn=eqMin(), out=[];
@@ -56,7 +59,7 @@
     L.forEach(function(x){ (P[x.k]=P[x.k]||{k:x.k,nome:x.nome,pz:[],docs:{}}).pz.push(x.pz); P[x.k].docs[x.c]=1; todos.push(x.pz); });
     var ix=eqIncIdx();
     var R=Object.keys(P).map(function(k){ var p=P[k], out=[]; Object.keys(P).forEach(function(j){ if (j!==k) out=out.concat(P[j].pz); });
-      var t=zWelch(p.pz,out), l=leitura(t,p.pz.length,'mais lento','mais rápido'), nd=Object.keys(p.docs), ni=nd.filter(function(c){ return (ix[c]||{})[k]; }).length;
+      var t=zWelch(p.pz,out), l=leitura(t,p.pz.length,'mais tempo na etapa','menos tempo na etapa'), nd=Object.keys(p.docs), ni=nd.filter(function(c){ return (ix[c]||{})[k]; }).length;
       return {k:k, nome:p.nome, n:p.pz.length, med:media(p.pz), l:out.length>=MIN_N?l:{txt:'poucos colegas',cls:'mut'}, nd:nd.length, ni:ni}; }).sort(function(a,b){ return b.n-a.n; });
     return {R:R, q1:quant(todos,.25), med:quant(todos,.5), q3:quant(todos,.75), p90:quant(todos,.9), n:todos.length}; }
   // inconformidades: código do documento -> pessoas responsáveis
@@ -82,19 +85,22 @@
     var triF=function(f){ return /\(Tri7\)$/.test(f); }, fns=Object.keys(Q.F).sort(function(a,b){ return (triF(a)-triF(b)) || Q.F[b]-Q.F[a]; });
     var fV=fns.filter(function(f){ return !triF(f); }), fT=fns.filter(triF), fnsV=state.eqTodasFn?fns:fV.slice(0,9).concat(fT.slice(0,4));
     var h='<div class="sec-h"><span class="note">Quem faz o quê e como cada pessoa está em relação aos colegas que fazem a mesma tarefa, no mesmo tipo de ato. Não é ranking. Fontes: VHL (Produção por Etapa) e Tri7 (andamentos e certidões). Mês = mês da execução.</span></div>'+
-      '<div class="search eq-f"><label>Mínimo para contar <select id="eqMin" aria-label="Mínimo de execuções">'+[5,10,20,50].map(function(v){ return '<option'+(v===mn?' selected':'')+'>'+v+'</option>'; }).join('')+'</select> execuções</label><span class="spacer"></span>'+
+      '<div class="search eq-f"><label>Mínimo para contar <select id="eqMin" aria-label="Mínimo de execuções">'+[5,10,20,50].map(function(v){ return '<option'+(v===mn?' selected':'')+'>'+v+'</option>'; }).join('')+'</select> execuções</label><button class="btn sm" type="button" data-eqcob="1" aria-expanded="'+(state.eqCob?'true':'false')+'">Quem sabe fazer cada função</button><button class="btn sm" type="button" data-eqcarga="1" aria-expanded="'+(state.eqCarga?'true':'false')+'">Carga das funções</button><span class="spacer"></span>'+
       (ocl.length?'<button class="btn sm" type="button" data-eqocl="1" aria-expanded="'+(state.eqVerOcl?'true':'false')+'">'+ocl.length+' pessoa'+(ocl.length>1?'s':'')+' oculta'+(ocl.length>1?'s':'')+' ↺</button>':'')+'</div>';
     if (state.eqVerOcl && ocl.length) h+='<div class="eq-ocl">'+ocl.sort().map(function(k){ return '<span class="chip">'+esc(state.eqOcl[k])+' <button class="lnk" type="button" data-eqmostrar="'+esc(k)+'" title="Voltar a mostrar" aria-label="Voltar a mostrar '+esc(state.eqOcl[k])+'">↺</button></span>'; }).join('')+'<span class="hint">As pessoas ocultas saem desta página e da comparação dos relatórios. Os dados delas continuam guardados.</span></div>';
     // 1. quem faz o quê
     var mxF={}; fnsV.forEach(function(f){ mxF[f]=0; vis.forEach(function(k){ mxF[f]=Math.max(mxF[f],(Q.PF[k]||{})[f]||0); }); });
     h+='<div class="panel eq-p"><div class="sub-h">Quem faz o quê · execuções no período</div><p class="hint" style="margin:0 0 8px">Cor mais forte = mais execuções naquela função (cada coluna na sua escala). Clique numa função para ver as naturezas.'+(fns.length>fnsV.length||state.eqTodasFn?' <button class="lnk" type="button" data-eqtodasfn="1">'+(state.eqTodasFn?'Mostrar só as maiores':'Mostrar todas as '+fns.length+' funções')+'</button>':'')+'</p>'+
       '<div class="tbl-wrap"><table class="eq-g"><thead><tr><th></th>'+(function(){ var nv=fnsV.filter(function(f){ return !triF(f); }).length, nt=fnsV.length-nv; return (nv?'<th colspan="'+nv+'" class="eq-grp">VHL · etapas</th>':'')+(nt?'<th colspan="'+nt+'" class="eq-grp">Tri7 · andamentos</th>':''); })()+'<th></th></tr><tr><th class="tleft">Pessoa</th>'+fnsV.map(function(f){ return '<th><button class="lnk eq-th'+(state.eqFn===f?' on':'')+'" type="button" data-eqfn="'+esc(f)+'">'+esc(f)+'</button></th>'; }).join('')+'<th>Funções</th></tr></thead><tbody>'+
-      vis.map(function(k){ return '<tr><td class="tleft"><span class="eq-nm">'+(podeEscrever?'<button class="eq-x" type="button" data-eqocultar="'+esc(k)+'" title="Ocultar desta página" aria-label="Ocultar '+esc(Q.nomes[k])+'">×</button>':'')+esc(Q.nomes[k])+'</span></td>'+
-        fnsV.map(function(f){ var v=(Q.PF[k]||{})[f]||0, t=mxF[f]?Math.sqrt(v/mxF[f]):0; return '<td>'+(v?'<span class="eq-c'+(v<mn?' fraco':'')+'" style="--a:'+(0.08+0.47*t).toFixed(2)+'" data-tip="'+esc('<b>'+esc(Q.nomes[k])+'</b><br>'+esc(f)+': '+v.toLocaleString('pt-BR')+' execuções'+(v<mn?' (abaixo do mínimo para contar)':''))+'">'+v.toLocaleString('pt-BR')+'</span>':'<span class="mut">·</span>')+'</td>'; }).join('')+
+      vis.map(function(k){ return '<tr><td class="tleft"><span class="eq-nm">'+(podeEscrever?'<button class="eq-x" type="button" data-eqocultar="'+esc(k)+'" title="Ocultar desta página" aria-label="Ocultar '+esc(Q.nomes[k])+'">×</button>':'')+'<button class="lnk eq-pn" type="button" data-eqaudk="'+esc(k)+'" title="Ver todos os títulos desta pessoa no período">'+esc(Q.nomes[k])+'</button></span></td>'+
+        fnsV.map(function(f){ var v=(Q.PF[k]||{})[f]||0, t=mxF[f]?Math.sqrt(v/mxF[f]):0; return '<td>'+(v?'<button type="button" class="eq-c'+(v<mn?' fraco':'')+(state.eqAud&&state.eqAud.k===k&&state.eqAud.fn===f?' on':'')+'" style="--a:'+(0.08+0.47*t).toFixed(2)+'" data-eqaudk="'+esc(k)+'" data-eqaudfn="'+esc(f)+'" data-tip="'+esc('<b>'+esc(Q.nomes[k])+'</b><br>'+esc(f)+': '+v.toLocaleString('pt-BR')+' execuções'+(v<mn?' (abaixo do mínimo para contar)':'')+'<br>Última: '+fmtData((Q.U[k]||{})[f]))+'" data-goh="ver os títulos">'+v.toLocaleString('pt-BR')+'</button>':'<span class="mut">·</span>')+'</td>'; }).join('')+
         '<td class="mut" style="white-space:nowrap">'+eqNFuncoes(Q.PF,k)+(eqNFuncoes(Q.PF,k)===1?' função':' funções')+'</td></tr>'; }).join('')+'</tbody></table></div>';
     var dep=eqDependencias(Q).slice(0,6);
     if (dep.length) h+='<div class="banner warn" style="margin:10px 0 0"><b>Dependem de uma pessoa só:</b> '+dep.map(function(d){ return esc(d.fn+(d.nat?' · '+d.nat:''))+' ('+esc(eqNomeOuOculto(Q,d.k))+')'; }).join(' · ')+'. Em férias ou ausência dessa pessoa, o serviço para.</div>';
     h+='</div>';
+    if (state.eqAud) h+=eqAudHTML();
+    if (state.eqCob) h+=eqCobHTML();
+    if (state.eqCarga) h+=eqCargaHTML();
     // 2. dentro de uma função
     var fsel=state.eqFn&&Q.F[state.eqFn]?state.eqFn:(fns.filter(function(f){ var n=0; Object.keys(Q.PF).forEach(function(k){ if (!eqOculto(k)&&(Q.PF[k][f]||0)>=mn) n++; }); return n>=2; })[0]||fns[0]); state.eqFn=fsel;
     var FN=Q.FN[fsel]||{}, nats=Object.keys(FN).map(function(n){ var t=0; Object.keys(FN[n]).forEach(function(k){ t+=FN[n][k]; }); return {n:n,t:t}; }).sort(function(a,b){ return b.t-a.t; });
@@ -104,7 +110,10 @@
       '<div class="two"><div><div class="sub-h">O que cada um faz nesta função</div>'+pessF.map(function(k){ var tot=Q.PF[k][fsel], partes=[], outras=0, nn=0, nao=[];
         nats.forEach(function(x){ var v=(FN[x.n]||{})[k]||0; if (v) nn++; if (cor[x.n]) { if (v) partes.push({nome:x.n,v:v,cor:cor[x.n]}); else if (x.t>=totF*0.05 && x.n.charAt(0)!=='(') nao.push(x.n); } else outras+=v; });
         if (outras) partes.push({nome:'Outras',v:outras,cor:EQ_OUTRAS});
-        return '<div class="eq-np"><b>'+esc(Q.nomes[k])+'</b>'+eqBarra(partes,tot)+'<span class="mut">'+tot.toLocaleString('pt-BR')+' · '+nn+' natureza'+(nn>1?'s':'')+'</span><small class="eq-det">'+eqTop(partes,tot,3)+'</small>'+(nao.length?'<small class="eq-nao">Não faz: '+esc(nao.join(', '))+'</small>':'')+'</div>'; }).join('')+
+        var ab=state.eqExp&&state.eqExp[k], det='';
+        if (ab){ var Lk=X.filter(function(x){ return x.k===k&&x.fn===fsel; }), nk={}; Lk.forEach(function(x){ var q=nk[x.nat]=nk[x.nat]||{n:0,u:''}; q.n++; if (x.d>q.u) q.u=x.d; });
+          det='<div class="eq-todas"><table class="tleft"><thead><tr><th>Natureza</th><th>Execuções</th><th>Última</th></tr></thead><tbody>'+Object.keys(nk).sort(function(a,b){ return nk[b].n-nk[a].n; }).map(function(n){ return '<tr><td>'+esc(n)+'</td><td>'+nk[n].n+'</td><td>'+fmtData(nk[n].u)+'</td></tr>'; }).join('')+'</tbody></table><button class="lnk" type="button" data-eqaudk="'+esc(k)+'" data-eqaudfn="'+esc(fsel)+'">Ver os títulos</button></div>'; }
+        return '<div class="eq-np"><button class="lnk eq-pn" type="button" data-eqexp="'+esc(k)+'" aria-expanded="'+(ab?'true':'false')+'" title="Ver todas as naturezas">'+(ab?'▾ ':'▸ ')+esc(Q.nomes[k])+'</button>'+eqBarra(partes,tot)+'<span class="mut">'+tot.toLocaleString('pt-BR')+' · '+nn+' natureza'+(nn>1?'s':'')+'</span><small class="eq-det">'+eqTop(partes,tot,3)+'</small>'+(nao.length?'<small class="eq-nao">Não faz: '+esc(nao.join(', '))+'</small>':'')+det+'</div>'; }).join('')+
       '<div class="leg">'+top.map(function(n){ return '<span><i class="dot" style="background:'+cor[n]+'"></i>'+esc(n)+'</span>'; }).join('')+(nats.length>6?'<span><i class="dot" style="background:'+EQ_OUTRAS+'"></i>Outras</span>':'')+'</div></div>';
     var corP={}; pessF.slice(0,6).forEach(function(k,i){ corP[k]=EQ_CORES[i]; });
     h+='<div><div class="sub-h">Parte de cada um por natureza</div>'+nats.slice(0,8).map(function(x){ var L=FN[x.n], partes=[], out=0, nvis=0;
@@ -112,6 +121,12 @@
         if (out) partes.push({nome:'Demais pessoas',v:out,cor:EQ_OUTRAS});
         return '<div class="eq-np"><b>'+esc(x.n)+'</b>'+eqBarra(partes,x.t,'%')+'<span class="mut">'+x.t.toLocaleString('pt-BR')+(nvis===1&&x.t>=20?' · <b class="eq-1p">1 pessoa</b>':'')+'</span><small class="eq-det">'+eqTop(partes,x.t,2,true)+'</small></div>'; }).join('')+
       '<div class="leg">'+pessF.slice(0,6).map(function(k){ return '<span><i class="dot" style="background:'+corP[k]+'"></i>'+esc(Q.nomes[k])+'</span>'; }).join('')+(pessF.length>6?'<span><i class="dot" style="background:'+EQ_OUTRAS+'"></i>Demais pessoas</span>':'')+'</div></div></div></div>';
+    // 2b. visão geral da função, ajustada pelo tipo de documento de cada um
+    var G=eqGeral(X,fsel).filter(function(g){ return g.n>=mn; });
+    if (G.length) h+='<div class="panel eq-p"><div class="sub-h">Visão geral · '+esc(fsel)+' · ajustada pelo tipo de documento</div><p class="hint" style="margin:0 0 8px">Cada execução é comparada com a média dos colegas <b>na mesma natureza</b>; assim quem pega tipos de documento mais demorados não sai prejudicado. Tempo = dias úteis que o documento ficou na etapa até a pessoa executar: inclui fila e distribuição, não é a velocidade da pessoa.</p>'+
+      '<div class="tbl-wrap"><table class="eq-cmp"><thead><tr><th class="tleft">Pessoa</th><th>Execuções</th><th>Naturezas</th><th>Tempo real (d.u.)</th><th>Esperado para os tipos dela</th><th>Diferença</th><th title="Documentos que tiveram exigência ou voltaram (reingresso)">Com exigência ou retorno</th><th>Docs. com inconf. da pessoa</th><th>Funções no período</th><th>Leitura</th></tr></thead><tbody>'+
+      G.map(function(g){ var nf=eqNFuncoes(Q.PF,g.k), d=g.razao!=null?(g.razao-1)*100:null; return '<tr><td class="tleft">'+esc(g.nome)+'</td><td>'+g.n+'</td><td>'+g.nNat+'</td><td><b>'+numBR(g.real,1)+'</b></td><td>'+(g.esp==null?'—':numBR(g.esp,1))+'</td><td>'+(d==null?'—':(d>0?'+':'')+numBR(d,0)+'%')+'</td><td>'+(g.pEx==null?'—':pct(g.pEx))+'</td><td>'+(g.pIn==null?'—':pct(g.pIn))+'</td><td>'+nf+'</td><td>'+eqLeitPill(g.l)+'</td></tr>'; }).join('')+'</tbody></table></div>'+
+      '<p class="hint">Leia junto com o contexto: exigências e retornos aumentam o tempo do documento; quem divide o dia entre várias funções atende cada fila em parte do dia. A leitura só sai de "dentro do esperado" com 95% de confiança e diferença de pelo menos '+numBR(DES_MIN_DIF,1)+' d.u. por execução.</p></div>';
     // 3. comparação dentro da função e natureza
     var natCmp=nats.filter(function(x){ return X.some(function(y){ return y.fn===fsel&&y.nat===x.n&&y.pz!=null; }); }), nsel=state.eqNat&&natCmp.some(function(x){ return x.n===state.eqNat; })?state.eqNat:(natCmp[0]||{}).n; state.eqNat=nsel;
     if (!nsel) h+='<div class="panel eq-p"><div class="sub-h">Comparação com os colegas</div><p class="hint">Esta função vem do Tri7, que não informa o tempo de cada etapa. A comparação de tempo existe só para as etapas do VHL.</p></div>';
@@ -155,7 +170,7 @@
     var nf=Object.keys(mine.reduce(function(o,x){ o[x.fn]=(o[x.fn]||0)+1; return o; },{})).length;
     return {pos:pos, so:so, qual:qual, ms:ms, ser:ser, nFn:nf}; }
   function eqSugestoes(E){ var f=[], a=[]; if (!E) return {fortes:'',atencao:''};
-    E.pos.forEach(function(p){ if (p.l.cls==='bom') f.push(p.fn+' · '+p.nat+': mais rápida que os colegas ('+numBR(p.med,1)+' d.u. × mediana '+numBR(p.qm,1)+').'); if (p.l.cls==='acima') a.push(p.fn+' · '+p.nat+': mais lenta que os colegas ('+numBR(p.med,1)+' d.u. × mediana '+numBR(p.qm,1)+').'); });
+    E.pos.forEach(function(p){ if (p.l.cls==='bom') f.push(p.fn+' · '+p.nat+': documento fica menos tempo na etapa que com os colegas ('+numBR(p.med,1)+' d.u. × mediana '+numBR(p.qm,1)+').'); if (p.l.cls==='acima') a.push(p.fn+' · '+p.nat+': documento fica mais tempo na etapa que com os colegas ('+numBR(p.med,1)+' d.u. × mediana '+numBR(p.qm,1)+'). Ver o contexto antes de concluir (fila, exigências, distribuição).'); });
     E.so.slice(0,3).forEach(function(s){ f.push((s.n===s.t?'Única pessoa':'Principal responsável ('+Math.round(s.n/s.t*100)+'%)')+' em '+s.fn+' · '+s.nat+'.'); });
     if (E.nFn>=3) f.push('Atua em '+E.nFn+' funções no período.');
     E.qual.forEach(function(q){ if (q.te!=null&&q.t!=null&&q.i>=3&&q.t>q.te*1.3) a.push(q.fn+': '+pct(q.t)+' dos documentos com inconformidade (colegas '+pct(q.te)+').'); });
@@ -171,4 +186,77 @@
       return '<div class="eq-q"><span>'+esc(q.fn)+'</span><div><i style="width:'+((q.t||0)/mx*100).toFixed(1)+'%;background:'+(q.te!=null&&q.t>q.te*1.3&&q.i>=3?'var(--crit)':'var(--serie)')+'"></i><i style="width:'+((q.te||0)/mx*100).toFixed(1)+'%;background:var(--ink-3);opacity:.35"></i></div><span class="n"><b>'+pct(q.t)+'</b> · '+pct(q.te)+'</span></div>'; }).join('')+'<div class="leg"><span><i class="dot" style="background:var(--serie)"></i>Pessoa</span><span><i class="dot" style="background:var(--ink-3);opacity:.35"></i>Colegas</span></div></div>';
     h+='</div>';
     if (E.so.length) h+='<h2>Só você faz</h2><div class="eq-so">'+E.so.map(function(s){ return '<div><b>'+(s.n===s.t?'única':Math.round(s.n/s.t*100)+'%')+'</b>'+esc(s.fn)+' · '+esc(s.nat)+'<small>'+s.n+' de '+s.t+' no período</small></div>'; }).join('')+'</div>';
+    return h; }
+  // ——— 0.16.0: visão geral da função ajustada pelo tipo de documento, auditoria, naturezas completas e cobertura
+  function eqExIdx(){ var k=Object.keys(state.docs).length+'|'+(state.andVer||0); if (state._eqE&&state._eqE.k===k) return state._eqE.v; var o={};
+    Object.keys(state.docs).forEach(function(m){ state.docs[m].atos.forEach(function(a){ o[String(a.c)]={ex:a.nex>0, re:!!a.reing}; }); }); state._eqE={k:k,v:o}; return o; }
+  // cada execução comparada com a média dos colegas (sem a própria pessoa) na mesma função e natureza; a pessoa é lida pela média desses desvios
+  function eqGeral(X, fn){
+    var L=X.filter(function(x){ return x.fn===fn && x.pz!=null && !eqOculto(x.k); }), C={};
+    L.forEach(function(x){ var c=C[x.nat]=C[x.nat]||{n:0,s:0,p:{}}; c.n++; c.s+=x.pz; var q=c.p[x.k]=c.p[x.k]||{n:0,s:0}; q.n++; q.s+=x.pz; });
+    var P={}, ex=eqExIdx(), ix=eqIncIdx();
+    L.forEach(function(x){ var c=C[x.nat], q=c.p[x.k], no=c.n-q.n; var p=P[x.k]=P[x.k]||{k:x.k,nome:x.nome,n:0,pz:0,esp:0,ne:0,dv:[],docs:{},nats:{}};
+      p.n++; p.pz+=x.pz; p.nats[x.nat]=1; p.docs[x.c]=1; if (no>=5){ var e=(c.s-q.s)/no; p.esp+=e; p.ne++; p.dv.push(x.pz-e); } });
+    return Object.keys(P).map(function(k){ var p=P[k], docs=Object.keys(p.docs), nEx=docs.filter(function(c){ return ex[c]&&(ex[c].ex||ex[c].re); }).length, nIn=docs.filter(function(c){ return (ix[c]||{})[k]; }).length, t=zMedia(p.dv);
+      var l=p.dv.length<MIN_N?{txt:'poucos casos',cls:'mut'}:leitura(t?{dif:t.m,z:t.z}:null,p.dv.length,'mais tempo na etapa','menos tempo na etapa');
+      return {k:k, nome:p.nome, n:p.n, real:p.pz/p.n, esp:p.ne?p.esp/p.ne:null, razao:p.ne?(p.pz/p.n)/(p.esp/p.ne):null, nNat:Object.keys(p.nats).length, docs:docs.length, pEx:docs.length?nEx/docs.length*100:null, pIn:docs.length?nIn/docs.length*100:null, l:l}; })
+      .sort(function(a,b){ return b.n-a.n; }); }
+  function eqUltima(L){ var u=''; L.forEach(function(x){ if (x.d>u) u=x.d; }); return u; }
+  function eqHa(d){ if (!d) return ''; var dias=Math.round((Date.now()-Date.parse(d+'T12:00:00'))/864e5); return dias>183?' <span class="pill warn" title="Última vez há mais de 6 meses">há '+Math.round(dias/30)+' meses</span>':''; }
+  // auditoria: os títulos de uma pessoa (numa função ou em todas), no período
+  function eqAudLista(){ var a=state.eqAud; if (!a) return []; var ix=eqIncIdx();
+    return eqPeriodo().filter(function(x){ return x.k===a.k && (!a.fn||x.fn===a.fn) && (!a.nat||x.nat===a.nat); }).map(function(x){ return Object.assign({},x,{inc:!!(ix[x.c]||{})[x.k]}); })
+      .sort(function(p,q){ return p.d<q.d?1:p.d>q.d?-1:0; }); }
+  function eqAudHTML(){ var a=state.eqAud; if (!a) return ''; var L0=eqPeriodo().filter(function(x){ return x.k===a.k && (!a.fn||x.fn===a.fn); }), L=eqAudLista(), lim=state.eqAudLim||100;
+    var nats={}; L0.forEach(function(x){ nats[x.nat]=(nats[x.nat]||0)+1; }); var por={}; if (!a.fn) L.forEach(function(x){ por[x.fn]=(por[x.fn]||0)+1; });
+    return '<div class="panel eq-p eq-aud" id="eqAud"><div class="sec-h"><h2>Auditoria · '+esc(a.nome)+(a.fn?' · '+esc(a.fn):' · todas as funções')+'</h2><span class="spacer"></span><button class="btn sm" type="button" data-eqaudxls="1">Baixar planilha</button> <button class="btn sm" type="button" data-eqaudfechar="1">Fechar</button></div>'+
+      '<div class="search"><select id="eqAudNat" aria-label="Natureza"><option value="">Todas as naturezas ('+L0.length+')</option>'+Object.keys(nats).sort(function(p,q){ return nats[q]-nats[p]; }).map(function(n){ return '<option'+(a.nat===n?' selected':'')+' value="'+esc(n)+'">'+esc(n)+' ('+nats[n]+')</option>'; }).join('')+'</select>'+
+      (a.fn?'':'<span class="hint">'+Object.keys(por).sort(function(p,q){ return por[q]-por[p]; }).slice(0,6).map(function(f){ return esc(f)+' <b>'+por[f]+'</b>'; }).join(' · ')+'</span>')+'</div>'+
+      '<div class="tbl-wrap" style="max-height:460px"><table class="tleft"><thead><tr><th>Protocolo</th>'+(a.fn?'':'<th>Função</th>')+'<th>Natureza</th><th>Data da execução</th><th>Tempo na etapa</th><th>Inconformidade da pessoa</th><th>Fonte</th></tr></thead><tbody>'+
+      L.slice(0,lim).map(function(x){ return '<tr><td>'+protLink(x.c)+'</td>'+(a.fn?'':'<td>'+esc(x.fn)+'</td>')+'<td>'+esc(x.nat)+'</td><td>'+fmtData(x.d)+'</td><td>'+(x.pz==null?'—':numBR(x.pz,0)+' d.u.')+'</td><td>'+(x.inc?'<span class="pill warn">sim</span>':'—')+'</td><td class="mut">'+x.src+'</td></tr>'; }).join('')+'</tbody></table></div>'+
+      (L.length>lim?'<div class="inc-mais"><span class="hint">Mostrando '+lim+' de '+L.length+'.</span> <button class="btn sm" type="button" data-eqaudmais="1">Mostrar mais 100</button></div>':'<p class="hint">'+L.length+' execução(ões). Clique no protocolo para abrir a ficha com a linha do tempo completa.</p>')+'</div>'; }
+  function eqAudXls(){ var L=eqAudLista(), a=state.eqAud; if (!L.length) return toast('Nada para baixar');
+    precisaXLSX().then(function(X){ var rows=[['Pessoa','Função','Natureza','Protocolo','Data da execução','Tempo na etapa (d.u.)','Inconformidade da pessoa','Fonte']].concat(L.map(function(x){ return [x.nome,x.fn,x.nat,x.c,fmtData(x.d),x.pz==null?'':x.pz,x.inc?'sim':'',x.src]; }));
+      var ws=X.utils.aoa_to_sheet(rows), wb=X.utils.book_new(); ws['!cols']=[{wch:32},{wch:28},{wch:36},{wch:12},{wch:14},{wch:12},{wch:12},{wch:8}]; X.utils.book_append_sheet(wb,ws,'Auditoria');
+      var out=X.write(wb,{type:'array',bookType:'xlsx'}), nome='Auditoria - '+a.nome+(a.fn?' - '+a.fn:'')+' - '+nomePeriodo().replace(/\//g,'-')+'.xlsx';
+      if (!downloads) return toast('Download indisponível nesta visualização');
+      downloads.save({filename:nome, data:new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})}).then(function(){ toast('Planilha baixada'); }); }).catch(function(e){ toast(e.message); }); }
+  // quem sabe fazer: últimos 12 meses, independente do período escolhido
+  function eqCobHTML(){ var X=eqExecs(), ms=eqUlt6(), fim=ms[ms.length-1]||mesHoje(), ini=fim; for (var i=0;i<11;i++) ini=mesAnt(ini); var mn=eqMin();
+    var L=X.filter(function(x){ return x.m>=ini && x.m<=fim; }), F={};
+    L.forEach(function(x){ var f=F[x.fn]=F[x.fn]||{n:0,p:{}}; f.n++; var q=f.p[x.k]=f.p[x.k]||{nome:x.nome,n:0,u:''}; q.n++; if (x.d>q.u) q.u=x.d; });
+    var fns=Object.keys(F).filter(function(f){ return F[f].n>=20; }).sort(function(a,b){ return Object.keys(F[a].p).length-Object.keys(F[b].p).length || F[b].n-F[a].n; });
+    return '<div class="panel eq-p" id="eqCob"><div class="sec-h"><h2>Quem sabe fazer cada função</h2><span class="spacer"></span><button class="btn sm" type="button" data-eqcob="1">Fechar</button></div><p class="hint" style="margin:0 0 8px">Últimos 12 meses ('+esc(nomeMes(ini))+' a '+esc(nomeMes(fim))+'), não só o período escolhido: quem fez em março e não fez em setembro continua sabendo fazer. Conta quem tem '+mn+'+ execuções; a última execução mostra se faz tempo.</p>'+
+      '<div class="tbl-wrap"><table class="tleft"><thead><tr><th>Função</th><th>Pessoas</th><th>Quem (execuções · última vez)</th></tr></thead><tbody>'+
+      fns.map(function(f){ var P=F[f].p, ks=Object.keys(P).filter(function(k){ return P[k].n>=mn; }).sort(function(a,b){ return P[b].n-P[a].n; }), vis=ks.filter(function(k){ return !eqOculto(k); }), oc=ks.length-vis.length;
+        return '<tr><td><b>'+esc(f)+'</b></td><td>'+(ks.length<=1?'<span class="pill warn">'+ks.length+'</span>':ks.length)+'</td><td>'+vis.map(function(k){ return esc(P[k].nome)+' <span class="mut">'+P[k].n+' · '+fmtData(P[k].u)+'</span>'+eqHa(P[k].u); }).join('<br>')+(oc?'<br><span class="mut">+ '+oc+' pessoa(s) oculta(s)</span>':'')+'</td></tr>'; }).join('')+'</tbody></table></div></div>'; }
+  // ——— 0.16.0: carga das funções (demanda × capacidade observada) e simulação "e se"
+  function eqCarga(semK){
+    var X=eqExecs(), ms=eqUlt6().slice(-3); if (!ms.length) return null;
+    var fer=Motor.feriadoSet(state.extras||[]), util=function(d){ var w=((d%7)+7+4)%7; return w!==0&&w!==6&&!fer[d]; };
+    var dias=[]; ms.forEach(function(m){ sdUteis(m).forEach(function(d){ dias.push(d); }); }); if (!dias.length) return null;
+    var d0=dias[0], d1=dias[dias.length-1], F={};
+    function antes(d,n){ var k=0; while (k<n){ d--; if (util(d)) k++; } return d; }
+    X.forEach(function(x){ if (x.src!=='VHL'||eqOculto(x.k)&&x.k!==semK) return; var dn=sdDia(x.d); if (dn<d0||dn>d1) return;
+      var f=F[x.fn]=F[x.fn]||{ex:{},exSem:{},ent:0,pz:[],pzM:{},p:{},metas:{}}; f.ex[dn]=(f.ex[dn]||0)+1; if (x.k!==semK) f.exSem[dn]=(f.exSem[dn]||0)+1; f.p[x.k]=(f.p[x.k]||0)+1;
+      if (x.pz!=null){ f.pz.push(x.pz); (f.pzM[x.m]=f.pzM[x.m]||[]).push(x.pz); if (antes(dn,Math.round(x.pz))>=d0) f.ent++; }
+      if (x.meta!=null) f.metas[x.meta]=(f.metas[x.meta]||0)+1; });
+    var mn=eqMin();
+    return {ms:ms, dias:dias.length, F:Object.keys(F).map(function(fn){ var f=F[fn], v=dias.map(function(d){ return f.ex[d]||0; }), vs=dias.map(function(d){ return f.exSem[d]||0; }), tot=v.reduce(function(s,x){ return s+x; },0);
+      var dem=tot/dias.length, cap=quant(v,.9), capS=quant(vs,.9), pes=Object.keys(f.p).filter(function(k){ return f.p[k]>=mn; }).length;
+      var meta=Object.keys(f.metas).sort(function(a,b){ return f.metas[b]-f.metas[a]; })[0];
+      var tm=ms.map(function(m){ return f.pzM[m]?media(f.pzM[m]):null; }), tend=tm[0]!=null&&tm[tm.length-1]!=null?tm[tm.length-1]-tm[0]:null;
+      return {fn:fn, tot:tot, dem:dem, med:media(v), cap:cap, capS:capS, folga:cap?(cap-dem)/cap*100:null, folgaS:capS?(capS-dem)/capS*100:null, pes:pes, semFaz:semK?(f.p[semK]||0):0, tempo:media(f.pz), meta:meta!=null?+meta:null, tend:tend}; })
+      .filter(function(f){ return f.tot>=20; }).sort(function(a,b){ return b.tot-a.tot; }) }; }
+  function eqCargaHTML(){
+    var semK=state.eqSem||'', C=eqCarga(semK||null); if (!C) return '';
+    var Q=eqContar(eqPeriodo()), pess=Object.keys(Q.nomes).filter(function(k){ return !eqOculto(k); }).sort(function(a,b){ return String(Q.nomes[a]).localeCompare(String(Q.nomes[b]),'pt-BR'); });
+    var fmtF=function(v){ return v==null?'—':'<span class="'+(v<10?'eq-ft':'')+'">'+numBR(v,0)+'%</span>'; };
+    var h='<div class="panel eq-p" id="eqCarga"><div class="sec-h"><h2>Carga das funções</h2><span class="spacer"></span><button class="btn sm" type="button" data-eqcarga="1">Fechar</button></div>'+
+      '<p class="hint" style="margin:0 0 8px">Últimos 3 meses ('+esc(nomeMes(C.ms[0]))+' a '+esc(nomeMes(C.ms[C.ms.length-1]))+', '+C.dias+' dias úteis), só etapas do VHL. <b>Feito por dia</b> = execuções por dia útil. <b>Pico</b> = o dia mais cheio que a equipe costuma dar conta (9 em cada 10 dias ficam abaixo). <b>Folga</b> = quanto o pico passa da média: perto de zero, a equipe já trabalha no máximo todo dia. É estimativa pela capacidade observada: o painel não vê a fila, só o que chegou e o que foi feito.</p>'+
+      '<div class="search"><label>E se <select id="eqSem" aria-label="Simular sem uma pessoa"><option value="">— ninguém sai —</option>'+pess.map(function(k){ return '<option value="'+esc(k)+'"'+(k===semK?' selected':'')+'>'+esc(Q.nomes[k])+'</option>'; }).join('')+'</select> não estiver (férias, afastamento ou saída)?</label></div>'+
+      '<div class="tbl-wrap"><table class="eq-cmp"><thead><tr><th class="tleft">Função</th><th>Feito por dia (média)</th><th>Pico que a equipe dá conta</th><th>Pessoas que fazem</th><th>Folga</th>'+(semK?'<th>Folga sem '+esc(String(Q.nomes[semK]||'').split(' ')[0])+'</th>':'')+'<th>Tempo na etapa × prazo do nome</th><th>Tendência do tempo</th></tr></thead><tbody>'+
+      C.F.filter(function(f){ return !semK||f.semFaz; }).concat(semK?[]:[]).map(function(f){ var tt=f.tend==null?'—':Math.abs(f.tend)<0.1?'estável':(f.tend>0?'↗ subindo ':'↘ caindo ')+numBR(Math.abs(f.tend),1)+' d.u.';
+        return '<tr><td class="tleft"><b>'+esc(f.fn)+'</b></td><td>'+numBR(f.med,1)+'</td><td>'+numBR(f.cap,0)+'</td><td>'+f.pes+'</td><td>'+fmtF(f.folga)+'</td>'+(semK?'<td>'+(f.capS?fmtF(f.folgaS):'<span class="pill warn" title="Os outros fazem tão pouco que, sem esta pessoa, a fila não anda">sem cobertura</span>')+'</td>':'')+'<td>'+(f.tempo==null?'—':numBR(f.tempo,1)+' d.u.')+(f.meta!=null?' <span class="mut">× '+numBR(f.meta,f.meta%1?2:0)+' d.u.</span>'+(f.tempo>f.meta?' <span class="pill warn">acima</span>':''):'')+'</td><td>'+tt+'</td></tr>'; }).join('')+'</tbody></table></div>'+
+      (semK?'<p class="hint">Mostrando só as funções que '+esc(Q.nomes[semK])+' faz. "Folga sem" refaz o pico de cada dia tirando as execuções dela; se ficar perto de zero ou negativa, o resto da equipe precisaria absorver mais do que costuma dar conta.</p>':'<p class="hint">Folga perto de zero com o tempo na etapa subindo é o sinal de função no limite. Escolha uma pessoa em "E se" para ver o efeito da ausência dela.</p>')+'</div>';
     return h; }

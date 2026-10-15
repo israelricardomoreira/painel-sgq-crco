@@ -1,8 +1,8 @@
 /* Painel SGQ · CRCO — js/inicio.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inicio.js']='0.15.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inicio.js']='0.16.0';
   // 0.12.0: confere logo de saída se todos os arquivos do painel vieram da mesma entrega
   var ARQUIVOS_APP=["js/nucleo.js", "js/prazos.js", "js/inconformidades.js", "js/relatorios.js", "js/kpis.js", "js/atendimento.js", "js/ficha.js", "js/configuracao.js", "js/tri7.js", "js/serventias.js", "js/dados.js", "js/graficos.js", "js/desempenho.js", "js/visual.js", "js/certidoes.js", "js/importar.js", "js/saude.js", "js/equipe.js", "js/navegacao.js", "js/inicio.js"];
-  try{ checarVersoes('0.15.0'); }catch(e){ var avv=document.getElementById('avisoVersao'); if (avv){ avv.hidden=false; avv.textContent='Faltam arquivos do painel ou eles são de versões diferentes. Suba de novo todos os arquivos da entrega e recarregue a página.'; } }
+  try{ checarVersoes('0.16.0'); }catch(e){ var avv=document.getElementById('avisoVersao'); if (avv){ avv.hidden=false; avv.textContent='Faltam arquivos do painel ou eles são de versões diferentes. Suba de novo todos os arquivos da entrega e recarregue a página.'; } }
   var $=function(id){ return document.getElementById(id); };
   var TEMAS={auto:['◐ Auto','Tema: automático (segue o computador)'],claro:['☀ Claro','Tema: claro'],escuro:['☾ Escuro','Tema: escuro']};
   var temaAtual=temaAplicar(prefLer('crco-tema')||'auto');
@@ -160,7 +160,7 @@
   var KPIS_PADRAO=null;
 
   // ——— versão, dados brutos, recálculo, backup e memória de cálculo (site no GitHub + Supabase)
-  var APP_VERSAO='0.15.0';
+  var APP_VERSAO='0.16.0';
   // 0.11.0: a biblioteca de planilhas (≈310 KB) só é baixada quando precisa — importar, recalcular ou baixar a memória de cálculo
   var XLSX_URL='xlsx.full.min.js?v=0.20.3', XLSX_SRI='sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT', xlsxProm=null;
   var BRUTO_COLS={prazo:['tipo de documento','codigo','natureza','ingresso','finalizacao','prazo','tempo'], etapa:['codigo','data execucao','etapa','responsavel','prazo'], demanda:['codigo','status']};
@@ -288,6 +288,13 @@
     if (t.dataset && t.dataset.incsetor){ state.incSetor=t.dataset.incsetor; renderK1(todosAtos()); return renderRel(); }
     if (t.dataset && t.dataset.eqocultar){ var ko=t.dataset.eqocultar, Qo=eqContar(eqPeriodo()); state.eqOcl=Object.assign({},state.eqOcl||{}); state.eqOcl[ko]=Qo.nomes[ko]||ko; state._pd=null; eqSalvarOcl(); toast((Qo.nomes[ko]||ko)+' oculto(a) desta página'); return renderEqp(); }
     if (t.dataset && t.dataset.eqmostrar){ state.eqOcl=Object.assign({},state.eqOcl||{}); delete state.eqOcl[t.dataset.eqmostrar]; state._pd=null; eqSalvarOcl(); if (!Object.keys(state.eqOcl).length) state.eqVerOcl=false; return renderEqp(); }
+    if (t.dataset && t.dataset.eqaudk){ var Qa=eqContar(eqPeriodo()), ka=t.dataset.eqaudk, fa=t.dataset.eqaudfn||null; state.eqAud=(state.eqAud&&state.eqAud.k===ka&&state.eqAud.fn===fa)?null:{k:ka, fn:fa, nat:null, nome:Qa.nomes[ka]||ka}; state.eqAudLim=100; renderEqp(); var ea=$('eqAud'); if (ea) ea.scrollIntoView({behavior:'smooth',block:'start'}); return; }
+    if (t.dataset && t.dataset.eqaudfechar){ state.eqAud=null; return renderEqp(); }
+    if (t.dataset && t.dataset.eqaudmais){ state.eqAudLim=(state.eqAudLim||100)+100; return renderEqp(); }
+    if (t.dataset && t.dataset.eqaudxls){ return eqAudXls(); }
+    if (t.dataset && t.dataset.eqexp){ state.eqExp=Object.assign({},state.eqExp||{}); state.eqExp[t.dataset.eqexp]=!state.eqExp[t.dataset.eqexp]; return renderEqp(); }
+    if (t.dataset && t.dataset.eqcarga){ state.eqCarga=!state.eqCarga; renderEqp(); var eg=$('eqCarga'); if (eg&&state.eqCarga) eg.scrollIntoView({behavior:'smooth',block:'start'}); return; }
+    if (t.dataset && t.dataset.eqcob){ state.eqCob=!state.eqCob; renderEqp(); var ec=$('eqCob'); if (ec&&state.eqCob) ec.scrollIntoView({behavior:'smooth',block:'start'}); return; }
     if (t.dataset && t.dataset.eqocl){ state.eqVerOcl=!state.eqVerOcl; return renderEqp(); }
     if (t.dataset && t.dataset.eqtodasfn){ state.eqTodasFn=!state.eqTodasFn; return renderEqp(); }
     if (t.dataset && t.dataset.eqfn){ state.eqFn=t.dataset.eqfn; state.eqNat=null; renderEqp(); var sf=$('eqFnSel'); if (sf) sf.closest('.panel').scrollIntoView({behavior:'smooth',block:'start'}); return; }
@@ -345,6 +352,8 @@
   var TITULOS={des:'Desempenho · ritmo e linha normal',vis:'Gráficos',geral:'Painel geral',nat:'Prazos · por natureza',eta:'Prazos · por etapa',fp:'Prazos · fora do prazo',ex:'Prazos · exigências',nao:'Prazos · cancelados e especiais',k1:'Inconformidades',imp:'Importar dados',cer:'Certidões',at:'Atendimento',rel:'Relatórios por pessoa',tri:'Quem fez · Tri7',lanc:'Lançar KPIs no ANOREG+',met:'Como é calculado',cfg:'Configuração do painel',sau:'Saúde dos dados',eqp:'Equipe e funções'};
   document.addEventListener('change',function(e){
     var t=e.target; if (avRascunho(t)) return;
+    if (t.id==='eqSem'){ state.eqSem=t.value||''; return renderEqp(); }
+    if (t.id==='eqAudNat'){ state.eqAud.nat=t.value||null; state.eqAudLim=100; return renderEqp(); }
     if (t.id==='eqMin'){ state.eqMin=+t.value; return renderEqp(); }
     if (t.id==='eqFnSel'){ state.eqFn=t.value; state.eqNat=null; return renderEqp(); }
     if (t.id==='eqNatSel'){ state.eqNat=t.value; return renderEqp(); }

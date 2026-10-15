@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/certidoes.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/certidoes.js']='0.15.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/certidoes.js']='0.16.0';
   function certTipoMap(){ var m={}; Object.keys(state.docs).forEach(function(k){ var r=state.docs[k].raw||{}, ct=r.certTipos, cn=r.certNats||[]; if (ct) ct.split(';').forEach(function(x){ if(!x) return; var q=x.split(':'); m[q[0]]=cn[+q[1]]; }); }); return m; }
   function intimAuto(){ var tot={}, it={}; Object.keys(state.docs).forEach(function(k){ var pr=(state.docs[k].raw||{}).producao||{}; Object.keys(pr).forEach(function(p){ var v=pr[p]; if (!v||!v.e) return; Object.keys(v.e).forEach(function(et){ tot[p]=(tot[p]||0)+v.e[et]; if (INTIM_RX.test(semAc(et))) it[p]=(it[p]||0)+v.e[et]; }); }); });
     return Object.keys(tot).filter(function(p){ return tot[p]>=50 && (it[p]||0)/tot[p]>0.5 && !/^tri7$/i.test(p); }); } // 0.10.5: certidão do fluxo de intimação = natureza "Certidão de Intimação" no Tri7 (vale certidão por certidão)

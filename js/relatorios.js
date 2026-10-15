@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/relatorios.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/relatorios.js']='0.15.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/relatorios.js']='0.16.0';
   function nomePeriodo(){ if (state.periodo!=='todos') return nomeMes(state.periodo); var m=Object.keys(state.docs).sort(); return m.length?nomeMes(m[0])+' a '+nomeMes(m[m.length-1]):'todos os meses'; }
   function mesesPeriodo(){ return Object.keys(state.docs).sort().filter(function(m){ return state.periodo==='todos'||state.periodo===m; }); }
   // produção detalhada por pessoa (chave = nome sem acento, para casar VHL e Tri7)
