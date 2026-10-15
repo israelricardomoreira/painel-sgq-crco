@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/graficos.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/graficos.js']='0.14.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/graficos.js']='0.15.0';
   function mesesGraficos(){
     var s={}; [state.docs,state.cert,state.senhas,state.k9,state.inconf,state.serv].forEach(function(o){ Object.keys(o||{}).forEach(function(m){ if (/^\d{4}-\d{2}$/.test(m)) s[m]=1; }); });
     Object.keys(HIST_SEMENTE).forEach(function(m){ s[m]=1; }); Object.keys(state.kp).forEach(function(m){ if (state.kp[m]&&state.kp[m].hist) s[m]=1; });
@@ -140,7 +140,7 @@
       if (!d) return;
       if (o.area&&k===0) s+='<path d="'+d+' L'+x(last).toFixed(1)+','+y(lo).toFixed(1)+' L'+x(first).toFixed(1)+','+y(lo).toFixed(1)+' Z" style="fill:'+corS+';opacity:.10"/>';
       s+='<path d="'+d+'" fill="none" style="stroke:'+corS+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"'+(se.tracejado?' stroke-dasharray="5 4"':'')+'/>';
-      se.v.forEach(function(v,i){ if (v==null||isNaN(v)) return; var al=se.alerta&&se.alerta[i]; s+='<circle cx="'+x(i).toFixed(1)+'" cy="'+y(v).toFixed(1)+'" r="'+(al?5:3.5)+'" style="fill:'+(al?'var(--crit)':corS)+'" stroke="var(--surface)" stroke-width="2"/>'; });
+      se.v.forEach(function(v,i){ if (v==null||isNaN(v)) return; var al=se.alerta&&se.alerta[i], vz=se.vazio&&se.vazio[i]; s+=vz?'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(v).toFixed(1)+'" r="4.5" style="fill:var(--surface);stroke:'+corS+'" stroke-width="2"/>':'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(v).toFixed(1)+'" r="'+(al?5:3.5)+'" style="fill:'+(al?'var(--crit)':corS)+'" stroke="var(--surface)" stroke-width="2"/>'; });
       if (series.length<=4 && last>=0 && o.rotulos!==false) s+='<text x="'+Math.min(x(last)+2,W-pr)+'" y="'+(y(se.v[last])-8).toFixed(1)+'" text-anchor="end" font-size="11" font-weight="700" style="fill:var(--ink)">'+fmtG(se.v[last],un)+'</text>'; });
     var passo=n>8?2:1;
     ms.forEach(function(m,i){ if ((n-1-i)%passo===0) s+='<text x="'+x(i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="11" style="fill:var(--ink-3)">'+MES_AB[+m.slice(5)-1]+'</text>';

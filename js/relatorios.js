@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/relatorios.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/relatorios.js']='0.14.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/relatorios.js']='0.15.0';
   function nomePeriodo(){ if (state.periodo!=='todos') return nomeMes(state.periodo); var m=Object.keys(state.docs).sort(); return m.length?nomeMes(m[0])+' a '+nomeMes(m[m.length-1]):'todos os meses'; }
   function mesesPeriodo(){ return Object.keys(state.docs).sort().filter(function(m){ return state.periodo==='todos'||state.periodo===m; }); }
   // produção detalhada por pessoa (chave = nome sem acento, para casar VHL e Tri7)
@@ -45,7 +45,7 @@
     if (!r.X) return '<span class="mut">Sem execuções na Produção por Etapa nesta serventia e período.</span>';
     return '<b>'+r.X.toLocaleString('pt-BR')+'</b> documentos em <b>'+r.Y+'</b> dias ativos (de '+r.Z+' dias úteis '+(nMeses>1?'no período':'do mês')+') → média de <b>'+numBR(r.W,1)+'</b> documentos por dia ativo'; }
   // mediana da equipe por dia ativo no mês (pessoas com 5+ dias ativos)
-  function equipeDiaria(m){ var P=prodDiaria(); if (!P) return null; var v=[]; Object.keys(P).forEach(function(k){ var q=P[k].m[m]; if (q&&q.na>=5) v.push(q.nd/q.na); }); return v.length?mediana(v):null; }
+  function equipeDiaria(m){ var P=prodDiaria(); if (!P) return null; var v=[]; Object.keys(P).forEach(function(k){ if (typeof eqOculto==='function'&&eqOculto(k)) return; var q=P[k].m[m]; if (q&&q.na>=5) v.push(q.nd/q.na); }); return v.length?mediana(v):null; }
 
   function relDados(){
     var P=prodPessoas(), meses=mesesPeriodo(), recs=incRecs().filter(function(r){ return atrAtual()!=='RI'?incOk(r):(state.incSetor==='todos'||r.t==='RI'); });
@@ -81,7 +81,8 @@
     var totEt=Object.keys(p.et).reduce(function(s,e){return s+p.et[e];},0);
     var h=cabecalhoRel('Relatório de desempenho — qualidade e produção','<b>'+esc(nome)+'</b> · Período: '+nomePeriodo()+' · Serventia: '+esc(selNome())+(atrAtual()==='RI'?' · inconformidades do RI':''));
     var msP=mesesProd(), md=mediaDiaria(k,msP);
-    h+='<h2>Resumo</h2><div class="diaria">'+fraseDiaria(md,msP.length)+'</div>'+tilesRel([
+    var eqMd=(function(){ var P=prodDiaria(); if (!P) return null; var v=[]; Object.keys(P).forEach(function(j){ if (eqOculto(j)) return; var r=mediaDiaria(j,msP); if (r&&r.Y>=5) v.push(r.W); }); return v.length?mediana(v):null; })();
+    h+='<h2>Resumo</h2>'+(md&&md.X?'<div class="dest"><div class="t1"><span>Média por dia com atividade</span><b>'+numBR(md.W,1)+'</b><small>documentos por dia'+(eqMd!=null?' · equipe (mediana) '+numBR(eqMd,1):'')+'</small></div><div><span>Dias com atividade no VHL</span><b>'+md.Y+'</b><small>de '+md.Z+' dias úteis · mede atividade no sistema, não presença</small></div></div>':'')+'<div class="diaria">'+fraseDiaria(md,msP.length)+'</div>'+tilesRel([
       (md&&md.X?['Documentos trabalhados',md.X.toLocaleString('pt-BR'),'no VHL · '+esc(selNome())]:['Documentos trabalhados',p.docs||'—','no VHL']),['Execuções de etapa',totEt||'—',Object.keys(p.et).length+' tipos de etapa'],
       ['Taxa de inconformidade',taxa==null?'—':pct(taxa),'média da equipe '+pct(D.taxaEq)+(function(){ var lt=taxa!=null?D.LT[k]:null; return lt?' · '+lt.txt+' (esperado ≈ '+Math.round(lt.esp)+', normal até '+lt.hi+')':''; })()],['Inconformidades',inc.length,(inc.length-ext)+' internas · '+ext+' externas']])+
       (cer.length?'<div style="height:8px"></div>'+tilesRel([['Certidões emitidas',cer.length,'Tri7'],['No prazo',cerCalc.length?pct(cerOk/cerCalc.length*100):'—',cerCalc.length?cerOk+' de '+cerCalc.length:'fluxo de intimação'],['Mediana',fmtH(mediana(cer.map(function(c){return c.hu;}))),'horas úteis'],['Fora do prazo',cerCalc.length-cerOk,'']]):'')+
@@ -99,6 +100,7 @@
         return '<tr><td>'+nomeMes(m)+'</td><td class="n">'+(d||'—')+'</td><td class="n">'+(q?q.na:'—')+'</td><td class="n">'+duMes(m)+'</td><td class="n"><b>'+(q&&q.na?numBR(q.nd/q.na,1):'—')+'</b></td><td class="n">'+(eq==null?'—':numBR(eq,1))+'</td><td class="n">'+n+'</td><td class="n">'+(d>=10?pct(n/d*100):'—')+'</td>'+(cer.length?'<td class="n">'+c+'</td>':'')+'</tr>'; }).join('')+'</tbody></table>'+
       '<p class="nota">Dia ativo = dia útil em que a pessoa teve ao menos uma execução na Produção por Etapa do VHL. Por dia ativo = documentos ÷ dias ativos (quem tirou férias tem a média só dos dias trabalhados). Equipe = mediana das pessoas com 5+ dias ativos no mês.</p>'; }
     h+=relGraficos(k, D, p, inc);
+    h+=eqRelHTML(k); // 0.15.0: funções, comparação com os colegas, mês a mês, qualidade por função e "só você faz"
     // produção por etapa com tempo
     var ets=Object.keys(p.et).sort(function(a,b){return p.et[b]-p.et[a];});
     h+='<h2>Produção por etapa</h2>'+(ets.length?'<table><thead><tr><th>Etapa</th><th class="n">Execuções</th><th class="n">%</th><th class="n">Dias úteis na etapa (média)</th><th class="n">Média da equipe</th><th class="n">Meta</th></tr></thead><tbody>'+
@@ -113,19 +115,21 @@
     // devolutiva
     var fb=state.feedback[chaveFeedback(k)]||{}, campos=[['fortes','Pontos fortes'],['atencao','Pontos de atenção'],['acoes','Ações combinadas e prazo']];
     var outrosP=Object.keys(state.feedback).filter(function(id){ var f=state.feedback[id]; return f&&f.periodo&&f.periodo!==state.periodo&&semAc(f.pessoa||'')===k&&(f.fortes||f.atencao||f.acoes); }).map(function(id){ var p=state.feedback[id].periodo; return p==='todos'?'todos os meses':nomeMes(p); });
+    var sug=(!paraImprimir&&!(fb.fortes||fb.atencao))?eqSugestoes(eqPessoa(k)):{fortes:'',atencao:''};
     h+='<h2>Devolutiva · '+esc(nomePeriodo())+'</h2>'+(outrosP.length&&!paraImprimir?'<p class="nota">Há devolutiva salva desta pessoa também em: '+esc(outrosP.join(', '))+'. Mude o Período, no topo, para ver.</p>':'')+campos.map(function(c){ var v=fb[c[0]]||'';
-      return '<div class="dlab">'+c[1]+'</div>'+(paraImprimir?'<div class="devol'+(v?'':' vazio')+'">'+esc(v)+'</div>':'<textarea data-fb="'+c[0]+'" aria-label="'+c[1]+'" placeholder="Escreva aqui — sai no relatório impresso">'+esc(v)+'</textarea>'); }).join('')+
+      var sv=!v&&sug[c[0]]?sug[c[0]]:''; return '<div class="dlab">'+c[1]+(sv?'<span class="sug">sugerido pelo painel · revise antes de salvar</span>':'')+'</div>'+(paraImprimir?'<div class="devol'+(v?'':' vazio')+'">'+esc(v)+'</div>':'<textarea data-fb="'+c[0]+'" aria-label="'+c[1]+'" rows="'+(sv?Math.min(8,sv.split('\n').length+1):3)+'" placeholder="Escreva aqui — sai no relatório impresso">'+esc(v||sv)+'</textarea>'); }).join('')+
       '<div class="ass"><div>Gestor(a) responsável</div><div>'+esc(nome)+' — ciência em ___/___/______</div></div>';
     return h;
   }
   // gráficos do relatório individual (tela e arquivo impresso)
   function relGraficos(k, D, p, inc){
-    var msP=mesesProd(), PDk=(prodDiaria()||{})[k], g=[];
+    var msP=eqUlt6(), PDk=(prodDiaria()||{})[k], g=[]; // 0.15.0: tendência sempre com os últimos 6 meses, mesmo com um mês escolhido
+    var parc=msP.map(function(m){ var q=PDk&&PDk.m[m]; return !!(q&&q.na&&q.na<duMes(m)/2); });
     function card(t,sub,corpo,w){ return '<div class="rg'+(w?' w':'')+'"><b>'+esc(t)+'</b>'+(sub?'<small>'+sub+'</small>':'')+corpo+'</div>'; }
     var nome=D.pessoas[k];
     if (msP.length>1){
-      g.push(card('Documentos por mês','documentos trabalhados no VHL',gLinhas(msP,[{nome:nome,cor:'var(--c1)',v:msP.map(function(m){ var q=PDk&&PDk.m[m]; return q?q.nd:(p.mes[m]||null); }),extra:msP.map(function(m){ var q=PDk&&PDk.m[m]; return q?q.na+' dias ativos':''; })}],{titulo:'Documentos por mês',zero:true,area:true,irMes:'rel',W:420,H:200})));
-      if (PDk) g.push(card('Média por dia ativo','dela × mediana da equipe',gLinhas(msP,[{nome:String(nome).split(' ')[0],cor:'var(--c1)',v:msP.map(function(m){ var q=PDk.m[m]; return q&&q.na?q.nd/q.na:null; }),extra:msP.map(function(m){ var q=PDk.m[m]; return q?q.nd+' docs em '+q.na+' dias':''; })},{nome:'Equipe',cor:'var(--c2)',tracejado:true,v:msP.map(equipeDiaria)}],{titulo:'Média por dia ativo',zero:true,irMes:'rel',W:420,H:200})));
+      g.push(card('Documentos por mês','documentos trabalhados no VHL · últimos 6 meses',gLinhas(msP,[{nome:nome,cor:'var(--c1)',vazio:parc,v:msP.map(function(m){ var q=PDk&&PDk.m[m]; return q?q.nd:(p.mes[m]||null); }),extra:msP.map(function(m){ var q=PDk&&PDk.m[m]; return q?q.na+' dias ativos':''; })}],{titulo:'Documentos por mês',zero:true,area:true,irMes:'rel',W:420,H:200})));
+      if (PDk) g.push(card('Média por dia com atividade','pessoa × mediana da equipe · ponto vazado = mês parcial (menos da metade dos dias úteis com atividade no VHL): compare pela média',gLinhas(msP,[{nome:String(nome).split(' ')[0],cor:'var(--c1)',vazio:parc,v:msP.map(function(m){ var q=PDk.m[m]; return q&&q.na?q.nd/q.na:null; }),extra:msP.map(function(m){ var q=PDk.m[m]; return q?q.nd+' docs em '+q.na+' de '+duMes(m)+' dias':''; })},{nome:'Equipe',cor:'var(--c2)',tracejado:true,v:msP.map(equipeDiaria)}],{titulo:'Média por dia ativo',zero:true,irMes:'rel',W:420,H:200})));
     }
     var ets=Object.keys(p.et||{}).sort(function(a,b){ return p.et[b]-p.et[a]; }).slice(0,10);
     if (ets.length) g.push(card('Execuções por etapa','as 10 etapas que mais fez',gBarrasH(ets.map(function(e){ var med=p.pz&&p.pz[e]!=null?p.pz[e]/p.et[e]:null, eq=D.eqE[e]?D.eqZ[e]/D.eqE[e]:null; return {nome:e, v:p.et[e], extra:(med!=null?'média '+numBR(med,1)+' d.u. na etapa':'')+(eq!=null?' · equipe '+numBR(eq,1):'')}; }))));

@@ -6,7 +6,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex, nofollow">
-<meta name="painel-versao" content="0.14.0">
+<meta name="painel-versao" content="0.15.0">
 <title>Painel SGQ · CRCO</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23c94f0a'/%3E%3Ctext x='16' y='21' font-family='Arial' font-size='12' font-weight='700' fill='white' text-anchor='middle'%3ESGQ%3C/text%3E%3C/svg%3E">
 <style>
@@ -399,6 +399,28 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
 .sd-aviso{margin:0 0 12px}.sd-aviso .btn{margin-left:6px}
 .inc-mais{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 0}
 .hv-g{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0 0 8px;background:var(--surface)}.hv-g summary{cursor:pointer}.hv-g ul{margin:8px 0 6px 18px;padding:0;font-size:13px}.hv-acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+
+/* 0.15.0: Equipe e funções */
+.eq-f label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-2)}
+.eq-ocl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px}.eq-ocl .lnk{font-size:14px;margin-left:2px}
+.eq-p{margin-bottom:14px}.eq-p select{max-width:100%}#eqFnSel,#eqNatSel{max-width:min(100%,360px)}
+.eq-g th{white-space:normal;text-align:center;max-width:110px;vertical-align:bottom;line-height:1.25}.eq-g th.tleft{text-align:left}.eq-g td{text-align:center;padding:4px 6px}.eq-g td.tleft{text-align:left}
+.eq-th{font-weight:600;color:var(--ink-2)}.eq-th.on{color:var(--brand-ink);text-decoration:underline}
+.eq-c{display:block;min-width:46px;border-radius:6px;padding:4px 6px;font-weight:600;font-variant-numeric:tabular-nums;background:rgba(47,93,138,var(--a))}
+:root[data-theme="dark"] .eq-c{background:rgba(120,165,215,calc(var(--a)*0.6))}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .eq-c{background:rgba(120,165,215,calc(var(--a)*0.6))}}
+.eq-c{color:var(--ink)}.eq-c.fraco{font-weight:400;color:var(--ink-2)}
+.eq-nm{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.eq-x{width:20px;height:20px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink-3);font-size:13px;line-height:1;cursor:pointer;padding:0}.eq-x:hover{color:var(--crit);border-color:var(--crit)}
+.eq-np{display:grid;grid-template-columns:minmax(110px,30%) 1fr auto;gap:4px 10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}
+.eq-np b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.eq-nao{grid-column:2/-1;color:var(--ink-3);font-size:12px}.eq-det{grid-column:2/-1;color:var(--ink-2);font-size:12px}.eq-det b{color:var(--ink)}
+.eq-bar{display:flex;height:20px;border-radius:5px;overflow:hidden;background:var(--surface-2)}
+.eq-bar span{display:flex;align-items:center;padding-left:5px;color:#fff;font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;border-right:2px solid var(--surface)}
+.eq-1p{color:var(--warn)}
+.eq-tag{font-size:11.5px;color:var(--ink-3);border:1px solid var(--line);border-radius:999px;padding:1px 7px;font-weight:400}
+.eq-cmp td{vertical-align:middle}.eq-cmp th{white-space:normal}
+.eq-grp{font-size:11.5px;color:var(--ink-3);border-bottom:2px solid var(--line)!important;text-align:center}
 </style>
 </head>
 <body>
@@ -422,6 +444,7 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
   <button class="tab" type="button" data-tab="at" aria-selected="false">Atendimento</button>
   <div class="menu-grp">Equipe</div>
   <button class="tab" type="button" data-tab="rel" aria-selected="false">Relatórios por pessoa</button>
+  <button class="tab" type="button" data-tab="eqp" id="tabEqpBtn" aria-selected="false">Equipe e funções</button>
   <button class="tab" type="button" data-tab="tri" aria-selected="false">Quem fez · Tri7</button>
   <button class="tab" type="button" data-tab="des" aria-selected="false">Desempenho</button>
   <div class="menu-grp">Indicadores</div>
@@ -534,6 +557,7 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
     <div id="tabMet" hidden></div>
     <div id="tabDes" hidden></div>
     <div id="tabSau" hidden></div>
+    <div id="tabEqp" hidden></div>
     <div id="tabVis" hidden></div>
     <div id="tabCfg" hidden>
       <div id="cfgCorpo"></div>
@@ -558,27 +582,28 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
-<script src="config.js?v=0.14.0"></script>
-<script src="nuvem.js?v=0.14.0"></script>
-<script src="motor.js?v=0.14.0"></script>
-<script src="js/nucleo.js?v=0.14.0"></script>
-<script src="js/prazos.js?v=0.14.0"></script>
-<script src="js/inconformidades.js?v=0.14.0"></script>
-<script src="js/relatorios.js?v=0.14.0"></script>
-<script src="js/kpis.js?v=0.14.0"></script>
-<script src="js/atendimento.js?v=0.14.0"></script>
-<script src="js/ficha.js?v=0.14.0"></script>
-<script src="js/configuracao.js?v=0.14.0"></script>
-<script src="js/tri7.js?v=0.14.0"></script>
-<script src="js/serventias.js?v=0.14.0"></script>
-<script src="js/dados.js?v=0.14.0"></script>
-<script src="js/graficos.js?v=0.14.0"></script>
-<script src="js/desempenho.js?v=0.14.0"></script>
-<script src="js/visual.js?v=0.14.0"></script>
-<script src="js/certidoes.js?v=0.14.0"></script>
-<script src="js/importar.js?v=0.14.0"></script>
-<script src="js/saude.js?v=0.14.0"></script>
-<script src="js/navegacao.js?v=0.14.0"></script>
-<script src="js/inicio.js?v=0.14.0"></script>
+<script src="config.js?v=0.15.0"></script>
+<script src="nuvem.js?v=0.15.0"></script>
+<script src="motor.js?v=0.15.0"></script>
+<script src="js/nucleo.js?v=0.15.0"></script>
+<script src="js/prazos.js?v=0.15.0"></script>
+<script src="js/inconformidades.js?v=0.15.0"></script>
+<script src="js/relatorios.js?v=0.15.0"></script>
+<script src="js/kpis.js?v=0.15.0"></script>
+<script src="js/atendimento.js?v=0.15.0"></script>
+<script src="js/ficha.js?v=0.15.0"></script>
+<script src="js/configuracao.js?v=0.15.0"></script>
+<script src="js/tri7.js?v=0.15.0"></script>
+<script src="js/serventias.js?v=0.15.0"></script>
+<script src="js/dados.js?v=0.15.0"></script>
+<script src="js/graficos.js?v=0.15.0"></script>
+<script src="js/desempenho.js?v=0.15.0"></script>
+<script src="js/visual.js?v=0.15.0"></script>
+<script src="js/certidoes.js?v=0.15.0"></script>
+<script src="js/importar.js?v=0.15.0"></script>
+<script src="js/saude.js?v=0.15.0"></script>
+<script src="js/equipe.js?v=0.15.0"></script>
+<script src="js/navegacao.js?v=0.15.0"></script>
+<script src="js/inicio.js?v=0.15.0"></script>
 </body>
 </html>

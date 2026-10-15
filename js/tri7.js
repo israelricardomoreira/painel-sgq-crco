@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/tri7.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/tri7.js']='0.14.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/tri7.js']='0.15.0';
   function ehCanc(st){ return st==='CD'||st==='CP'||st==='CC'; } // 0.10.5: a partir desta competência, reingresso só com retorno comprovado (Re-análise depois de Nota de Exigência)
   function exAjuste(a, ix){
     if (a.nexV===undefined){ a.nexV=a.nex||0; a.npgV=a.npg||0; a.nriV=a.nri||0; a.catV=a.cat; a.motivoV=a.motivo; }
