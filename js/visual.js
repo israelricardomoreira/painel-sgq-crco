@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/visual.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/visual.js']='0.17.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/visual.js']='0.18.0';
   // ═════════ modo visual: o painel em gráficos (segue Serventia e Período do topo) ═════════
   function renderVis(){
     var el=$('tabVis'); if (!el) return; var modo=svModo(), ms=mesesGraficos(), cards=[];

@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/prazos.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/prazos.js']='0.17.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/prazos.js']='0.18.0';
   function pintarGeral(atos){
     var r=resumo(atos);
     // 0.13.0: indicadores oficiais em destaque (valor, meta, situação, linha do ano e selo de lançado); o apoio fica numa faixa

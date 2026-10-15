@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/relatorios.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/relatorios.js']='0.17.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/relatorios.js']='0.18.0';
   function nomePeriodo(){ if (state.periodo!=='todos') return nomeMes(state.periodo); var m=Object.keys(state.docs).sort(); return m.length?nomeMes(m[0])+' a '+nomeMes(m[m.length-1]):'todos os meses'; }
   function mesesPeriodo(){ return Object.keys(state.docs).sort().filter(function(m){ return state.periodo==='todos'||state.periodo===m; }); }
   // produção detalhada por pessoa (chave = nome sem acento, para casar VHL e Tri7)
@@ -45,7 +45,7 @@
     if (!r.X) return '<span class="mut">Sem execuções na Produção por Etapa nesta serventia e período.</span>';
     return '<b>'+r.X.toLocaleString('pt-BR')+'</b> documentos em <b>'+r.Y+'</b> dias ativos (de '+r.Z+' dias úteis '+(nMeses>1?'no período':'do mês')+') → média de <b>'+numBR(r.W,1)+'</b> documentos por dia ativo'; }
   // mediana da equipe por dia ativo no mês (pessoas com 5+ dias ativos)
-  function equipeDiaria(m){ var P=prodDiaria(); if (!P) return null; var v=[]; Object.keys(P).forEach(function(k){ if (typeof eqOculto==='function'&&eqOculto(k)) return; var q=P[k].m[m]; if (q&&q.na>=5) v.push(q.nd/q.na); }); return v.length?mediana(v):null; }
+  function equipeDiaria(m){ var P=prodDiaria(); if (!P) return null; var v=[]; Object.keys(P).forEach(function(k){ if (typeof eqOculto==='function'&&(eqOculto(k)||eqEmApr(k))) return; var q=P[k].m[m]; if (q&&q.na>=5) v.push(q.nd/q.na); }); return v.length?mediana(v):null; }
 
   function relDados(){
     var P=prodPessoas(), meses=mesesPeriodo(), recs=incRecs().filter(function(r){ return atrAtual()!=='RI'?incOk(r):(state.incSetor==='todos'||r.t==='RI'); });
@@ -100,6 +100,7 @@
         return '<tr><td>'+nomeMes(m)+'</td><td class="n">'+(d||'—')+'</td><td class="n">'+(q?q.na:'—')+'</td><td class="n">'+duMes(m)+'</td><td class="n"><b>'+(q&&q.na?numBR(q.nd/q.na,1):'—')+'</b></td><td class="n">'+(eq==null?'—':numBR(eq,1))+'</td><td class="n">'+n+'</td><td class="n">'+(d>=10?pct(n/d*100):'—')+'</td>'+(cer.length?'<td class="n">'+c+'</td>':'')+'</tr>'; }).join('')+'</tbody></table>'+
       '<p class="nota">Dia ativo = dia útil em que a pessoa teve ao menos uma execução na Produção por Etapa do VHL. Por dia ativo = documentos ÷ dias ativos (quem tirou férias tem a média só dos dias trabalhados). Equipe = mediana das pessoas com 5+ dias ativos no mês.</p>'; }
     h+=relGraficos(k, D, p, inc);
+    h+=aprRelHTML(k); // 0.18.0
     h+=eqRelHTML(k); // 0.15.0: funções, comparação com os colegas, mês a mês, qualidade por função e "só você faz"
     // produção por etapa com tempo
     var ets=Object.keys(p.et).sort(function(a,b){return p.et[b]-p.et[a];});

@@ -1,7 +1,7 @@
 /* Painel SGQ · CRCO — js/equipe.js (0.15.0: página "Equipe e funções" e o que ela leva para o relatório por pessoa)
  * Quem faz o quê (VHL · Produção por Etapa + Tri7 · andamentos e certidões) e comparação só com quem faz a mesma tarefa
  * na mesma natureza. Não soma funções diferentes, não faz ranking, não usa ausência nem atestado. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/equipe.js']='0.17.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/equipe.js']='0.18.0';
   var EQ_CORES=['var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)','var(--c6)'], EQ_OUTRAS='var(--ink-3)';
   var EQ_TRI={PN:'Prenotação',PA:'Prenotação',RE:'Revisão de exigência',NE:'Nota de exigência',RA:'Re-análise (entrada)',CI:'Custas informadas',SG:'Selos / registro',RC:'Recebido para entrega',CD:'Cancelamento',CP:'Cancelamento',CC:'Cancelamento'};
   // nome da função a partir da etapa do VHL: tira o prazo do nome ("Análise - 1 D", "4H - Análise" e "Análise - 2 D" viram "Análise")
@@ -77,7 +77,7 @@
     var L=X.filter(function(x){ return x.fn===fn && x.nat===nat && x.pz!=null && !eqOculto(x.k); }), P={}, todos=[];
     L.forEach(function(x){ (P[x.k]=P[x.k]||{k:x.k,nome:x.nome,pz:[],docs:{}}).pz.push(x.pz); P[x.k].docs[x.c]=1; todos.push(x.pz); });
     var ix=eqIncIdx();
-    var R=Object.keys(P).map(function(k){ var p=P[k], out=[]; Object.keys(P).forEach(function(j){ if (j!==k) out=out.concat(P[j].pz); });
+    var R=Object.keys(P).map(function(k){ var p=P[k], out=[]; Object.keys(P).forEach(function(j){ if (j!==k && !eqEmApr(j)) out=out.concat(P[j].pz); }); // 0.18.0: quem está em aprendizagem não entra na régua dos colegas
       var t=zWelch(p.pz,out), l=leitura(t,p.pz.length,'mais tempo na etapa','menos tempo na etapa'), nd=Object.keys(p.docs), ni=nd.filter(function(c){ return (ix[c]||{})[k]; }).length;
       return {k:k, nome:p.nome, n:p.pz.length, med:media(p.pz), l:out.length>=MIN_N?l:{txt:'poucos colegas',cls:'mut'}, nd:nd.length, ni:ni}; }).sort(function(a,b){ return b.n-a.n; });
     return {R:R, q1:quant(todos,.25), med:quant(todos,.5), q3:quant(todos,.75), p90:quant(todos,.9), n:todos.length}; }
@@ -149,7 +149,7 @@
     var G=eqGeral(X,fsel).filter(function(g){ return g.n>=mn; });
     if (G.length) h+='<div class="panel eq-p"><div class="sub-h">Visão geral · '+esc(fsel)+' · ajustada pelo tipo de documento</div><p class="hint" style="margin:0 0 8px">Cada execução é comparada com a média dos colegas <b>na mesma natureza</b>; assim quem pega tipos de documento mais demorados não sai prejudicado. Tempo = dias úteis que o documento ficou na etapa até a pessoa executar: inclui fila e distribuição, não é a velocidade da pessoa.</p>'+
       '<div class="tbl-wrap"><table class="eq-cmp"><thead><tr><th class="tleft">Pessoa</th><th>Execuções</th><th>Naturezas</th><th>Tempo real (d.u.)</th><th>Esperado para os tipos dela</th><th>Diferença</th><th title="Documentos que tiveram exigência ou voltaram (reingresso)">Com exigência ou retorno</th><th>Docs. com inconf. da pessoa</th><th>Funções no período</th><th>Leitura</th></tr></thead><tbody>'+
-      G.map(function(g){ var nf=eqNFuncoes(Q.PF,g.k), d=g.razao!=null?(g.razao-1)*100:null; return '<tr><td class="tleft">'+esc(g.nome)+'</td><td>'+g.n+'</td><td>'+g.nNat+'</td><td><b>'+numBR(g.real,1)+'</b></td><td>'+(g.esp==null?'—':numBR(g.esp,1))+'</td><td>'+(d==null?'—':(d>0?'+':'')+numBR(d,0)+'%')+'</td><td>'+(g.pEx==null?'—':pct(g.pEx))+'</td><td>'+(g.pIn==null?'—':pct(g.pIn))+'</td><td>'+nf+'</td><td>'+eqLeitPill(g.l)+'</td></tr>'; }).join('')+'</tbody></table></div>'+
+      G.map(function(g){ var nf=eqNFuncoes(Q.PF,g.k), d=g.razao!=null?(g.razao-1)*100:null; return '<tr><td class="tleft">'+esc(g.nome)+(eqEmApr(g.k)?' <span class="eq-tag apr">em aprendizagem</span>':'')+'</td><td>'+g.n+'</td><td>'+g.nNat+'</td><td><b>'+numBR(g.real,1)+'</b></td><td>'+(g.esp==null?'—':numBR(g.esp,1))+'</td><td>'+(d==null?'—':(d>0?'+':'')+numBR(d,0)+'%')+'</td><td>'+(g.pEx==null?'—':pct(g.pEx))+'</td><td>'+(g.pIn==null?'—':pct(g.pIn))+'</td><td>'+nf+'</td><td>'+eqLeitPill(g.l)+'</td></tr>'; }).join('')+'</tbody></table></div>'+
       '<p class="hint">Leia junto com o contexto: exigências e retornos aumentam o tempo do documento; quem divide o dia entre várias funções atende cada fila em parte do dia. A leitura só sai de "dentro do esperado" com 95% de confiança e diferença de pelo menos '+numBR(DES_MIN_DIF,1)+' d.u. por execução.</p></div>';
     // 3. comparação dentro da função e natureza
     var natCmp=nats.filter(function(x){ return X.some(function(y){ return y.fn===fsel&&y.nat===x.n&&y.pz!=null; }); }), nsel=state.eqNat&&natCmp.some(function(x){ return x.n===state.eqNat; })?state.eqNat:(natCmp[0]||{}).n; state.eqNat=nsel;
@@ -158,7 +158,7 @@
       h+='<div class="panel eq-p"><div class="sub-h">Comparação com os colegas · '+esc(fsel)+' · <select id="eqNatSel" aria-label="Natureza">'+natCmp.map(function(x){ return '<option'+(x.n===nsel?' selected':'')+'>'+esc(x.n)+'</option>'; }).join('')+'</select></div>'+
         '<p class="hint" style="margin:0 0 8px">Só quem fez esta etapa nesta natureza no período. Tempo = dias úteis que o documento ficou na etapa até a pessoa executar. Barra cinza = metade do meio da equipe; traço = mediana; ponto = a pessoa.</p>'+
         '<div class="tbl-wrap"><table class="eq-cmp"><thead><tr><th class="tleft">Pessoa</th><th>Execuções</th><th>Tempo médio (d.u.)</th><th style="min-width:150px;width:22%">Posição na equipe <span class="mut">· 0 a '+numBR(hi,1)+' d.u.</span></th><th>Docs. com inconf.</th><th>Leitura</th></tr></thead><tbody>'+
-        C.R.map(function(r){ var nf=eqNFuncoes(PFv,r.k); return '<tr><td class="tleft"><span class="eq-nm">'+(podeEscrever?'<button class="eq-x" type="button" data-eqocultar="'+esc(r.k)+'" title="Ocultar desta página" aria-label="Ocultar '+esc(r.nome)+'">×</button>':'')+esc(r.nome)+(nf>=2?' <span class="eq-tag">divide o dia com '+nf+' funções</span>':'')+'</span></td><td>'+r.n+'</td><td><b>'+numBR(r.med,1)+'</b></td><td>'+(r.n>=MIN_N?eqFaixa(r.med,C.q1,C.med,C.q3,hi,200):'<span class="mut">—</span>')+'</td><td>'+r.ni+' de '+r.nd+'</td><td>'+(r.n>=MIN_N?eqLeitPill(r.l):'<span class="pill mute">poucos casos</span>')+'</td></tr>'; }).join('')+'</tbody></table></div>'+
+        C.R.map(function(r){ var nf=eqNFuncoes(PFv,r.k); return '<tr><td class="tleft"><span class="eq-nm">'+(podeEscrever?'<button class="eq-x" type="button" data-eqocultar="'+esc(r.k)+'" title="Ocultar desta página" aria-label="Ocultar '+esc(r.nome)+'">×</button>':'')+esc(r.nome)+(nf>=2?' <span class="eq-tag">divide o dia com '+nf+' funções</span>':'')+(eqEmApr(r.k)?' <span class="eq-tag apr">em aprendizagem</span>':'')+'</span></td><td>'+r.n+'</td><td><b>'+numBR(r.med,1)+'</b></td><td>'+(r.n>=MIN_N?eqFaixa(r.med,C.q1,C.med,C.q3,hi,200):'<span class="mut">—</span>')+'</td><td>'+r.ni+' de '+r.nd+'</td><td>'+(r.n>=MIN_N?eqLeitPill(r.l):'<span class="pill mute">poucos casos</span>')+'</td></tr>'; }).join('')+'</tbody></table></div>'+
         '<p class="hint">A leitura só sai de "dentro do esperado" quando a diferença para os colegas é clara (95% de confiança) e passa de '+numBR(DES_MIN_DIF,1)+' d.u. Quem divide o dia entre várias funções faz menos por dia em cada uma: o volume é só informativo. O painel só enxerga o trabalho registrado em etapas do VHL e andamentos do Tri7; atendimento de balcão aparece em Atendimento, e tarefas fora do sistema não aparecem.</p></div>'; }
     el.innerHTML=h;
   }
@@ -217,7 +217,7 @@
   // cada execução comparada com a média dos colegas (sem a própria pessoa) na mesma função e natureza; a pessoa é lida pela média desses desvios
   function eqGeral(X, fn){
     var L=X.filter(function(x){ return x.fn===fn && x.pz!=null && !eqOculto(x.k); }), C={};
-    L.forEach(function(x){ var c=C[x.nat]=C[x.nat]||{n:0,s:0,p:{}}; c.n++; c.s+=x.pz; var q=c.p[x.k]=c.p[x.k]||{n:0,s:0}; q.n++; q.s+=x.pz; });
+    L.forEach(function(x){ var c=C[x.nat]=C[x.nat]||{n:0,s:0,p:{}}; var q=c.p[x.k]=c.p[x.k]||{n:0,s:0}; if (eqEmApr(x.k)) return; c.n++; c.s+=x.pz; q.n++; q.s+=x.pz; });
     var P={}, ex=eqExIdx(), ix=eqIncIdx();
     L.forEach(function(x){ var c=C[x.nat], q=c.p[x.k], no=c.n-q.n; var p=P[x.k]=P[x.k]||{k:x.k,nome:x.nome,n:0,pz:0,esp:0,ne:0,dv:[],docs:{},nats:{}};
       p.n++; p.pz+=x.pz; p.nats[x.nat]=1; p.docs[x.c]=1; if (no>=5){ var e=(c.s-q.s)/no; p.esp+=e; p.ne++; p.dv.push(x.pz-e); } });
