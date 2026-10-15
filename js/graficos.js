@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/graficos.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/graficos.js']='0.18.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/graficos.js']='0.19.0';
   function mesesGraficos(){
     var s={}; [state.docs,state.cert,state.senhas,state.k9,state.inconf,state.serv].forEach(function(o){ Object.keys(o||{}).forEach(function(m){ if (/^\d{4}-\d{2}$/.test(m)) s[m]=1; }); });
     Object.keys(HIST_SEMENTE).forEach(function(m){ s[m]=1; }); Object.keys(state.kp).forEach(function(m){ if (state.kp[m]&&state.kp[m].hist) s[m]=1; });
@@ -135,6 +135,9 @@
       for (var j=n-1;j>=0;j--){ var v2=o.banda.lo[j]; if (v2==null) continue; dn+=' L'+x(j).toFixed(1)+','+y(v2).toFixed(1); }
       if (up) s+='<path d="'+up+dn+' Z" style="fill:var(--ink-3);opacity:.14"/>'; }
     (o.ref||[]).forEach(function(r,k){ s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+y(r.v).toFixed(1)+'" y2="'+y(r.v).toFixed(1)+'" stroke="var(--ink-3)" stroke-dasharray="4 3"/><text x="'+(pl+4)+'" y="'+(y(r.v)+(k%2?13:-4)).toFixed(1)+'" font-size="11" style="fill:var(--ink-2)">'+esc(r.nome)+'</text>'; });
+    // 0.19.0: marcos (linha vertical num mês: "ação da NC-010") · o.marcos=[{i, txt}]
+    (o.marcos||[]).forEach(function(mk,k){ if (mk.i==null||mk.i<0||mk.i>=n) return; var xm=x(mk.i), t=String(mk.txt||''), dir=xm>W*0.6; if (t.length>28) t=t.slice(0,27)+'…';
+      s+='<line x1="'+xm.toFixed(1)+'" x2="'+xm.toFixed(1)+'" y1="'+pt+'" y2="'+(H-pb)+'" stroke="var(--warn)" stroke-width="1.5" stroke-dasharray="5 3" pointer-events="none"/><text x="'+(dir?xm-4:xm+4).toFixed(1)+'" y="'+(pt+10+(k%3)*13)+'" font-size="11"'+(dir?' text-anchor="end"':'')+' style="fill:var(--ink-2)" pointer-events="none">▼ '+esc(t)+'</text>'; });
     var umaSo=series.length===1; // 0.12.0: série única usa a cor padrão dos gráficos
     series.forEach(function(se,k){ var corS=umaSo&&!se.fixa?'var(--serie)':se.cor; var d='', first=-1, last=-1; se.v.forEach(function(v,i){ if (v==null||isNaN(v)) return; d+=(d?' L':'M')+x(i).toFixed(1)+','+y(v).toFixed(1); if (first<0) first=i; last=i; });
       if (!d) return;
