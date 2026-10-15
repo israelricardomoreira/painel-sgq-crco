@@ -1,7 +1,7 @@
 /* Painel SGQ · CRCO — js/equipe.js (0.15.0: página "Equipe e funções" e o que ela leva para o relatório por pessoa)
  * Quem faz o quê (VHL · Produção por Etapa + Tri7 · andamentos e certidões) e comparação só com quem faz a mesma tarefa
  * na mesma natureza. Não soma funções diferentes, não faz ranking, não usa ausência nem atestado. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/equipe.js']='0.16.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/equipe.js']='0.17.0';
   var EQ_CORES=['var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)','var(--c6)'], EQ_OUTRAS='var(--ink-3)';
   var EQ_TRI={PN:'Prenotação',PA:'Prenotação',RE:'Revisão de exigência',NE:'Nota de exigência',RA:'Re-análise (entrada)',CI:'Custas informadas',SG:'Selos / registro',RC:'Recebido para entrega',CD:'Cancelamento',CP:'Cancelamento',CC:'Cancelamento'};
   // nome da função a partir da etapa do VHL: tira o prazo do nome ("Análise - 1 D", "4H - Análise" e "Análise - 2 D" viram "Análise")
@@ -16,26 +16,45 @@
   function eqNoPeriodo(m){ return state.periodo==='todos'||state.periodo===m; }
   // natureza de cada protocolo do RI (para dar natureza aos andamentos do Tri7)
   function eqNatRI(){ var o={}; Object.keys(state.docs).forEach(function(m){ state.docs[m].atos.forEach(function(a){ o[String(a.c)]=a.nat; }); }); return o; }
-  // todas as execuções, de todos os meses carregados: {k, nome, fn, nat, m (mês da execução), pz (d.u. na etapa; só VHL), c, src}
+  // 0.17.0: setores e funções editáveis. A etapa crua (do VHL ou do Tri7) vira função pela tabela da Configuração;
+  // sem ajuste, vale a sugestão automática (tira o prazo do nome, junta grafias iguais e o "ONR - " quando a etapa já existe sem ele).
+  var EQ_SETORES=['Recepção','Registro (RI)','Intimações','Certidões','RC','RTD/PJ','Apoio'];
+  function eqSetorDoc(t){ var n=semAc(t); if (n==='ri') return 'Registro (RI)'; if (n==='intimacoes') return 'Intimações'; if (n==='certidao - ri'||n==='certidao - rtd') return 'Certidões'; if (n==='rc') return 'RC'; if (n==='rtd'||n==='rpj') return 'RTD/PJ'; return 'Apoio'; }
+  function eqCanon(raw){ return semAc(eqFn(raw)).replace(/[ºª°]/g,'').replace(/\s*-\s*/g,' ').replace(/\s+/g,' ').trim(); }
+  function eqAuto(R){ // R: raw -> {n, sv:{setor:n}}
+    var grp={}, out={map:{}, oc:{}, setor:{}};
+    Object.keys(R).forEach(function(raw){ if (/\(Tri7\)$/.test(raw)){ out.map[raw]=raw; return; } var c=eqCanon(raw); (grp[c]=grp[c]||[]).push(raw); });
+    Object.keys(grp).forEach(function(c){ var alvo=c; if (/^onr /.test(c) && grp[c.slice(4)]) alvo=c.slice(4); grp[c].alvo=alvo; });
+    var nome={}; Object.keys(grp).forEach(function(c){ var L=grp[c].slice().sort(function(a,b){ return R[b].n-R[a].n; }); nome[c]=eqFn(L[0]); });
+    Object.keys(grp).forEach(function(c){ grp[c].forEach(function(raw){ out.map[raw]=nome[grp[c].alvo]||nome[c]; if (/^aguardando/.test(c)) out.oc[raw]=true; }); });
+    var fs={}; Object.keys(R).forEach(function(raw){ var f=out.map[raw], q=fs[f]=fs[f]||{}; Object.keys(R[raw].sv).forEach(function(sv){ q[sv]=(q[sv]||0)+R[raw].sv[sv]; }); });
+    Object.keys(fs).forEach(function(f){ out.setor[f]=Object.keys(fs[f]).sort(function(a,b){ return fs[f][b]-fs[f][a]; })[0]; });
+    return out; }
+  function eqCfg(){ return state.fnCfg||{map:{},setor:{}}; }
+  function eqFnDe(raw, A){ var m=eqCfg().map[raw]; return (m&&m.fn)||A.map[raw]||eqFn(raw); }
+  function eqOcDe(raw, A){ var m=eqCfg().map[raw]; return m&&m.oc!=null?!!m.oc:!!A.oc[raw]; }
+  function eqSetorDe(fn, A){ return eqCfg().setor[fn]||A.setor[fn]||'Apoio'; }
+  // todas as execuções de todos os meses e serventias carregados: {k, nome, raw, fn, setor, nat, d, m, pz, c, src, meta}
   function eqExecs(){
-    var modo=svModo(), chave=[modo,svAtual(),subAtual(),state.riOrig||'todas',state.grVer,Object.keys(state.docs).length,Object.keys(state.logs).length,Object.keys(state.serv).length,state.andVer||0,Object.keys(state.cert).length,Object.keys(state.usr||{}).length].join('|');
+    var chave=[state.riOrig||'todas',state.grVer,state.fnVer||0,Object.keys(state.docs).length,Object.keys(state.logs).length,Object.keys(state.serv).length,state.andVer||0,Object.keys(state.cert).length,Object.keys(state.usr||{}).length].join('|');
     if (state._eqX&&state._eqX.k===chave) return state._eqX.v;
-    var X=[];
-    function add(nome,fn,nat,d,pz,c,src,et){ if (!nome||!fn||!d) return; d=String(d).slice(0,10); X.push({k:semAc(nome), nome:nome, fn:fn, nat:nat||'(sem natureza)', d:d, m:d.slice(0,7), pz:(pz==null||isNaN(pz))?null:pz, c:String(c), src:src, meta:et?eqMetaEt(et):null}); }
+    var X=[], R={};
     function dia(n){ return new Date(n*864e5).toISOString().slice(0,10); }
-    if (modo==='ri'||modo==='todas'){
-      Object.keys(state.docs).forEach(function(m){ if (!state.logs[m]) return; var map=state.logCache[m]||(state.logCache[m]=Motor.decodificarLog(state.logs[m]));
-        state.docs[m].atos.filter(origOk).forEach(function(a){ var L=map[a.c]; if (!L) return; L.ev.forEach(function(e){ add(e.rp,eqFn(e.et),a.nat,dia(e.d),e.pz,a.c,'VHL',e.et); }); }); });
-      var nat=eqNatRI();
-      Object.keys(state.andam).forEach(function(m){ state.andam[m].forEach(function(e){ if (e.t!=='P'||!EQ_TRI[e.s]||!e.u||/^tri7$/i.test(e.u)) return; add(nomeLogin(e.u),EQ_TRI[e.s]+' (Tri7)',nat[String(e.n)]||'(ainda não finalizado)',Motor.isoMin(e.m).slice(0,10),null,e.n,'Tri7'); }); });
-    }
-    if (modo==='cert'||modo==='todas') Object.keys(state.cert).forEach(function(m){ state.cert[m].recs.forEach(function(r){ if (!r.u||/^tri7$/i.test(r.u)) return; add(r.u,'Certidão (Tri7)',r.nat||'Certidão',String(r.i||(m+'-01')).slice(0,10),null,r.p,'Tri7'); }); });
-    if (modo==='serv'||modo==='todas'||modo==='cert') Object.keys(state.serv).forEach(function(m){ state.serv[m].forEach(function(d){
-      if (modo==='cert'){ if (semAc(d.t)!=='certidao - ri') return; } else if (modo==='serv'&&!docOk(d)) return; else if (modo==='todas'&&svDe(d.t)==='Apoio') return;
-      d.ets.forEach(function(e){ add(e.rp,eqFn(e.et),d.nat,e.d?dia(e.d):m+'-01',e.pz,d.c,'VHL',e.et); }); }); });
-    state._eqX={k:chave, v:X}; return X;
+    function add(nome,raw,nat,d,pz,c,src,sv){ if (!nome||!raw||!d) return; d=String(d).slice(0,10); var r=R[raw]=R[raw]||{n:0,sv:{}}; r.n++; r.sv[sv]=(r.sv[sv]||0)+1;
+      X.push({k:semAc(nome), nome:nome, raw:raw, nat:nat||'(sem natureza)', d:d, m:d.slice(0,7), pz:(pz==null||isNaN(pz))?null:pz, c:String(c), src:src, sv:sv, meta:src==='VHL'?eqMetaEt(raw):null}); }
+    Object.keys(state.docs).forEach(function(m){ if (!state.logs[m]) return; var map=state.logCache[m]||(state.logCache[m]=Motor.decodificarLog(state.logs[m]));
+      state.docs[m].atos.filter(origOk).forEach(function(a){ var L=map[a.c]; if (!L) return; L.ev.forEach(function(e){ add(e.rp,e.et,a.nat,dia(e.d),e.pz,a.c,'VHL','Registro (RI)'); }); }); });
+    var nat=eqNatRI();
+    Object.keys(state.andam).forEach(function(m){ state.andam[m].forEach(function(e){ if (e.t!=='P'||!EQ_TRI[e.s]||!e.u||/^tri7$/i.test(e.u)) return; add(nomeLogin(e.u),EQ_TRI[e.s]+' (Tri7)',nat[String(e.n)]||'(ainda não finalizado)',Motor.isoMin(e.m).slice(0,10),null,e.n,'Tri7',(e.s==='PN'||e.s==='PA')?'Recepção':'Registro (RI)'); }); });
+    Object.keys(state.cert).forEach(function(m){ state.cert[m].recs.forEach(function(r){ if (!r.u||/^tri7$/i.test(r.u)) return; add(r.u,'Certidão (Tri7)',r.nat||'Certidão',(typeof r.i==='number'?Motor.isoMin(r.i):String(r.i||(m+'-01'))).slice(0,10),null,r.p,'Tri7','Certidões'); }); });
+    Object.keys(state.serv).forEach(function(m){ state.serv[m].forEach(function(d){ var sv=eqSetorDoc(d.t); d.ets.forEach(function(e){ add(e.rp,e.et,d.nat,e.d?dia(e.d):m+'-01',e.pz,d.c,'VHL',sv); }); }); });
+    var A=eqAuto(R), Y=[];
+    // o setor é o da serventia do documento (prenotação do Tri7 = Recepção); se a função tiver setor escolhido na Configuração, vale o escolhido
+    var CS=eqCfg().setor||{}; X.forEach(function(x){ if (eqOcDe(x.raw,A)) return; x.fn=eqFnDe(x.raw,A); x.setor=CS[x.fn]||x.sv; Y.push(x); });
+    state._eqA=A; state._eqR=R;
+    state._eqX={k:chave, v:Y}; return Y;
   }
-  function eqPeriodo(){ return eqExecs().filter(function(x){ return eqNoPeriodo(x.m); }); }
+  function eqPeriodo(){ var st=state.eqSetor||''; return eqExecs().filter(function(x){ return eqNoPeriodo(x.m) && (!st||x.setor===st); }); }
   function eqMin(){ return state.eqMin||10; }
   // contagens: pessoa × função e função × natureza × pessoa
   function eqContar(X){ var PF={}, F={}, FN={}, nomes={}, U={};
@@ -77,21 +96,25 @@
   // ——— página
   function renderEqp(){
     var el=$('tabEqp'); if (!el) return;
-    var X=eqPeriodo(); if (!X.length){ el.innerHTML='<div class="empty"><b>Sem execuções no período</b>Importe a Produção por Etapa (PAINEL-02), a Prazo e Tempo Médio (PAINEL-01) e o Relatório de andamentos do Tri7.</div>'; return; }
+    var Xs=eqExecs().filter(function(x){ return eqNoPeriodo(x.m); }), cntS={}; Xs.forEach(function(x){ cntS[x.setor]=(cntS[x.setor]||0)+1; });
+    if (state.eqSetor&&!cntS[state.eqSetor]) state.eqSetor='';
+    var barraSetor='<div class="eq-set" role="tablist" aria-label="Setor"><button type="button" class="chip'+(!state.eqSetor?' on':'')+'" data-eqsetor="">Todos os setores</button>'+EQ_SETORES.filter(function(s){ return cntS[s]; }).map(function(s){ return '<button type="button" class="chip'+(state.eqSetor===s?' on':'')+'" data-eqsetor="'+esc(s)+'">'+esc(s)+' <span class="mut">'+cntS[s].toLocaleString('pt-BR')+'</span></button>'; }).join('')+'<span class="hint">Setores e funções: Configuração › Funções da equipe. O seletor Serventia do topo não muda esta página.</span></div>';
+    var X=eqPeriodo(); if (!X.length){ el.innerHTML=barraSetor+'<div class="empty"><b>Sem execuções no período</b>Importe a Produção por Etapa (PAINEL-02), a Prazo e Tempo Médio (PAINEL-01) e o Relatório de andamentos do Tri7.</div>'; return; }
     var Q=eqContar(X), mn=eqMin(), ocl=Object.keys(state.eqOcl||{});
     var vis=Object.keys(Q.PF).filter(function(k){ if (eqOculto(k)) return false; var t=0; Object.keys(Q.PF[k]).forEach(function(f){ t+=Q.PF[k][f]; }); return t>=mn; })
       .sort(function(a,b){ return String(Q.nomes[a]).localeCompare(String(Q.nomes[b]),'pt-BR'); });
-    // etapas do VHL primeiro, andamentos do Tri7 depois (cada grupo pelo volume)
-    var triF=function(f){ return /\(Tri7\)$/.test(f); }, fns=Object.keys(Q.F).sort(function(a,b){ return (triF(a)-triF(b)) || Q.F[b]-Q.F[a]; });
-    var fV=fns.filter(function(f){ return !triF(f); }), fT=fns.filter(triF), fnsV=state.eqTodasFn?fns:fV.slice(0,9).concat(fT.slice(0,4));
-    var h='<div class="sec-h"><span class="note">Quem faz o quê e como cada pessoa está em relação aos colegas que fazem a mesma tarefa, no mesmo tipo de ato. Não é ranking. Fontes: VHL (Produção por Etapa) e Tri7 (andamentos e certidões). Mês = mês da execução.</span></div>'+
+    // colunas agrupadas por setor (na ordem do fluxo) e, dentro do setor, pelo volume
+    var fSet={}, fsc={}; X.forEach(function(x){ var q=fsc[x.fn]=fsc[x.fn]||{}; q[x.setor]=(q[x.setor]||0)+1; }); Object.keys(fsc).forEach(function(f){ fSet[f]=Object.keys(fsc[f]).sort(function(a,b){ return fsc[f][b]-fsc[f][a]; })[0]; }); var oS=function(f){ var i=EQ_SETORES.indexOf(fSet[f]); return i<0?99:i; };
+    var fns=Object.keys(Q.F).sort(function(a,b){ return oS(a)-oS(b) || Q.F[b]-Q.F[a]; }), porS={};
+    var fnsV=state.eqTodasFn?fns:fns.filter(function(f){ var s=fSet[f]; porS[s]=(porS[s]||0)+1; return porS[s]<=(state.eqSetor?14:4); });
+    var h=barraSetor+'<div class="sec-h"><span class="note">Quem faz o quê e como cada pessoa está em relação aos colegas que fazem a mesma tarefa, no mesmo tipo de ato. Não é ranking. Fontes: VHL (Produção por Etapa) e Tri7 (andamentos e certidões). Mês = mês da execução.</span></div>'+
       '<div class="search eq-f"><label>Mínimo para contar <select id="eqMin" aria-label="Mínimo de execuções">'+[5,10,20,50].map(function(v){ return '<option'+(v===mn?' selected':'')+'>'+v+'</option>'; }).join('')+'</select> execuções</label><button class="btn sm" type="button" data-eqcob="1" aria-expanded="'+(state.eqCob?'true':'false')+'">Quem sabe fazer cada função</button><button class="btn sm" type="button" data-eqcarga="1" aria-expanded="'+(state.eqCarga?'true':'false')+'">Carga das funções</button><span class="spacer"></span>'+
       (ocl.length?'<button class="btn sm" type="button" data-eqocl="1" aria-expanded="'+(state.eqVerOcl?'true':'false')+'">'+ocl.length+' pessoa'+(ocl.length>1?'s':'')+' oculta'+(ocl.length>1?'s':'')+' ↺</button>':'')+'</div>';
     if (state.eqVerOcl && ocl.length) h+='<div class="eq-ocl">'+ocl.sort().map(function(k){ return '<span class="chip">'+esc(state.eqOcl[k])+' <button class="lnk" type="button" data-eqmostrar="'+esc(k)+'" title="Voltar a mostrar" aria-label="Voltar a mostrar '+esc(state.eqOcl[k])+'">↺</button></span>'; }).join('')+'<span class="hint">As pessoas ocultas saem desta página e da comparação dos relatórios. Os dados delas continuam guardados.</span></div>';
     // 1. quem faz o quê
     var mxF={}; fnsV.forEach(function(f){ mxF[f]=0; vis.forEach(function(k){ mxF[f]=Math.max(mxF[f],(Q.PF[k]||{})[f]||0); }); });
-    h+='<div class="panel eq-p"><div class="sub-h">Quem faz o quê · execuções no período</div><p class="hint" style="margin:0 0 8px">Cor mais forte = mais execuções naquela função (cada coluna na sua escala). Clique numa função para ver as naturezas.'+(fns.length>fnsV.length||state.eqTodasFn?' <button class="lnk" type="button" data-eqtodasfn="1">'+(state.eqTodasFn?'Mostrar só as maiores':'Mostrar todas as '+fns.length+' funções')+'</button>':'')+'</p>'+
-      '<div class="tbl-wrap"><table class="eq-g"><thead><tr><th></th>'+(function(){ var nv=fnsV.filter(function(f){ return !triF(f); }).length, nt=fnsV.length-nv; return (nv?'<th colspan="'+nv+'" class="eq-grp">VHL · etapas</th>':'')+(nt?'<th colspan="'+nt+'" class="eq-grp">Tri7 · andamentos</th>':''); })()+'<th></th></tr><tr><th class="tleft">Pessoa</th>'+fnsV.map(function(f){ return '<th><button class="lnk eq-th'+(state.eqFn===f?' on':'')+'" type="button" data-eqfn="'+esc(f)+'">'+esc(f)+'</button></th>'; }).join('')+'<th>Funções</th></tr></thead><tbody>'+
+    h+='<div class="panel eq-p"><div class="sub-h">Quem faz o quê · execuções no período</div><p class="hint" style="margin:0 0 8px">Cor mais forte = mais execuções naquela função (cada coluna na sua escala). Clique numa função para ver as naturezas.'+(fns.length>fnsV.length||state.eqTodasFn?' <button class="lnk" type="button" data-eqtodasfn="1">'+(state.eqTodasFn?'Mostrar só as maiores de cada setor':'Mostrar todas as '+fns.length+' funções')+'</button>':'')+'</p>'+
+      '<div class="tbl-wrap"><table class="eq-g"><thead><tr><th></th>'+(function(){ var out='', cur=null, n=0; fnsV.forEach(function(f){ if (fSet[f]!==cur){ if (cur!=null) out+='<th colspan="'+n+'" class="eq-grp">'+esc(cur)+'</th>'; cur=fSet[f]; n=0; } n++; }); if (cur!=null) out+='<th colspan="'+n+'" class="eq-grp">'+esc(cur)+'</th>'; return out; })()+'<th></th></tr><tr><th class="tleft">Pessoa</th>'+fnsV.map(function(f){ return '<th><button class="lnk eq-th'+(state.eqFn===f?' on':'')+'" type="button" data-eqfn="'+esc(f)+'">'+esc(f)+'</button></th>'; }).join('')+'<th>Funções</th></tr></thead><tbody>'+
       vis.map(function(k){ return '<tr><td class="tleft"><span class="eq-nm">'+(podeEscrever?'<button class="eq-x" type="button" data-eqocultar="'+esc(k)+'" title="Ocultar desta página" aria-label="Ocultar '+esc(Q.nomes[k])+'">×</button>':'')+'<button class="lnk eq-pn" type="button" data-eqaudk="'+esc(k)+'" title="Ver todos os títulos desta pessoa no período">'+esc(Q.nomes[k])+'</button></span></td>'+
         fnsV.map(function(f){ var v=(Q.PF[k]||{})[f]||0, t=mxF[f]?Math.sqrt(v/mxF[f]):0; return '<td>'+(v?'<button type="button" class="eq-c'+(v<mn?' fraco':'')+(state.eqAud&&state.eqAud.k===k&&state.eqAud.fn===f?' on':'')+'" style="--a:'+(0.08+0.47*t).toFixed(2)+'" data-eqaudk="'+esc(k)+'" data-eqaudfn="'+esc(f)+'" data-tip="'+esc('<b>'+esc(Q.nomes[k])+'</b><br>'+esc(f)+': '+v.toLocaleString('pt-BR')+' execuções'+(v<mn?' (abaixo do mínimo para contar)':'')+'<br>Última: '+fmtData((Q.U[k]||{})[f]))+'" data-goh="ver os títulos">'+v.toLocaleString('pt-BR')+'</button>':'<span class="mut">·</span>')+'</td>'; }).join('')+
         '<td class="mut" style="white-space:nowrap">'+eqNFuncoes(Q.PF,k)+(eqNFuncoes(Q.PF,k)===1?' função':' funções')+'</td></tr>'; }).join('')+'</tbody></table></div>';
@@ -102,7 +125,8 @@
     if (state.eqCob) h+=eqCobHTML();
     if (state.eqCarga) h+=eqCargaHTML();
     // 2. dentro de uma função
-    var fsel=state.eqFn&&Q.F[state.eqFn]?state.eqFn:(fns.filter(function(f){ var n=0; Object.keys(Q.PF).forEach(function(k){ if (!eqOculto(k)&&(Q.PF[k][f]||0)>=mn) n++; }); return n>=2; })[0]||fns[0]); state.eqFn=fsel;
+    var comTempo={}; X.forEach(function(x){ if (x.pz!=null) comTempo[x.fn]=1; }); var porVol=fns.slice().sort(function(a,b){ return (comTempo[b]?1:0)-(comTempo[a]?1:0) || Q.F[b]-Q.F[a]; });
+    var fsel=state.eqFn&&Q.F[state.eqFn]?state.eqFn:(porVol.filter(function(f){ var n=0; Object.keys(Q.PF).forEach(function(k){ if (!eqOculto(k)&&(Q.PF[k][f]||0)>=mn) n++; }); return n>=2; })[0]||porVol[0]); state.eqFn=fsel;
     var FN=Q.FN[fsel]||{}, nats=Object.keys(FN).map(function(n){ var t=0; Object.keys(FN[n]).forEach(function(k){ t+=FN[n][k]; }); return {n:n,t:t}; }).sort(function(a,b){ return b.t-a.t; });
     var top=nats.slice(0,6).map(function(x){ return x.n; }), totF=Q.F[fsel]||1, cor={}; top.forEach(function(n,i){ cor[n]=EQ_CORES[i]; });
     var pessF=vis.filter(function(k){ return (Q.PF[k][fsel]||0)>0; }).sort(function(a,b){ return Q.PF[b][fsel]-Q.PF[a][fsel]; });
@@ -223,7 +247,7 @@
       downloads.save({filename:nome, data:new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})}).then(function(){ toast('Planilha baixada'); }); }).catch(function(e){ toast(e.message); }); }
   // quem sabe fazer: últimos 12 meses, independente do período escolhido
   function eqCobHTML(){ var X=eqExecs(), ms=eqUlt6(), fim=ms[ms.length-1]||mesHoje(), ini=fim; for (var i=0;i<11;i++) ini=mesAnt(ini); var mn=eqMin();
-    var L=X.filter(function(x){ return x.m>=ini && x.m<=fim; }), F={};
+    var L=X.filter(function(x){ return x.m>=ini && x.m<=fim && (!state.eqSetor||x.setor===state.eqSetor); }), F={};
     L.forEach(function(x){ var f=F[x.fn]=F[x.fn]||{n:0,p:{}}; f.n++; var q=f.p[x.k]=f.p[x.k]||{nome:x.nome,n:0,u:''}; q.n++; if (x.d>q.u) q.u=x.d; });
     var fns=Object.keys(F).filter(function(f){ return F[f].n>=20; }).sort(function(a,b){ return Object.keys(F[a].p).length-Object.keys(F[b].p).length || F[b].n-F[a].n; });
     return '<div class="panel eq-p" id="eqCob"><div class="sec-h"><h2>Quem sabe fazer cada função</h2><span class="spacer"></span><button class="btn sm" type="button" data-eqcob="1">Fechar</button></div><p class="hint" style="margin:0 0 8px">Últimos 12 meses ('+esc(nomeMes(ini))+' a '+esc(nomeMes(fim))+'), não só o período escolhido: quem fez em março e não fez em setembro continua sabendo fazer. Conta quem tem '+mn+'+ execuções; a última execução mostra se faz tempo.</p>'+
@@ -237,7 +261,7 @@
     var dias=[]; ms.forEach(function(m){ sdUteis(m).forEach(function(d){ dias.push(d); }); }); if (!dias.length) return null;
     var d0=dias[0], d1=dias[dias.length-1], F={};
     function antes(d,n){ var k=0; while (k<n){ d--; if (util(d)) k++; } return d; }
-    X.forEach(function(x){ if (x.src!=='VHL'||eqOculto(x.k)&&x.k!==semK) return; var dn=sdDia(x.d); if (dn<d0||dn>d1) return;
+    X.forEach(function(x){ if (x.src!=='VHL'||eqOculto(x.k)&&x.k!==semK||(state.eqSetor&&x.setor!==state.eqSetor)) return; var dn=sdDia(x.d); if (dn<d0||dn>d1) return;
       var f=F[x.fn]=F[x.fn]||{ex:{},exSem:{},ent:0,pz:[],pzM:{},p:{},metas:{}}; f.ex[dn]=(f.ex[dn]||0)+1; if (x.k!==semK) f.exSem[dn]=(f.exSem[dn]||0)+1; f.p[x.k]=(f.p[x.k]||0)+1;
       if (x.pz!=null){ f.pz.push(x.pz); (f.pzM[x.m]=f.pzM[x.m]||[]).push(x.pz); if (antes(dn,Math.round(x.pz))>=d0) f.ent++; }
       if (x.meta!=null) f.metas[x.meta]=(f.metas[x.meta]||0)+1; });
@@ -260,3 +284,40 @@
         return '<tr><td class="tleft"><b>'+esc(f.fn)+'</b></td><td>'+numBR(f.med,1)+'</td><td>'+numBR(f.cap,0)+'</td><td>'+f.pes+'</td><td>'+fmtF(f.folga)+'</td>'+(semK?'<td>'+(f.capS?fmtF(f.folgaS):'<span class="pill warn" title="Os outros fazem tão pouco que, sem esta pessoa, a fila não anda">sem cobertura</span>')+'</td>':'')+'<td>'+(f.tempo==null?'—':numBR(f.tempo,1)+' d.u.')+(f.meta!=null?' <span class="mut">× '+numBR(f.meta,f.meta%1?2:0)+' d.u.</span>'+(f.tempo>f.meta?' <span class="pill warn">acima</span>':''):'')+'</td><td>'+tt+'</td></tr>'; }).join('')+'</tbody></table></div>'+
       (semK?'<p class="hint">Mostrando só as funções que '+esc(Q.nomes[semK])+' faz. "Folga sem" refaz o pico de cada dia tirando as execuções dela; se ficar perto de zero ou negativa, o resto da equipe precisaria absorver mais do que costuma dar conta.</p>':'<p class="hint">Folga perto de zero com o tempo na etapa subindo é o sinal de função no limite. Escolha uma pessoa em "E se" para ver o efeito da ausência dela.</p>')+'</div>';
     return h; }
+
+  // ——— 0.17.0: Configuração › Funções da equipe (mesclar, renomear, ocultar e setor de cada função)
+  function fnBase(){ return state.fnDraft||eqCfg(); }
+  function fnCfgHTML(){
+    eqExecs(); var R=state._eqR||{}, A=state._eqA||{map:{},oc:{},setor:{}}, C=fnBase(), b=semAc(state.fnBusca||'');
+    var fnDe=function(raw){ var m=C.map[raw]; return (m&&m.fn)||A.map[raw]||eqFn(raw); }, ocDe=function(raw){ var m=C.map[raw]; return m&&m.oc!=null?!!m.oc:!!A.oc[raw]; };
+    var G={}; Object.keys(R).forEach(function(raw){ var f=fnDe(raw), g=G[f]=G[f]||{fn:f,n:0,raws:[]}; g.raws.push(raw); if (!ocDe(raw)) g.n+=R[raw].n; });
+    var setorDe=function(f){ return C.setor[f]||A.setor[f]||'Apoio'; };
+    var fns=Object.keys(G).sort(function(a,b){ return EQ_SETORES.indexOf(setorDe(a))-EQ_SETORES.indexOf(setorDe(b)) || G[b].n-G[a].n; });
+    if (b) fns=fns.filter(function(f){ return semAc(f).indexOf(b)>=0 || G[f].raws.some(function(r){ return semAc(r).indexOf(b)>=0; }); });
+    var mud=state.fnDraft?JSON.stringify(state.fnDraft)!==JSON.stringify(eqCfg()):false, todas=Object.keys(G).sort();
+    var h='<div class="sub-h" style="margin-top:16px">Funções da equipe</div><details class="cfg-det"'+(state.fnAberto||mud?' open':'')+' id="fnDet"><summary>'+Object.keys(G).length+' funções a partir de '+Object.keys(R).length+' etapas do VHL e andamentos do Tri7'+(mud?' · <b>alterações não salvas</b>':'')+'</summary>'+
+      '<p class="hint">Cada etapa do VHL (e cada tipo de andamento do Tri7) vira uma <b>função</b>. A sugestão automática tira o prazo do nome, junta grafias iguais e junta "ONR - X" com "X" quando a etapa já existe sem o prefixo. Para <b>mesclar</b>, escreva o mesmo nome de função em duas etapas. <b>Ocultar</b> tira a etapa da Equipe e funções (as que começam com "Aguardando" já vêm ocultas). O <b>setor</b> de cada execução é o da serventia do documento (a prenotação do Tri7 fica em Recepção); escolher um setor para a função coloca todas as execuções dela nesse setor. Vale para todos os meses; os indicadores oficiais não mudam. Cuidado ao juntar uma etapa do VHL com um andamento do Tri7: o mesmo trabalho seria contado duas vezes.</p>'+
+      '<div class="search"><input type="search" id="fnBusca" placeholder="Buscar etapa ou função" value="'+esc(state.fnBusca||'')+'" aria-label="Buscar etapa ou função"><span class="spacer"></span>'+(mud?'<input type="text" id="fnMotivo" placeholder="Motivo da mudança" style="min-width:220px" aria-label="Motivo da mudança"><button class="btn primary sm" type="button" data-fnsalvar="1">Salvar funções</button><button class="btn sm" type="button" data-fndescartar="1">Descartar</button>':'')+'</div>'+
+      '<datalist id="fnLista">'+todas.map(function(f){ return '<option value="'+esc(f)+'">'; }).join('')+'</datalist>'+
+      '<div class="tbl-wrap" style="max-height:620px"><table class="tleft fn-t"><thead><tr><th>Etapa (como vem do sistema)</th><th>Execuções</th><th>Função</th><th>Ocultar</th></tr></thead><tbody>'+
+      fns.map(function(f){ var g=G[f];
+        return '<tr class="fn-g"><td colspan="2"><b>'+esc(f)+'</b> <span class="mut">· '+g.n.toLocaleString('pt-BR')+' execuções · '+g.raws.length+' etapa'+(g.raws.length>1?'s':'')+'</span></td><td colspan="2">Setor <select data-fnsetor="'+esc(f)+'" aria-label="Setor de '+esc(f)+'">'+'<option value=""'+(C.setor[f]?'':' selected')+'>pela serventia ('+esc(A.setor[f]||'—')+')</option>'+EQ_SETORES.map(function(s){ return '<option'+(C.setor[f]===s?' selected':'')+'>'+esc(s)+'</option>'; }).join('')+'</select>'+(C.setor[f]?' <span class="pill mute">ajustado</span>':'')+'</td></tr>'+
+          g.raws.sort(function(a,b){ return R[b].n-R[a].n; }).map(function(raw){ var m=C.map[raw]||{}, sv=Object.keys(R[raw].sv).join(', ');
+            return '<tr><td>'+esc(raw)+' <span class="mut">· '+esc(sv)+'</span></td><td>'+R[raw].n.toLocaleString('pt-BR')+'</td><td><input type="text" list="fnLista" data-fnraw="'+esc(raw)+'" value="'+esc(m.fn||'')+'" placeholder="'+esc(A.map[raw]||eqFn(raw))+'" aria-label="Função da etapa '+esc(raw)+'">'+(m.fn?' <span class="pill mute">ajustado</span>':'')+'</td><td><input type="checkbox" data-fnoc="'+esc(raw)+'"'+(ocDe(raw)?' checked':'')+' aria-label="Ocultar '+esc(raw)+'"></td></tr>'; }).join(''); }).join('')+
+      '</tbody></table></div><p class="hint">Campo de função vazio = vale a sugestão automática (o texto cinza). Apague o nome para voltar à sugestão.</p></details>';
+    return h; }
+  function fnEditar(){ if (!state.fnDraft) state.fnDraft=JSON.parse(JSON.stringify(eqCfg())); state.fnDraft.map=state.fnDraft.map||{}; state.fnDraft.setor=state.fnDraft.setor||{}; state.fnAberto=true; return state.fnDraft; }
+  function fnMudou(t){
+    if (t.dataset.fnraw!=null){ var D=fnEditar(), raw=t.dataset.fnraw, v=String(t.value||'').trim(), m=D.map[raw]=Object.assign({},D.map[raw]||{}); if (v) m.fn=v; else delete m.fn; if (!Object.keys(m).length) delete D.map[raw]; renderCfg(); return true; }
+    if (t.dataset.fnoc!=null){ var D2=fnEditar(), r2=t.dataset.fnoc, A=state._eqA||{oc:{}}, m2=D2.map[r2]=Object.assign({},D2.map[r2]||{}); if (!!t.checked===!!A.oc[r2]) delete m2.oc; else m2.oc=!!t.checked; if (!Object.keys(m2).length) delete D2.map[r2]; renderCfg(); return true; }
+    if (t.dataset.fnsetor!=null){ var D3=fnEditar(), f=t.dataset.fnsetor; if (!t.value) delete D3.setor[f]; else D3.setor[f]=t.value; renderCfg(); return true; }
+    if (t.id==='fnBusca'){ state.fnBusca=t.value; state.fnAberto=true; renderCfg(); var fb=$('fnBusca'); if (fb){ fb.focus(); fb.setSelectionRange(fb.value.length,fb.value.length); } return true; }
+    return false; }
+  function fnClique(t){
+    if (t.dataset.fndescartar){ state.fnDraft=null; renderCfg(); return true; }
+    if (t.dataset.fnsalvar){ var mot=String(($('fnMotivo')||{}).value||'').trim(); if (!mot){ toast('Escreva o motivo da mudança'); var mm=$('fnMotivo'); if (mm) mm.focus(); return true; }
+      var antes=eqCfg(), D=state.fnDraft, n=0; Object.keys(Object.assign({},antes.map,D.map)).forEach(function(r){ if (JSON.stringify(antes.map[r]||{})!==JSON.stringify(D.map[r]||{})) n++; }); Object.keys(Object.assign({},antes.setor,D.setor)).forEach(function(f){ if ((antes.setor||{})[f]!==D.setor[f]) n++; });
+      state.fnCfg=D; state.fnDraft=null; state.fnVer=(state.fnVer||0)+1; state._eqX=null;
+      if (dbPronto&&podeEscrever) db.doc('config/funcoes').set({map:D.map, setor:D.setor, em:new Date().toISOString(), por:nomeUsuario()}).catch(function(){ toast('Não consegui salvar as funções'); });
+      apurLog('Funções da equipe','—',n+' alteração(ões)','imediato',mot); apurSalvar(); toast('Funções salvas'); return true; }
+    return false; }

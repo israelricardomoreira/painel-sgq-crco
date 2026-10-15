@@ -1,8 +1,8 @@
 /* Painel SGQ · CRCO — js/inicio.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inicio.js']='0.16.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inicio.js']='0.17.0';
   // 0.12.0: confere logo de saída se todos os arquivos do painel vieram da mesma entrega
   var ARQUIVOS_APP=["js/nucleo.js", "js/prazos.js", "js/inconformidades.js", "js/relatorios.js", "js/kpis.js", "js/atendimento.js", "js/ficha.js", "js/configuracao.js", "js/tri7.js", "js/serventias.js", "js/dados.js", "js/graficos.js", "js/desempenho.js", "js/visual.js", "js/certidoes.js", "js/importar.js", "js/saude.js", "js/equipe.js", "js/navegacao.js", "js/inicio.js"];
-  try{ checarVersoes('0.16.0'); }catch(e){ var avv=document.getElementById('avisoVersao'); if (avv){ avv.hidden=false; avv.textContent='Faltam arquivos do painel ou eles são de versões diferentes. Suba de novo todos os arquivos da entrega e recarregue a página.'; } }
+  try{ checarVersoes('0.17.0'); }catch(e){ var avv=document.getElementById('avisoVersao'); if (avv){ avv.hidden=false; avv.textContent='Faltam arquivos do painel ou eles são de versões diferentes. Suba de novo todos os arquivos da entrega e recarregue a página.'; } }
   var $=function(id){ return document.getElementById(id); };
   var TEMAS={auto:['◐ Auto','Tema: automático (segue o computador)'],claro:['☀ Claro','Tema: claro'],escuro:['☾ Escuro','Tema: escuro']};
   var temaAtual=temaAplicar(prefLer('crco-tema')||'auto');
@@ -160,7 +160,7 @@
   var KPIS_PADRAO=null;
 
   // ——— versão, dados brutos, recálculo, backup e memória de cálculo (site no GitHub + Supabase)
-  var APP_VERSAO='0.16.0';
+  var APP_VERSAO='0.17.0';
   // 0.11.0: a biblioteca de planilhas (≈310 KB) só é baixada quando precisa — importar, recalcular ou baixar a memória de cálculo
   var XLSX_URL='xlsx.full.min.js?v=0.20.3', XLSX_SRI='sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT', xlsxProm=null;
   var BRUTO_COLS={prazo:['tipo de documento','codigo','natureza','ingresso','finalizacao','prazo','tempo'], etapa:['codigo','data execucao','etapa','responsavel','prazo'], demanda:['codigo','status']};
@@ -237,6 +237,8 @@
     if (t.dataset && t.dataset.metgo!=null){ var dm=document.getElementById('met-'+t.dataset.metgo); if (dm){ dm.open=true; dm.scrollIntoView({block:'start'}); } return; }
     var ls=t.closest&&t.closest('[data-lancsel]'); if (ls){ state.lancSel=ls.dataset.lancsel; document.querySelectorAll('.lc-it').forEach(function(b){ b.classList.toggle('on',b===ls); }); document.querySelectorAll('.lc-cards .lc-card').forEach(function(c){ c.classList.toggle('lc-on',c.dataset.kpi===state.lancSel); }); return; } // 0.13.0
     if (t.dataset && (t.dataset.cfged||t.dataset.cfgcancel||t.dataset.cfgsalvar||t.dataset.cfgpadrao) && cfgClique(t)) return;
+    if (t.dataset && (t.dataset.fnsalvar||t.dataset.fndescartar) && fnClique(t)) return;
+    if (t.dataset && t.dataset.eqsetor!=null){ state.eqSetor=t.dataset.eqsetor||''; state.eqFn=null; state.eqNat=null; state.eqAud=null; return renderEqp(); }
     if (t.dataset && t.dataset.cfgir){ state.cfgEd=t.dataset.cfgir==='cal'?null:t.dataset.cfgir; irAba('cfg'); if (t.dataset.cfgir==='cal'){ var c=$('cfgCal'); if (c&&c.scrollIntoView) c.scrollIntoView({block:'start'}); } return; }
     if (t.id==='btnSalvar') return salvar();
     if (t.id==='btnVoltar') return goVoltar();
@@ -352,6 +354,7 @@
   var TITULOS={des:'Desempenho · ritmo e linha normal',vis:'Gráficos',geral:'Painel geral',nat:'Prazos · por natureza',eta:'Prazos · por etapa',fp:'Prazos · fora do prazo',ex:'Prazos · exigências',nao:'Prazos · cancelados e especiais',k1:'Inconformidades',imp:'Importar dados',cer:'Certidões',at:'Atendimento',rel:'Relatórios por pessoa',tri:'Quem fez · Tri7',lanc:'Lançar KPIs no ANOREG+',met:'Como é calculado',cfg:'Configuração do painel',sau:'Saúde dos dados',eqp:'Equipe e funções'};
   document.addEventListener('change',function(e){
     var t=e.target; if (avRascunho(t)) return;
+    if (t.dataset && (t.dataset.fnraw!=null||t.dataset.fnoc!=null||t.dataset.fnsetor!=null||t.id==='fnBusca') && fnMudou(t)) return;
     if (t.id==='eqSem'){ state.eqSem=t.value||''; return renderEqp(); }
     if (t.id==='eqAudNat'){ state.eqAud.nat=t.value||null; state.eqAudLim=100; return renderEqp(); }
     if (t.id==='eqMin'){ state.eqMin=+t.value; return renderEqp(); }
@@ -446,6 +449,7 @@
     db.collection('kpi09').onSnapshot(function(snap){ snap.docs.forEach(function(d){ var x=d.data(); if (x&&x.pessoas) state.k9[d.id]=x; }); if (state.aba==='lanc') agendarRender(); }, function(){});
     db.collection('feedback').onSnapshot(function(snap){ var m={}; snap.docs.forEach(function(d){ m[d.id]=d.data(); }); Object.assign(state.feedback,m); if (state.aba==='rel' && !document.activeElement.matches('#tabRel textarea')) renderRel(); }, function(){});
     db.doc('config/usuarios').get().then(function(s){ if (s.exists){ var u=s.data(); state.usr=Object.assign({},u.map||{}); if (state.aba==='tri') renderTri(); } }).catch(function(){});
+    db.doc('config/funcoes').get().then(function(s){ if (s.exists){ var c=s.data()||{}; state.fnCfg={map:c.map||{}, setor:c.setor||{}}; state.fnVer=(state.fnVer||0)+1; state._eqX=null; if (state.aba==='eqp') renderEqp(); if (state.aba==='cfg') renderCfg(); } }).catch(function(){});
     db.doc('config/equipe').get().then(function(s){ if (s.exists){ state.eqOcl=Object.assign({},(s.data()||{}).ocultos||{}); state._pd=null; if (state.aba==='eqp') renderEqp(); } }).catch(function(){});
     db.doc('config/prazos').get().then(function(s){ state.prazosServ=Object.assign({},PRAZOS_PADRAO,s.exists?(s.data().map||{}):{}); agendarRender(); }).catch(function(){});
     db.doc('config/naturezas').get().then(function(s){ if (s.exists){ grDefinir(s.data().grupos||[]); agendarRender(); } }).catch(function(){});

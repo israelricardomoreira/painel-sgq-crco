@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/configuracao.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/configuracao.js']='0.16.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/configuracao.js']='0.17.0';
   function compAto(a){ return a.mes||(a.fin||'').slice(0,7)||'9999-99'; }
   function cfgDef(key, comp){ var d=CFG_DEF[key]; if (d){ var v=null; d.def.forEach(function(e){ if (e[0]<=comp) v=e[1]; }); return v; }
     if (key.indexOf('serv.prazo|')===0){ var x=state.prazosServ[key.slice(11)]; return x==null||x===''?null:+x; }
@@ -55,6 +55,7 @@
     var sks=Object.keys(sk).sort(function(a,b){ return sk[b]-sk[a]; }), comP=sks.filter(function(k){ var v=cfgVal('serv.prazo|'+k,hoje); return v!=null&&!(v<0); }).length;
     h+='<div class="sub-h" style="margin-top:16px">Prazos das outras serventias e das intimações</div><details class="cfg-det"'+(state.cfgEd&&state.cfgEd.indexOf('serv.prazo|')===0?' open':'')+'><summary>'+comP+' de '+sks.length+' naturezas com prazo cadastrado</summary><p class="hint" style="margin:6px 0">Prazo em dias úteis do ingresso à finalização (0 = no mesmo dia). Vazio = sem prazo cadastrado (o painel mostra a referência P90).</p><div class="tbl-wrap"><table class="cfg-t"><thead><tr><th class="tleft">Natureza</th><th class="tleft">Valor e vigência</th><th></th></tr></thead><tbody>'+
       sks.map(function(k){ var p=k.split('|'), b=PRAZOS_BASE[k]; return cfgLinha('serv.prazo|'+k,'<div class="hint" style="margin:2px 0 0">'+esc(p[0])+' · '+sk[k]+' documentos'+(b?' · base: '+esc(b):'')+'</div>'); }).join('')+'</tbody></table></div></details>';
+    if (typeof fnCfgHTML==='function') h+=fnCfgHTML(); // 0.17.0
     h+='<div class="sub-h" style="margin-top:16px">Regras de apuração</div><div class="tbl-wrap"><table class="cfg-t"><thead><tr><th class="tleft">Regra</th><th class="tleft">Valor e vigência</th><th></th></tr></thead><tbody>'+
       cfgLinha('ri.retornoComprovado')+cfgLinha('ri.registroSelo')+cfgLinha('ri.cancelTri7')+cfgLinha('pend.marco')+cfgLinha('amostra.min')+'</tbody></table></div>';
     el.innerHTML=h;
