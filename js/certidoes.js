@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/certidoes.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/certidoes.js']='0.19.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/certidoes.js']='0.20.0';
   function certTipoMap(){ var m={}; Object.keys(state.docs).forEach(function(k){ var r=state.docs[k].raw||{}, ct=r.certTipos, cn=r.certNats||[]; if (ct) ct.split(';').forEach(function(x){ if(!x) return; var q=x.split(':'); m[q[0]]=cn[+q[1]]; }); }); return m; }
   function intimAuto(){ var tot={}, it={}; Object.keys(state.docs).forEach(function(k){ var pr=(state.docs[k].raw||{}).producao||{}; Object.keys(pr).forEach(function(p){ var v=pr[p]; if (!v||!v.e) return; Object.keys(v.e).forEach(function(et){ tot[p]=(tot[p]||0)+v.e[et]; if (INTIM_RX.test(semAc(et))) it[p]=(it[p]||0)+v.e[et]; }); }); });
     return Object.keys(tot).filter(function(p){ return tot[p]>=50 && (it[p]||0)/tot[p]>0.5 && !/^tri7$/i.test(p); }); } // 0.10.5: certidão do fluxo de intimação = natureza "Certidão de Intimação" no Tri7 (vale certidão por certidão)
@@ -9,7 +9,7 @@
     var fer=Motor.feriadoSet(state.extras), h0=state.cfg.expIni, h1=state.cfg.expFim, tm=certTipoMap(), intim={};
     intimLista().forEach(function(p){ intim[chavePessoa(p)]=1; });
     return recs.map(function(r){ var tipo=tm[r.p]||'', hu=Motor.horasUteis(r.i,r.f,fer,h0,h1), lim=Motor.limiteCert(tipo,h0,h1);
-      return {p:r.p,i:r.i,f:r.f,u:r.u,mes:r.mes,tipo:tipo||'Central/online (sem tipo)',origem:tipo?'Balcão':'Central/online',hu:hu,lim:lim,ok:hu<=lim,intim:r.nat?INTIM_NAT.test(semAc(r.nat)):!!intim[chavePessoa(r.u)], semNat:!r.nat}; });
+      return {p:r.p,i:r.i,f:r.f,u:r.u,mes:r.mes,tipo:tipo||'Central/online (sem tipo)',origem:Motor.certBalcao(tipo)?'Balcão':'Central/online',hu:hu,lim:lim,ok:hu<=lim,intim:r.nat?INTIM_NAT.test(semAc(r.nat)):!!intim[chavePessoa(r.u)], semNat:!r.nat}; });
   }
   function fmtMin(n){ var d=new Date(n*60000).toISOString(); return d.slice(8,10)+'/'+d.slice(5,7)+' '+d.slice(11,16); }
   function fmtLim(l){ var d=state.cfg.expFim-state.cfg.expIni; if (l===d) return '1 dia útil'; if (l===5*d) return '5 dias úteis'; return fmtH(l)+' úteis'; }
@@ -62,7 +62,7 @@
       kpi('Certidões no prazo',pctK(pc(C)),ok+' de '+C.length+' concluídas','hero')+
       kpi('Central / online',pct(pc(O)),O.length+' pedidos · mediana '+fmtH(mediana(O.map(function(x){return x.hu;}))))+
       kpi('Balcão',pct(pc(B)),B.length+' pedidos · mediana '+fmtH(mediana(B.map(function(x){return x.hu;}))))+
-      kpi('Inteiro teor no balcão',pct(pc(Bit)),'prazo de 4 h úteis · '+Bit.length+' pedidos',pc(Bit)!=null&&pc(Bit)<95?'canc':'')+
+      kpi('Inteiro teor no balcão',pct(pc(Bit)),'prazo de 1 dia útil · '+Bit.length+' pedidos',pc(Bit)!=null&&pc(Bit)<95?'canc':'')+
       kpi('Fora do cálculo',String(I),'certidões do fluxo de intimação (prazo corre do pagamento) · regra automática, ver abaixo')+
       kpi('Erros de validação',String(erros),'geração automática que falhou')+'</div>';
     var omT=certOrigemMensal(); h+='<div class="sub-h">De onde vêm os pedidos</div><div class="two" style="margin-bottom:14px"><div>'+certOrigemRosca(all)+'</div><div>'+(omT||'<p class="hint">Importe mais de um mês para ver o fluxo mensal.</p>')+'</div></div>';

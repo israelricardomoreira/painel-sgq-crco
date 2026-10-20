@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/navegacao.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/navegacao.js']='0.19.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/navegacao.js']='0.20.0';
   function pgVisLer(){ try{ return JSON.parse(localStorage.getItem('crco-pgvis')||'{}')||{}; }catch(e){ return {}; } }
   function pgVisDef(aba,on){ state.pgVis[aba]=on; try{ localStorage.setItem('crco-pgvis',JSON.stringify(state.pgVis)); }catch(e){} pgVisSw(); render(); }
   function pgVisSw(){ var el=$('pgVisSw'); if (el) el.innerHTML=''; var bv=$('btnVis'), k=state.aba; if (bv) bv.setAttribute('aria-pressed',(k==='vis'||(PG_VIS[k]&&state.pgVis[k]))?'true':'false'); }

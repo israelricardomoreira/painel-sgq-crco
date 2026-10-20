@@ -245,7 +245,11 @@ var Motor = (function(){
       var s=Math.max(a,d*1440+h0*60), e=Math.min(b,d*1440+h1*60); if (e>s) t+=e-s; }
     return t/60;
   }
+  // 0.20.0: inteiro teor pedido no balcão (protocolo no VHL, natureza que não começa com "ONR -") = 1 dia útil, até o mesmo horário do dia útil seguinte (decisão de 19/10/2026);
+  // inteiro teor eletrônico pela central (só no Tri7, ou "ONR - …" no VHL) = 4 horas (art. 19 §10, I, Lei 6.015/73)
+  function certBalcao(tipo){ var t=semAcento(tipo); return !!t && !/^onr\b/.test(t); }
   function limiteCert(tipo, h0, h1){ var t=semAcento(tipo), dia=h1-h0;
+    if (t.indexOf('inteiro teor')>=0 && certBalcao(tipo)) return dia;
     if (!t || t.indexOf('inteiro teor')>=0) return 4;
     if (t.indexOf('onus')>=0 || t.indexOf('situacao juridica')>=0) return dia;
     return 5*dia; }
@@ -352,7 +356,7 @@ var Motor = (function(){
         ets:f[7]?f[7].split(';').map(function(x){ var q=x.split(':'); return {et:doc.ets[+q[0]], rp:doc.resps[+q[1]], d:+q[2], pz:+q[3]}; }):[]}; });
   }
 
-  return {VERSAO:'0.19.0', limitePrazo:limitePrazo, mascarar:mascarar, processarServ:processarServ, codificarServ:codificarServ, decodificarServ:decodificarServ, tipoServ:tipoServ, processarAndam:processarAndam, codificarAndam:codificarAndam, decodificarAndam:decodificarAndam, andChave:andChave, AND_NOME:AND_NOME, isoMin:isoMin, processar:processar, processarInconf:processarInconf, processarCert:processarCert, codificarCert:codificarCert, decodificarCert:decodificarCert, horasUteis:horasUteis, limiteCert:limiteCert, feriadoSet:feriadoSet, feriadosNomeados:feriadosNomeados, nomearErro:nomearErro, CATS_ERRO:CATS_ERRO, detectar:detectar, codificar:codificar, decodificar:decodificar, criarCalendario:criarCalendario, diaDeIso:diaDeIso, isoDeDia:isoDeDia, codificarLog:codificarLog, decodificarLog:decodificarLog, paraDia:paraDia, semAcento:semAcento, linhas:linhas};
+  return {VERSAO:'0.20.0', limitePrazo:limitePrazo, mascarar:mascarar, processarServ:processarServ, codificarServ:codificarServ, decodificarServ:decodificarServ, tipoServ:tipoServ, processarAndam:processarAndam, codificarAndam:codificarAndam, decodificarAndam:decodificarAndam, andChave:andChave, AND_NOME:AND_NOME, isoMin:isoMin, processar:processar, processarInconf:processarInconf, processarCert:processarCert, codificarCert:codificarCert, decodificarCert:decodificarCert, horasUteis:horasUteis, limiteCert:limiteCert, certBalcao:certBalcao, feriadoSet:feriadoSet, feriadosNomeados:feriadosNomeados, nomearErro:nomearErro, CATS_ERRO:CATS_ERRO, detectar:detectar, codificar:codificar, decodificar:decodificar, criarCalendario:criarCalendario, diaDeIso:diaDeIso, isoDeDia:isoDeDia, codificarLog:codificarLog, decodificarLog:decodificarLog, paraDia:paraDia, semAcento:semAcento, linhas:linhas};
 })();
 if (typeof module!=='undefined') module.exports=Motor;
 // MOTOR-FIM ———————————————————————————————————————————————————

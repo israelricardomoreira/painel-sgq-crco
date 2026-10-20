@@ -2,7 +2,7 @@
  * ISO 9001 7.2 c/d · NBR 15906 7.2.2.4 e 7.2.4 · PQTA 2026 itens 7, 9 e 27.
  * Cada registro: pessoa, POP, escopo (funções e, se quiser, naturezas), início, nº de ciclos (meses) e mínimo de atos.
  * Todo mês: atos da pessoa no escopo e as inconformidades dela; você marca as relacionadas ao POP e confirma Eficaz / Não eficaz / Sem base. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/aprendizagem.js']='0.19.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/aprendizagem.js']='0.20.0';
   var APR_RES={ef:['good','Eficaz'], ne:['warn','Não eficaz'], sb:['mute','Sem base para avaliar']};
   function aprLista(){ return Object.keys(state.apr||{}).map(function(id){ return state.apr[id]; }).filter(function(a){ return a&&!a.arquivado; }); }
   function aprMeses(a){ var out=[], m=a.inicio; for (var i=0;i<(+a.ciclos||1);i++){ out.push(m); var p=m.split('-').map(Number); p[1]++; if (p[1]>12){ p[1]=1; p[0]++; } m=p[0]+'-'+(p[1]<10?'0':'')+p[1]; } return out; }

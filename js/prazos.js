@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/prazos.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/prazos.js']='0.19.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/prazos.js']='0.20.0';
   function pintarGeral(atos){
     var r=resumo(atos);
     // 0.13.0: indicadores oficiais em destaque (valor, meta, situação, linha do ano e selo de lançado); o apoio fica numa faixa
@@ -227,6 +227,23 @@
     }
     $('tabFp').innerHTML=h;
   }
+  // 0.20.0: indício de dupla exigência = 2+ exigências E inconformidade no mesmo protocolo ligada à exigência (decisão de 19/10/2026):
+  // (a) erro de tipo exigência/qualificação, ou (b) de quem redigiu a exigência ou fez a análise, desde que o erro não seja de minuta, cadastro, cobrança, selo, GED ou certidão.
+  // A mesma pessoa fazer a minuta e a exigência é normal: aí quem decide é o tipo do erro.
+  var EX_LIGADO=/^qualificacao|^exigencia/, EX_FORA=/^minuta|^cadastro|^cobranca|^selo|^ged|^certidao|^registro civil/;
+  function exIdx(){ var k=[Object.keys(state.inconf).join(','),Object.keys(state.andam).length,state.andVer||0,Object.keys(state.docs).length,Object.keys(state.incCat||{}).length].join('|');
+    if (state._exIdx&&state._exIdx.k===k) return state._exIdx;
+    var inc={}, vq={}; incTodos().forEach(function(r){ (inc[String(r.c)]=inc[String(r.c)]||[]).push(r); });
+    eqExecs().forEach(function(x){ if (/analise|exigencia/.test(semAc(x.raw))) (vq[x.c]=vq[x.c]||{})[chavePessoa(x.nome)]=x.nome; });
+    state._exIdx={k:k, inc:inc, vq:vq}; return state._exIdx; }
+  function exIndicio(a){ var X=exIdx(), I=X.inc[String(a.c)]||[], ex={}; if (!I.length) return {sim:false, I:[], txt:'sem inconformidade no protocolo'};
+    exAutores(a).forEach(function(l){ ex[chavePessoa(nomeLogin(l))]=nomeLogin(l); }); Object.keys(X.vq[String(a.c)]||{}).forEach(function(k){ ex[k]=X.vq[String(a.c)][k]; });
+    var vistos={}, mot=[];
+    I.forEach(function(r){ var cat=catDe(r), c=semAc(cat), quem=!!ex[chavePessoa(r.r)], ch=r.r+'|'+cat; if (vistos[ch]) return; vistos[ch]=1;
+      if (EX_LIGADO.test(c)) mot.push({r:r, sim:true, por:'erro de exigência'}); else if (quem && !EX_FORA.test(c)) mot.push({r:r, sim:true, por:'de quem fez a exigência ou análise'});
+      else mot.push({r:r, sim:false, por:EX_FORA.test(c)?'erro de '+cat.split(/[:(/]/)[0].trim().toLowerCase():'de outra pessoa'}); });
+    var sim=mot.some(function(m){ return m.sim; });
+    return {sim:sim, I:mot, txt:mot.map(function(m){ return (m.sim?'✔ ':'— ')+m.r.r+' · '+catDe(m.r)+' ('+m.por+')'; }).join('\n')}; }
   function renderEx(atos){
     var L=atos.filter(function(a){return state.filtroEx==='div'?(a.cat==='R'&&a.exDiv):(a.nex||0)>=2;}).sort(function(a,b){ return b.nex-a.nex || (a.c<b.c?-1:1); });
     var Rr=atos.filter(function(a){return a.cat==='R';}), comEx=Rr.filter(function(a){return a.nex>0;}).length, comPg=Rr.filter(function(a){return a.npg>0;}).length, comRi=Rr.filter(function(a){return a.nri>0;}).length;
@@ -234,12 +251,16 @@
     var avd=function(a){ var d=state.avDraft[a.c]; if (d) return {resultado:d.res,obs:d.obs}; return av(a); }; // o que a linha mostra (rascunho ou salvo)
     var isNa=function(a){ var v=av(a); return !!(v&&v.resultado==='na'); };
     var Ldesc=L.filter(isNa); L=L.filter(function(a){ return !isNa(a); });
+    var ind={}; if (state.filtroEx!=='div') L.forEach(function(a){ ind[a.c]=exIndicio(a); });
+    var temInd=function(a){ return state.filtroEx==='div'||(ind[a.c]&&ind[a.c].sim); }, Lsem=L.filter(function(a){ return !temInd(a); }), L2=L.length; 
     var nDraft=Object.keys(state.avDraft).length;
-    var aval=L.filter(av), nc=aval.filter(function(a){return av(a).resultado==='nc';}), pend=L.filter(function(a){ return !av(a)&&obrig(a); }), opc=L.filter(function(a){ return !av(a)&&!obrig(a); });
+    var aval=L.filter(av), nc=aval.filter(function(a){return av(a).resultado==='nc';}), pend=L.filter(function(a){ return !av(a)&&obrig(a)&&temInd(a); }), opc=L.filter(function(a){ return !av(a)&&!obrig(a)&&temInd(a); });
     var q=state.buscaEx.trim().toLowerCase();
     var vis=L.filter(function(a){
       if (q && a.c.toLowerCase().indexOf(q)<0 && a.nat.toLowerCase().indexOf(q)<0) return false;
-      if (state.filtroEx==='pend') return !av(a)&&obrig(a);
+      if (state.filtroEx==='pend') return !av(a)&&obrig(a)&&temInd(a);
+      if (state.filtroEx==='ind') return temInd(a);
+      if (state.filtroEx==='sem') return !temInd(a);
       if (state.filtroEx==='div') return true;
       if (state.filtroEx==='nc') return av(a)&&av(a).resultado==='nc';
       return true;
@@ -252,18 +273,19 @@
       (function(){ var cob=Rr.filter(function(a){return a.exT;}), dv=cob.filter(function(a){return a.exDiv;}); return kpi('Conferido no Tri7',cob.length?pct(cob.length/Rr.length*100):'—',cob.length?dv.length+' com contagem corrigida · filtro "Divergências"':'importe o Relatório de andamentos'); })()+
       '</div><div class="sub-h">'+(state.filtroEx==='div'?'Atos com contagem diferente entre VHL e Tri7':'Títulos com 2 ou mais exigências')+'</div>';
     h+='<div class="kpis" style="margin-bottom:14px">'+
-      kpi(state.filtroEx==='div'?'Divergentes':'Com 2+ exigências',String(L.length),state.filtroEx==='div'?'contagem corrigida pelo Tri7':pct(atos.length?L.length/atos.length*100:null)+' dos '+atos.length+' atos do período')+
+      kpi(state.filtroEx==='div'?'Divergentes':'Com 2+ exigências',String(L2),state.filtroEx==='div'?'contagem corrigida pelo Tri7':pct(atos.length?L2/atos.length*100:null)+' dos '+atos.length+' atos do período')+
+      (state.filtroEx==='div'?'':kpi('Com indício de dupla',String(L2-Lsem.length),'2+ exigências + inconformidade ligada à exigência · são estes que pedem avaliação'))+
       kpi('Avaliados',String(aval.length),pend.length+' pendentes desde '+compLabel(marco())+(opc.length?' · '+opc.length+' anteriores (opcional)':''))+
       kpi('Não conformes',String(nc.length),aval.length?pct(nc.length/aval.length*100)+' dos avaliados':'nenhum avaliado ainda',nc.length?'canc':'')+
       kpi('Conformes',String(aval.length-nc.length),'causa do cliente')+
       (Ldesc.length?kpi('Descartadas',String(Ldesc.length),'não eram exigência dupla'):'')+'</div>';
     h+='<div class="search"><input type="search" id="buscaEx" placeholder="Buscar código ou natureza" value="'+esc(state.buscaEx)+'"><div class="seg" role="group" aria-label="Filtro">'+
-      [['pend','Pendentes'],['nc','Não conformes'],['todos','Todos'],['desc','Descartadas'+(Ldesc.length?' ('+Ldesc.length+')':'')],['div','Divergências VHL × Tri7']].map(function(x){ return '<button type="button" class="segb" data-fex="'+x[0]+'" aria-pressed="'+(state.filtroEx===x[0])+'">'+x[1]+'</button>'; }).join('')+'</div></div>';
+      [['pend','Pendentes'],['ind','Com indício'],['sem','Sem indício ('+Lsem.length+')'],['nc','Não conformes'],['todos','Todos'],['desc','Descartadas'+(Ldesc.length?' ('+Ldesc.length+')':'')],['div','Divergências VHL × Tri7']].map(function(x){ return '<button type="button" class="segb" data-fex="'+x[0]+'" aria-pressed="'+(state.filtroEx===x[0])+'">'+x[1]+'</button>'; }).join('')+'</div></div>';
     h+='<div class="ctl" style="margin:8px 0"><button class="btn primary sm" type="button" data-av-tudo="1" id="avTudo"'+(nDraft?'':' disabled')+'>'+(nDraft?'Salvar tudo ('+nDraft+' alterada'+(nDraft>1?'s':'')+')':'Salvar tudo')+'</button><span class="hint" style="margin:0">O que você escolhe ou escreve fica guardado na tela até salvar, mesmo trocando de filtro ou salvando outra linha.</span></div>';
     if (!vis.length) h+='<div class="empty">Nada para mostrar com esse filtro.</div>';
-    else h+='<div class="scroll" style="max-height:520px"><table class="tleft"><thead><tr><th>Código</th><th>Natureza</th><th>Ingresso</th><th>Saída</th><th>Exigências</th><th title="Contagem só pelo VHL">VHL</th><th title="Notas de Exigência no Tri7">Tri7</th><th>Pagto.</th><th>Situação</th><th>Avaliação</th><th>Observação</th><th></th></tr></thead><tbody>'+
+    else h+='<div class="scroll" style="max-height:520px"><table class="tleft"><thead><tr><th>Código</th><th>Natureza</th><th>Ingresso</th><th>Saída</th><th>Exigências</th><th title="Contagem só pelo VHL">VHL</th><th title="Notas de Exigência no Tri7">Tri7</th><th>Pagto.</th><th>Situação</th><th title="Inconformidade ligada à exigência no mesmo protocolo">Indício</th><th>Avaliação</th><th>Observação</th><th></th></tr></thead><tbody>'+
       vis.slice(0,400).map(function(a){ var v=avd(a)||{}, sujo=!!state.avDraft[a.c];
-        return '<tr data-cod="'+esc(a.c)+'"'+(sujo?' class="rasc"':'')+'><td>'+protLink(a.c)+'</td><td class="tl">'+esc(a.nat)+'</td><td>'+fmtData(a.ing)+'</td><td>'+fmtData(a.fin)+'</td><td><b>'+a.nex+'</b>'+(!av(a)&&!obrig(a)?' <span class="pill" title="Finalizado antes de '+compLabel(marco())+': avaliação opcional">opcional</span>':'')+'</td><td class="mut">'+(a.nexV!=null?a.nexV:a.nex)+'</td><td class="mut">'+(a.exT?a.exT.ne:'—')+'</td><td>'+(a.npg||'')+'</td><td>'+(SIT[a.cat]||a.cat)+'</td>'+
+        return '<tr data-cod="'+esc(a.c)+'"'+(sujo?' class="rasc"':'')+'><td>'+protLink(a.c)+'</td><td class="tl">'+esc(a.nat)+'</td><td>'+fmtData(a.ing)+'</td><td>'+fmtData(a.fin)+'</td><td><b>'+a.nex+'</b>'+(!av(a)&&!obrig(a)?' <span class="pill" title="Finalizado antes de '+compLabel(marco())+': avaliação opcional">opcional</span>':'')+'</td><td class="mut">'+(a.nexV!=null?a.nexV:a.nex)+'</td><td class="mut">'+(a.exT?a.exT.ne:'—')+'</td><td>'+(a.npg||'')+'</td><td>'+(SIT[a.cat]||a.cat)+'</td><td>'+(function(){ var x=ind[a.c]; if (!x) return '—'; return x.sim?'<span class="pill warn" data-tip="'+esc(esc(x.txt).replace(/\n/g,'<br>'))+'">possível dupla</span>':'<span class="mut" data-tip="'+esc(esc(x.txt).replace(/\n/g,'<br>'))+'">'+(x.I.length?'inconf. não ligada':'sem inconf.')+'</span>'; })()+'</td>'+
         '<td><select class="mini" aria-label="Avaliação">'+Object.keys(AV).map(function(k){ return '<option value="'+k+'"'+((v.resultado||'')===k?' selected':'')+'>'+AV[k]+'</option>'; }).join('')+'</select></td>'+
         '<td><input class="mini" type="text" value="'+esc(v.obs||'')+'" placeholder="Ex.: cliente trouxe certidão vencida" aria-label="Observação"></td><td class="nw"><button class="btn sm" type="button" data-av-salvar="1">Salvar</button>'+(v.resultado==='nc'?' <button class="btn sm" type="button" data-av-fb="1" title="Abrir o feedback da pessoa que redigiu a exigência">→ Feedback</button>':'')+'</td></tr>'; }).join('')+'</tbody></table></div>'+
       (vis.length>400?'<p class="hint">Mostrando 400 de '+vis.length+'. Use a busca ou escolha um mês.</p>':'');
