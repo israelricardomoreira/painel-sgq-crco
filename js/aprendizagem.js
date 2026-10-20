@@ -1,95 +1,351 @@
-/* Painel SGQ · CRCO — js/aprendizagem.js (0.18.0: pessoas em aprendizagem de um POP e avaliação mensal da eficácia)
- * ISO 9001 7.2 c/d · NBR 15906 7.2.2.4 e 7.2.4 · PQTA 2026 itens 7, 9 e 27.
- * Cada registro: pessoa, POP, escopo (funções e, se quiser, naturezas), início, nº de ciclos (meses) e mínimo de atos.
- * Todo mês: atos da pessoa no escopo e as inconformidades dela; você marca as relacionadas ao POP e confirma Eficaz / Não eficaz / Sem base. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/aprendizagem.js']='0.20.0';
-  var APR_RES={ef:['good','Eficaz'], ne:['warn','Não eficaz'], sb:['mute','Sem base para avaliar']};
-  function aprLista(){ return Object.keys(state.apr||{}).map(function(id){ return state.apr[id]; }).filter(function(a){ return a&&!a.arquivado; }); }
-  function aprMeses(a){ var out=[], m=a.inicio; for (var i=0;i<(+a.ciclos||1);i++){ out.push(m); var p=m.split('-').map(Number); p[1]++; if (p[1]>12){ p[1]=1; p[0]++; } m=p[0]+'-'+(p[1]<10?'0':'')+p[1]; } return out; }
-  function aprAtivoEm(k, m){ return aprLista().some(function(a){ return a.k===k && a.status!=='concluido' && aprMeses(a).indexOf(m)>=0; }); }
-  // pessoa em aprendizagem no período escolhido: fica de fora da régua dos colegas (mediana/média) na Equipe e funções
-  function eqEmApr(k){ var L=aprLista(); if (!L.length) return false; var ms=state.periodo==='todos'?null:[state.periodo];
-    return L.some(function(a){ if (a.k!==k||a.status==='concluido') return false; if (!ms) return true; return aprMeses(a).some(function(m){ return ms.indexOf(m)>=0; }); }); }
+/* Painel SGQ · CRCO — js/aprendizagem.js (0.21.0: reescrita — eficácia da capacitação em POP)
+ * ISO 9001 7.2 b/c/d · NBR 15906 7.2.2.4, 7.2.4.1–7.2.4.3 e 7.2.4.5 e · PQTA 2026 itens 7.3 e 27.
+ * Cada registro liga uma pessoa a um documento do catálogo (js/catalogo.js). O escopo sai do documento (naturezas + etapas).
+ * A partir da data do treinamento o painel conta os atos da pessoa no escopo e traz, já marcadas, as inconformidades
+ * dela nesses documentos (o tipo do erro decide quando ela fez mais de uma fase no mesmo documento).
+ * Regra (Configuração): taxa ≤ limite = sugere Apto; acima = Não apto; menos atos que o mínimo do POP = amostra pequena.
+ * Quem decide é o superior imediato (PQTA 27.2), com a data do feedback (27.3). O painel sugere e gera a evidência.
+ * Coleção aprendiz/{id}: registro individual {v:2, k, nome, pop, popVer, popTit, motivo, treino, instrutor, jan, obs, aj{incId:{rel,mot}},
+ *   status aberto|concluido, res apto|nao, avaliador, avalEm, feedbackEm, justif, snap{…}, pai, grupo, criadoEm, por}
+ *   ou treinamento em grupo {v:2, tipo:'grupo', pop, popVer, treino, instrutor, meses, ks[], obs, criadoEm, por}. */
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/aprendizagem.js']='0.21.0';
+  var APR_MOTIVOS={novo:'Colaborador novo na função', 'pop-novo':'POP novo', 'pop-rev':'POP revisado', funcao:'Mudança de função', reforco:'Reforço (depois de Não apto)', experiencia:'Apto por experiência (ISO 9001 7.2 b)'};
+  var APR_RES={apto:['good','Apto'], nao:['warn','Não apto']};
+  function aprCfg(){ return {lim:+cfgS('apr.limite'), jan:+cfgS('apr.janela'), minMeses:+cfgS('apr.minMeses'), piso:+cfgS('apr.piso'), teto:+cfgS('apr.teto'), exp:+cfgS('apr.expMeses'), ref:+cfgS('apr.refMeses')}; }
+  function aprHoje(){ return new Date().toISOString().slice(0,10); }
+  function aprAddMes(iso, n){ var p=String(iso).slice(0,10).split('-').map(Number), d=new Date(Date.UTC(p[0],p[1]-1+n,p[2])); if (d.getUTCDate()!==p[2]) d=new Date(Date.UTC(p[0],p[1]-1+n+1,0)); return d.toISOString().slice(0,10); }
+  function aprMesesAtras(n){ var h=mesHoje().split('-').map(Number), m=h[1]-n, a=h[0]; while (m<1){ m+=12; a--; } return a+'-'+(m<10?'0':'')+m; }
+  function aprId(){ return 'apr-'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
+  function aprPct(x){ return x==null||isNaN(x)?'—':pct(x); }
+
+  // ——— execuções (todas as origens, sem o filtro balcão × central do topo) ———
+  function aprExecs(){
+    var k=[Object.keys(state.docs).length,Object.keys(state.logs).length,Object.keys(state.serv).length,Object.keys(state.andam).length,state.andVer||0,Object.keys(state.usr||{}).length,Object.keys(state.usrAuto||{}).length].join('|');
+    if (state._aprX&&state._aprX.k===k) return state._aprX.v;
+    var X=[], P={}, D={};
+    function dia(n){ return new Date(n*864e5).toISOString().slice(0,10); }
+    function add(nome,raw,nat,d,c,src){ if (!nome||!raw||!d) return; var ck=chavePessoa(nome); if (!ck) return; d=String(d).slice(0,10);
+      var x={k:ck, nome:nome, raw:raw, etN:popEtNorm(raw), nat:nat||'', natN:popNorm(nat||''), d:d, m:d.slice(0,7), c:String(c), src:src}; X.push(x);
+      if (!P[ck]||aprNomeNota(nome)>aprNomeNota(P[ck])) P[ck]=String(nome); var q=D[ck+'|'+x.c]=D[ck+'|'+x.c]||{}; q[x.etN]=1; }
+    Object.keys(state.docs).forEach(function(m){ if (!state.logs[m]) return; var map=state.logCache[m]||(state.logCache[m]=Motor.decodificarLog(state.logs[m]));
+      state.docs[m].atos.forEach(function(a){ var L=map[a.c]; if (!L) return; L.ev.forEach(function(e){ add(e.rp,e.et,a.nat,dia(e.d),a.c,'VHL'); }); }); });
+    var nat=eqNatRI();
+    Object.keys(state.andam).forEach(function(m){ state.andam[m].forEach(function(e){ if (e.t!=='P'||!EQ_TRI[e.s]||!e.u||/^tri7$/i.test(e.u)) return; add(nomeLogin(e.u),EQ_TRI[e.s]+' (Tri7)',nat[String(e.n)]||'',Motor.isoMin(e.m).slice(0,10),e.n,'Tri7'); }); });
+    Object.keys(state.serv).forEach(function(m){ state.serv[m].forEach(function(d){ d.ets.forEach(function(e){ add(e.rp,e.et,d.nat,e.d?dia(e.d):m+'-01',d.c,'VHL'); }); }); });
+    Object.keys(P).forEach(function(q){ P[q]=aprNomeBonito(P[q]); }); state._aprX={k:k, v:X, nomes:P, docEt:D}; state._aprC=null; return X; }
+  // nome para mostrar: prefere o escrito em maiúsculas e minúsculas (o VHL às vezes traz tudo em caixa alta); caixa alta vira "Nome Próprio"
+  function aprNomeNota(n){ n=String(n||''); return (/[a-zà-ÿ]/.test(n)?1000:0)+(/\./.test(n)?0:100)+n.length; }
+  function aprNomeBonito(n){ n=String(n||''); if (/[a-zà-ÿ]/.test(n)) return n; return n.toLowerCase().replace(/(^|\s)([^\s])/g,function(m,a,b){ return a+b.toUpperCase(); }).replace(/\s(De|Da|Do|Dos|Das|E)(?=\s)/g,function(m,a){ return ' '+a.toLowerCase(); }); }
+  function aprNomes(){ aprExecs(); return state._aprX.nomes; }
+  function aprDocEt(){ aprExecs(); return state._aprX.docEt; }
+  // execuções no escopo de um documento, por pessoa (cache por documento + versão do catálogo)
+  function aprEscopoIdx(p){ var C=state._aprC=state._aprC||{}, key=p.c+'|'+state.popsVer; if (C[key]) return C[key];
+    var porK={}; aprExecs().forEach(function(x){ if (!popNoEscopo(p,x)) return; (porK[x.k]=porK[x.k]||[]).push(x); });
+    return (C[key]={porK:porK}); }
+  // mínimo de atos do documento = o que uma pessoa costuma fazer no escopo em N meses (mediana da equipe), com piso e teto
+  function popMinimo(p){ var cf=aprCfg(), C=state._aprC=state._aprC||{}, key='min|'+p.c+'|'+state.popsVer+'|'+cf.minMeses+'|'+cf.piso+'|'+cf.teto+'|'+cf.ref; if (C[key]) return C[key];
+    var r={v:cf.piso, tipico:null, pessoas:0};
+    if (popMede(p)){ var ini=aprMesesAtras(cf.ref), fim=mesHoje(), I=aprEscopoIdx(p), meds=[];
+      // só quem atua de verdade no POP: as pessoas que, somadas, fazem 80% do volume (as eventuais não puxam o típico para baixo)
+      var tot={}, soma=0; Object.keys(I.porK).forEach(function(k){ var pm={}; I.porK[k].forEach(function(x){ if (x.m<ini||x.m>=fim) return; (pm[x.m]=pm[x.m]||{})[x.c]=1; });
+        var v=Object.keys(pm).map(function(m){ return Object.keys(pm[m]).length; }), t=v.reduce(function(a,b){ return a+b; },0); if (t){ tot[k]={t:t, med:aprMediana(v)}; soma+=t; } });
+      var acum=0; Object.keys(tot).sort(function(a,b){ return tot[b].t-tot[a].t; }).forEach(function(k){ if (acum<soma*0.8){ meds.push(tot[k].med); acum+=tot[k].t; } });
+      if (meds.length){ r.tipico=aprMediana(meds); r.pessoas=meds.length; r.v=Math.max(cf.piso,Math.min(cf.teto,Math.round(r.tipico*cf.minMeses))); } }
+    return (C[key]=r); }
+  function aprMediana(v){ var s=v.slice().sort(function(a,b){ return a-b; }), n=s.length; return n?(n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2):null; }
+  // inconformidade pertence à avaliação? (pré-marcação) — tipo do erro decide quando a pessoa fez outra fase do RI no mesmo documento
+  function aprPreMarca(p, k, r){ var F=p.fase; if (!POP_FASE_CAT[F]) return true;
+    var cat=semAc(catDe(r)), minha=POP_FASE_CAT[F].test(cat); if (minha) return true;
+    var ets=aprDocEt()[k+'|'+String(r.c)]||{}, outras=0;
+    Object.keys(ets).forEach(function(e){ var f=popFaseDeEt(e); if (f&&f!==F&&POP_FASE_CAT[f]&&POP_FASE_CAT[f].test(cat)) outras++; });
+    return !outras; }
+  function aprIncPorK(){ var key=Object.keys(state.inconf).map(function(m){ return m+':'+state.inconf[m].length; }).join(',')+'|'+Object.keys(state.incCat||{}).length;
+    if (state._aprI&&state._aprI.k===key) return state._aprI.v; var o={};
+    incTodos().forEach(function(r){ if (grupoDe(r)==='E') return; var k=chavePessoa(r.r); if (!k) return; (o[k]=o[k]||[]).push(r); });
+    state._aprI={k:key, v:o}; return o; }
+  // números de um período: atos (documentos distintos) da pessoa no escopo entre ini e fim e as inconformidades nesses documentos
+  function aprMedir(p, k, ini, fim, aj){ aj=aj||{};
+    var X=(aprEscopoIdx(p).porK[k]||[]).filter(function(x){ return x.d>=ini && x.d<=fim; }), docs={};
+    X.forEach(function(x){ docs[x.c]=1; });
+    var I=(aprIncPorK()[k]||[]).filter(function(r){ return r.d>=ini; }), inc=[], outras=[];
+    I.forEach(function(r){ var no=!!docs[String(r.c)], pre=no&&aprPreMarca(p,k,r), a=aj[r.id], rel=a?!!a.rel:pre;
+      var o={id:r.id, d:r.d, c:String(r.c), t:r.t, cat:catDe(r), o:r.o, pre:pre, no:no, rel:rel, mot:a&&a.mot||''};
+      if (no||rel) inc.push(o); else if (r.d<=fim) outras.push(o); });
+    inc.sort(function(a,b){ return (b.rel-a.rel)||(a.d<b.d?-1:1); });
+    var n=Object.keys(docs).length, nRel=inc.filter(function(x){ return x.rel; }).length;
+    return {n:n, inc:inc, outras:outras, nRel:nRel, taxa:n?nRel/n*100:null}; }
+  // avaliação de um registro (ao vivo ou o retrato salvo na conclusão)
+  function aprAval(a){ if (a.status==='concluido'&&a.snap) return a.snap;
+    var p=popDe(a.pop)||{c:a.pop, t:a.popTit}, cf=aprCfg(), mede=popMede(p);
+    var ini=a.treino||a.ini||aprHoje(), fimJ=a.fim||aprAddMes(ini,+(a.jan||cf.jan)), hoje=aprHoje(), ate=fimJ<hoje?fimJ:hoje;
+    var r={mede:mede, de:ini, ate:ate, fimJ:fimJ, acabou:fimJ<=hoje, lim:cf.lim, min:popMinimo(p).v, n:0, inc:[], outras:[], nRel:0, taxa:null, sug:null};
+    if (!mede) return r;
+    var M=aprMedir(p,a.k,ini,ate,a.aj); r.n=M.n; r.inc=M.inc; r.outras=M.outras; r.nRel=M.nRel; r.taxa=M.taxa;
+    r.sug=r.n<r.min?'pequena':(r.taxa<=r.lim?'apto':'nao'); return r; }
+  function aprSugTxt(R){ if (!R.mede) return 'sem medição automática: avaliação por quem acompanhou';
+    return R.sug==='pequena'?'amostra pequena ('+R.n+' de '+R.min+' atos)':R.sug==='apto'?'Apto ('+aprPct(R.taxa)+' ≤ '+numBR(R.lim,1)+'%)':'Não apto ('+aprPct(R.taxa)+' > '+numBR(R.lim,1)+'%)'; }
+  function aprSugPill(R){ var c=!R.mede?'mute':R.sug==='apto'?'good':R.sug==='nao'?'warn':'mute'; return '<span class="pill '+c+'">'+esc(aprSugTxt(R))+'</span>'; }
+
+  // ——— registros ———
+  function aprTodos(){ return Object.keys(state.apr||{}).map(function(id){ return state.apr[id]; }).filter(function(a){ return a&&a.v===2&&!a.arquivado; }); }
+  function aprLista(){ return aprTodos().filter(function(a){ return a.tipo!=='grupo'; }); }
+  function aprGrupos(){ return aprTodos().filter(function(a){ return a.tipo==='grupo'; }); }
   function aprSalvar(a){ state.apr=Object.assign({},state.apr); state.apr[a.id]=a; if (dbPronto&&podeEscrever) return db.doc('aprendiz/'+a.id).set(a).catch(function(){ toast('Não consegui salvar a aprendizagem'); }); return Promise.resolve(); }
-  // o que a pessoa fez no escopo do POP num mês, e as inconformidades dela no mês
-  function aprMes(a, m){
-    var X=eqExecs().filter(function(x){ return x.k===a.k && x.m===m && (a.fns||[]).indexOf(x.fn)>=0 && (!(a.nats||[]).length || a.nats.indexOf(x.nat)>=0); });
-    var docs={}; X.forEach(function(x){ docs[x.c]=1; });
-    var inc=incTodos().filter(function(r){ return semAc(r.r)===a.k && String(r.d).slice(0,7)===m; }).map(function(r){ return Object.assign({},r,{noEscopo:!!docs[String(r.c)]}); }).sort(function(p,q){ return (q.noEscopo-p.noEscopo) || (p.d<q.d?-1:1); });
-    var av=(a.avals||{})[m]||{}, rel=av.rel||{}, nRel=inc.filter(function(r){ return rel[r.id]; }).length, nd=Object.keys(docs).length;
-    var sug=nd<(+a.minAtos||0)?'sb':nRel?'ne':'ef';
-    return {m:m, X:X, nd:nd, inc:inc, rel:rel, nRel:nRel, sug:sug, av:av}; }
-  function aprPill(r){ var x=APR_RES[r]; return x?'<span class="pill '+x[0]+'">'+x[1]+'</span>':'<span class="pill mute">pendente</span>'; }
-  function aprPessoas(){ var o={}; eqExecs().forEach(function(x){ o[x.k]=o[x.k]||x.nome; }); return o; }
+  function aprNovo(o){ var p=popDe(o.pop)||{}; return Object.assign({v:2, id:aprId(), status:'aberto', aj:{}, criadoEm:new Date().toISOString(), por:nomeUsuario(), popVer:p.v||'', popTit:p.t||''},o); }
+  // quem está em aprendizagem sai da régua dos colegas na Equipe e funções (no período escolhido)
+  function eqEmApr(k){ var L=aprLista(); if (!L.length) return false; var ck=chavePessoa(k), per=state.periodo;
+    return L.some(function(a){ if (a.k!==ck||a.motivo==='experiencia') return false; if (per==='todos') return a.status==='aberto';
+      var ini=String(a.treino||'').slice(0,7), fim=String(a.status==='concluido'?(a.avalEm||a.treino):aprHoje()).slice(0,7); return ini&&per>=ini&&per<=fim; }); }
+
+  // ——— página ———
   function renderApr(){
-    var el=$('tabApr'); if (!el) return;
-    var L=aprLista().sort(function(a,b){ return (a.status==='concluido')-(b.status==='concluido') || String(a.nome).localeCompare(String(b.nome),'pt-BR'); });
-    var h='<div class="sec-h"><span class="note">Pessoas aprendendo um POP: o painel mostra, mês a mês, os atos dela no escopo do POP e as inconformidades; você marca as relacionadas ao POP e registra se a aprendizagem foi eficaz. Evidência da eficácia da capacitação (ISO 9001 7.2 c; NBR 15906 7.2.2.4 e 7.2.4.1; PQTA item 27). Durante o período, a pessoa fica de fora da régua dos colegas na Equipe e funções; os indicadores oficiais não mudam.</span></div>';
-    h+='<div class="search"><button class="btn primary sm" type="button" data-aprnovo="1">Novo registro de aprendizagem</button><span class="spacer"></span>'+(L.length?'<button class="btn sm" type="button" data-aprxls="1">Baixar planilha (evidência)</button>':'')+'</div>';
+    var el=$('tabApr'); if (!el) return; aprLerRascunhos();
+    var L=aprLista(), ab=L.filter(function(a){ return a.status!=='concluido'; }).sort(function(a,b){ return String(a.nome).localeCompare(String(b.nome),'pt-BR')||(a.pop<b.pop?-1:1); }),
+        fe=L.filter(function(a){ return a.status==='concluido'; }).sort(function(a,b){ return String(b.avalEm||'')<String(a.avalEm||'')?-1:1; }), cf=aprCfg();
+    var h='<div class="sec-h"><span class="note">Eficácia da capacitação em POP: você registra a pessoa, o documento e a data do treinamento; o painel acompanha os atos dela no escopo e as inconformidades nesses documentos. '+
+      'Regra: até <b>'+numBR(cf.lim,1)+'%</b> de inconformidade relacionada = sugere Apto; janela de referência de <b>'+cf.jan+' meses</b>; abaixo do mínimo do POP aparece "amostra pequena". '+
+      'Quem decide é o superior imediato, com a data do feedback (ISO 9001 7.2; NBR 15906 7.2.4; PQTA 27). A linha oficial fica na Matriz de Competências do SGQ; o painel só gera a evidência.</span></div>';
+    h+='<div class="search apr-bt">'+(podeEscrever?'<button class="btn primary sm" type="button" data-aprnovo="1">Nova aprendizagem</button><button class="btn sm" type="button" data-aprgnovo="1">Treinamento em grupo</button>':'')+'<span class="spacer"></span>'+
+      (L.length?'<button class="btn sm" type="button" data-aprcompet="1">Baixar linhas da COMPET</button><button class="btn sm" type="button" data-aprcons="1">Relatório consolidado</button>':'')+'</div>';
     if (state.aprForm) h+=aprFormHTML(state.aprForm);
-    if (!L.length && !state.aprForm){ el.innerHTML=h+'<div class="empty"><b>Nenhum registro ainda</b>Clique em "Novo registro de aprendizagem" para cadastrar a pessoa, o POP e o escopo.</div>'; return; }
-    h+=L.map(function(a){ var ms=aprMeses(a), aberto=state.aprAberto===a.id;
-      return '<div class="panel apr-c'+(a.status==='concluido'?' fim':'')+'"><div class="apr-h"><div><b>'+esc(a.nome)+'</b> · '+esc(a.pop||'')+(a.popTit?' — '+esc(a.popTit):'')+'<div class="hint" style="margin:2px 0 0">Escopo: '+esc((a.fns||[]).join(', ')||'—')+((a.nats||[]).length?' · naturezas: '+esc(a.nats.join(', ')):'')+' · '+ms.length+' ciclo(s) de '+esc(nomeMes(ms[0]))+' a '+esc(nomeMes(ms[ms.length-1]))+' · mínimo '+(+a.minAtos||0)+' atos por mês</div></div><span class="spacer"></span>'+
-        (a.status==='concluido'?'<span class="pill '+(a.conclusao==='ef'?'good':'warn')+'">Concluído: '+esc((APR_RES[a.conclusao]||['','—'])[1])+'</span>':'')+
-        '<button class="btn sm" type="button" data-aprabrir="'+esc(a.id)+'" aria-expanded="'+(aberto?'true':'false')+'">'+(aberto?'Fechar':'Avaliar')+'</button>'+(podeEscrever?' <button class="btn sm" type="button" data-apreditar="'+esc(a.id)+'">Editar</button>':'')+'</div>'+
-        '<div class="apr-ms">'+ms.map(function(m){ var r=((a.avals||{})[m]||{}).res; return '<button type="button" class="apr-m'+(state.aprMes===m&&aberto?' on':'')+'" data-aprabrir="'+esc(a.id)+'" data-aprmes="'+m+'"><span>'+esc(nomeMes(m))+'</span>'+aprPill(r)+'</button>'; }).join('')+'</div>'+
-        (aberto?aprAvalHTML(a):'')+'</div>'; }).join('');
+    if (state.aprGForm) h+=aprGFormHTML(state.aprGForm);
+    h+=aprRevHTML();
+    h+='<div class="sub-h" style="margin-top:14px">Em aprendizagem · '+ab.length+'</div>';
+    h+=ab.length?ab.map(aprCardHTML).join(''):'<div class="empty"><b>Ninguém em aprendizagem</b>Clique em "Nova aprendizagem" ou abra pela lista "Quem precisa ser treinado".</div>';
+    var G=aprGrupos().sort(function(a,b){ return a.treino<b.treino?1:-1; });
+    if (G.length) h+='<div class="sub-h" style="margin-top:16px">Treinamentos em grupo · '+G.length+'</div>'+G.map(aprGCardHTML).join('');
+    if (fe.length) h+='<details class="apr-det"'+(state.aprVerFim?' open':'')+' data-aprdet="fim"><summary>Concluídas · '+fe.length+' ('+fe.filter(function(a){ return a.res==='apto'; }).length+' Apto · '+fe.filter(function(a){ return a.res==='nao'; }).length+' Não apto)</summary>'+fe.map(aprCardHTML).join('')+'</details>';
+    if (podeEscrever) h+=aprExpHTML();
     el.innerHTML=h; }
-  function aprFormHTML(f){ var P=aprPessoas(), ks=Object.keys(P).sort(function(a,b){ return String(P[a]).localeCompare(String(P[b]),'pt-BR'); });
-    var cnt={}; eqExecs().forEach(function(x){ if (!f.k||x.k===f.k) cnt[x.fn]=(cnt[x.fn]||0)+1; }); var fns=Object.keys(cnt).sort(function(a,b){ return cnt[b]-cnt[a]; });
-    var natC={}; eqExecs().forEach(function(x){ if ((!f.k||x.k===f.k) && (f.fns||[]).indexOf(x.fn)>=0) natC[x.nat]=(natC[x.nat]||0)+1; }); var nats=Object.keys(natC).sort(function(a,b){ return natC[b]-natC[a]; }).slice(0,40);
-    return '<div class="panel apr-f"><div class="sub-h">'+(f.id?'Editar registro':'Novo registro de aprendizagem')+'</div><div class="apr-g">'+
-      '<label>Pessoa<select id="aprK"><option value="">Escolha…</option>'+ks.map(function(k){ return '<option value="'+esc(k)+'"'+(f.k===k?' selected':'')+'>'+esc(P[k])+'</option>'; }).join('')+'</select></label>'+
-      '<label>Código do POP<input type="text" id="aprPop" value="'+esc(f.pop||'')+'" placeholder="ex.: POP-RI-REC-001"></label>'+
-      '<label>Título do POP<input type="text" id="aprPopTit" value="'+esc(f.popTit||'')+'" placeholder="ex.: Recepção e prenotação"></label>'+
-      '<label>Início (1º ciclo)<input type="month" id="aprIni" value="'+esc(f.inicio||mesHoje())+'"></label>'+
-      '<label>Ciclos (meses)<input type="number" id="aprCic" min="1" max="24" value="'+(+f.ciclos||3)+'"></label>'+
-      '<label>Mínimo de atos no mês para avaliar<input type="number" id="aprMin" min="0" max="999" value="'+(f.minAtos!=null?+f.minAtos:10)+'"></label></div>'+
-      '<div class="sub-h" style="margin-top:10px">Escopo do POP · funções'+(f.k?' (as que a pessoa já fez aparecem primeiro com a quantidade)':'')+'</div><div class="apr-chk">'+fns.slice(0,60).map(function(fn){ return '<label><input type="checkbox" data-aprfn="'+esc(fn)+'"'+((f.fns||[]).indexOf(fn)>=0?' checked':'')+'> '+esc(fn)+' <span class="mut">'+cnt[fn]+'</span></label>'; }).join('')+'</div>'+
-      (nats.length?'<div class="sub-h" style="margin-top:10px">Naturezas (opcional: deixe tudo desmarcado para valer qualquer natureza)</div><div class="apr-chk">'+nats.map(function(n){ return '<label><input type="checkbox" data-aprnat="'+esc(n)+'"'+((f.nats||[]).indexOf(n)>=0?' checked':'')+'> '+esc(n)+' <span class="mut">'+natC[n]+'</span></label>'; }).join('')+'</div>':'')+
-      '<label class="apr-obs">Observação<textarea id="aprObs" rows="2" placeholder="Ex.: treinamento de 10/10 com a responsável pela recepção">'+esc(f.obs||'')+'</textarea></label>'+
+  function aprPessoasOpc(sel, extra){ var P=aprNomes(), corte=aprMesesAtras(12), ativos={}; aprExecs().forEach(function(x){ if (x.m>=corte) ativos[x.k]=1; });
+    var ks=Object.keys(P).filter(function(k){ return ativos[k]||k===sel; }).sort(function(a,b){ return String(P[a]).localeCompare(String(P[b]),'pt-BR'); });
+    return '<option value="">Escolha…</option>'+ks.map(function(k){ return '<option value="'+esc(k)+'"'+(k===sel?' selected':'')+'>'+esc(P[k])+'</option>'; }).join('')+(extra||''); }
+  function aprPopOpc(sel){ var sv=null, h='<option value="">Escolha…</option>';
+    popsTodos().forEach(function(p){ if (p.sv!==sv){ if (sv!==null) h+='</optgroup>'; sv=p.sv; h+='<optgroup label="'+esc(sv)+'">'; } h+='<option value="'+esc(p.c)+'"'+(p.c===sel?' selected':'')+'>'+esc(p.c+' · '+(p.t||'').split(' (')[0])+(popMede(p)?'':' (sem medição)')+'</option>'; });
+    return h+(sv!==null?'</optgroup>':''); }
+  function aprEscopoTxt(p){ if (!p) return ''; if (!popMede(p)) return '<p class="hint">Este documento não tem medição automática: a eficácia é avaliada por quem acompanhou, e o painel registra e gera o relatório.</p>';
+    var m=popMinimo(p); return '<p class="hint">Escopo: <b>'+esc((p.ets||[]).join(', '))+'</b> nas naturezas <b>'+esc((p.nats||[]).join(', '))+'</b>'+(p.conf?'':' <span class="pill warn">a conferir</span>')+'. Mínimo para avaliar: <b>'+m.v+' atos</b>'+(m.tipico!=null?' (uma pessoa faz cerca de '+numBR(m.tipico,1)+' por mês; '+m.pessoas+' pessoas no escopo)':' (sem histórico: vale o piso)')+'.</p>'; }
+  function aprFormHTML(f){ var p=popDe(f.pop), P=aprNomes(), n12=null;
+    if (p&&f.k&&popMede(p)){ var corte=aprMesesAtras(12)+'-01', d={}; (aprEscopoIdx(p).porK[f.k]||[]).forEach(function(x){ if (x.d>=corte) d[x.c]=1; }); n12=Object.keys(d).length; }
+    return '<div class="panel apr-f"><div class="sub-h">'+(f.id?'Editar aprendizagem':'Nova aprendizagem')+'</div><div class="apr-g">'+
+      '<label>Pessoa<select id="aprK"'+(f.id?' disabled':'')+'>'+aprPessoasOpc(f.k)+'</select></label>'+
+      '<label>Documento (POP / IT)<select id="aprPop"'+(f.id?' disabled':'')+'>'+aprPopOpc(f.pop)+'</select></label>'+
+      '<label>Motivo<select id="aprMot">'+Object.keys(APR_MOTIVOS).filter(function(m){ return m!=='experiencia'; }).map(function(m){ return '<option value="'+m+'"'+(f.motivo===m?' selected':'')+'>'+APR_MOTIVOS[m]+'</option>'; }).join('')+'</select></label>'+
+      '<label>Data do treinamento<input type="date" id="aprTr" value="'+esc(f.treino||aprHoje())+'"></label>'+
+      '<label>Treinado por<input type="text" id="aprIns" value="'+esc(f.instrutor||'')+'" placeholder="ex.: Alyrio (1º Substituto)"></label>'+
+      '<label>Janela de referência (meses)<input type="number" id="aprJan" min="1" max="12" value="'+(+f.jan||aprCfg().jan)+'"></label></div>'+
+      aprEscopoTxt(p)+(n12!=null?'<p class="hint">'+esc(P[f.k]||'')+' fez <b>'+n12+'</b> atos neste escopo nos últimos 12 meses.'+(n12>=popMinimo(p).v?' Se já domina o POP, use a carga "Apto por experiência".':'')+'</p>':'')+
+      '<label class="apr-obs">Observação<textarea id="aprObs" rows="2" placeholder="Ex.: treinamento prático com acompanhamento dos 10 primeiros títulos">'+esc(f.obs||'')+'</textarea></label>'+
       '<div class="ctl" style="margin-top:8px"><button class="btn primary sm" type="button" data-aprsalvarf="1">Salvar</button><button class="btn sm" type="button" data-aprcancelar="1">Cancelar</button>'+(f.id?'<span class="spacer"></span><button class="btn sm" type="button" data-aprarquivar="'+esc(f.id)+'">Arquivar registro</button>':'')+'</div></div>'; }
-  function aprAvalHTML(a){ var ms=aprMeses(a), m=ms.indexOf(state.aprMes)>=0?state.aprMes:(ms.filter(function(x){ return x<=mesHoje(); }).pop()||ms[0]); state.aprMes=m;
-    var R=aprMes(a,m), res=R.av.res||'', fut=m>mesHoje();
-    var h='<div class="apr-av"><div class="sub-h">Ciclo '+(ms.indexOf(m)+1)+' de '+ms.length+' · '+esc(nomeMes(m))+(fut?' · <span class="mut">mês ainda não chegou</span>':m===mesHoje()?' · <span class="mut">mês em andamento</span>':'')+'</div>'+
-      '<div class="kpis" style="margin-bottom:10px">'+kpi('Atos no escopo do POP',String(R.nd),'mínimo para avaliar: '+(+a.minAtos||0))+kpi('Inconformidades da pessoa no mês',String(R.inc.length),R.inc.filter(function(r){ return r.noEscopo; }).length+' em atos do escopo')+kpi('Relacionadas ao POP',String(R.nRel),'marcadas por você')+'</div>';
-    h+=R.inc.length?'<div class="tbl-wrap"><table class="tleft"><thead><tr><th>Relacionada ao POP?</th><th>Data</th><th>Documento</th><th>Erro</th><th>Observação</th></tr></thead><tbody>'+R.inc.map(function(r){ return '<tr><td><label class="lc-chk"><input type="checkbox" data-aprrel="'+esc(r.id)+'"'+(R.rel[r.id]?' checked':'')+(podeEscrever?'':' disabled')+'> sim</label>'+(r.noEscopo?' <span class="pill mute">no escopo</span>':'')+'</td><td>'+fmtData(r.d)+'</td><td>'+protLink(r.c)+' <span class="mut">'+esc(r.t)+'</span></td><td>'+esc(catDe(r))+'</td><td style="min-width:260px">'+esc(r.o)+'</td></tr>'; }).join('')+'</tbody></table></div>':'<p class="hint">Nenhuma inconformidade da pessoa registrada neste mês.</p>';
-    h+='<div class="apr-res"><span>Sugestão do painel: '+aprPill(R.sug)+'</span><label>Resultado do ciclo <select id="aprRes"'+(podeEscrever?'':' disabled')+'><option value="">pendente</option>'+Object.keys(APR_RES).map(function(k){ return '<option value="'+k+'"'+(res===k?' selected':'')+'>'+APR_RES[k][1]+'</option>'; }).join('')+'</select></label>'+
-      '<input type="text" id="aprResObs" value="'+esc(R.av.obs||'')+'" placeholder="Observação / ação tomada (ex.: reforço do POP com a responsável)" style="flex:1;min-width:240px"'+(podeEscrever?'':' disabled')+'>'+(podeEscrever?'<button class="btn primary sm" type="button" data-aprsalvarav="'+esc(a.id)+'">Salvar ciclo</button>':'')+'</div>'+
-      (R.av.em?'<p class="hint">Salvo em '+esc(new Date(R.av.em).toLocaleString('pt-BR'))+(R.av.por?' por '+esc(R.av.por):'')+'.</p>':'')+
-      '<p class="hint">Regra da sugestão: menos de '+(+a.minAtos||0)+' atos no escopo = Sem base; alguma inconformidade marcada como relacionada = Não eficaz; senão, Eficaz. A decisão é sua: a sugestão só ajuda.</p>';
-    if (podeEscrever && a.status!=='concluido') h+='<div class="apr-res"><span>Conclusão do período:</span><select id="aprConc"><option value="">—</option><option value="ef">Eficaz</option><option value="ne">Não eficaz</option></select><input type="text" id="aprConcObs" placeholder="Justificativa (ex.: 3 ciclos eficazes seguidos)" style="flex:1;min-width:240px"><button class="btn sm" type="button" data-aprconcluir="'+esc(a.id)+'">Concluir aprendizagem</button></div>';
-    if (a.status==='concluido') h+='<p class="hint">Concluído em '+esc(new Date(a.concluidoEm).toLocaleDateString('pt-BR'))+': <b>'+esc((APR_RES[a.conclusao]||['','—'])[1])+'</b>'+(a.concObs?' — '+esc(a.concObs):'')+(podeEscrever?' <button class="lnk" type="button" data-aprreabrir="'+esc(a.id)+'">reabrir</button>':'')+'</p>';
+  function aprLerForm(){ var f=Object.assign({},state.aprForm||{}); if (!f.id){ f.k=($('aprK')||{}).value||f.k||''; f.pop=($('aprPop')||{}).value||f.pop||''; }
+    f.motivo=($('aprMot')||{}).value||f.motivo||'novo'; f.treino=($('aprTr')||{}).value||f.treino||aprHoje(); f.instrutor=String(($('aprIns')||{}).value||'').trim(); f.jan=Math.max(1,Math.min(12,+($('aprJan')||{}).value||aprCfg().jan)); f.obs=String(($('aprObs')||{}).value||'').trim(); return f; }
+
+  // cartão de um registro
+  function aprCardHTML(a){ var R=aprAval(a), aberto=state.aprAberto===a.id, fim=a.status==='concluido', p=popDe(a.pop);
+    var barra=R.mede?'<div class="apr-bar" title="'+R.n+' de '+R.min+' atos"><span style="width:'+Math.min(100,R.min?R.n/R.min*100:0).toFixed(0)+'%"></span></div><span class="mut">'+R.n+' de '+R.min+' atos · '+R.nRel+' inconformidade(s) · '+aprPct(R.taxa)+'</span>':'';
+    var h='<div class="panel apr-c'+(fim?' fim':'')+'"><div class="apr-h"><div class="apr-hd"><b>'+esc(a.nome)+'</b> · '+esc(a.pop)+(a.popVer?' <span class="mut">v'+esc(a.popVer)+'</span>':'')+(p&&p.v&&a.popVer&&p.v!==a.popVer?' <span class="pill warn">POP na v'+esc(p.v)+'</span>':'')+
+      '<div class="hint" style="margin:2px 0 0">'+esc(APR_MOTIVOS[a.motivo]||a.motivo||'')+(a.treino?' · treinado em '+fmtData(a.treino)+(a.instrutor?' por '+esc(a.instrutor):''):'')+(R.mede?' · período avaliado '+fmtData(R.de)+' a '+fmtData(R.ate)+(fim||R.acabou?'':' (janela até '+fmtData(R.fimJ)+')'):'')+'</div>'+
+      (barra?'<div class="apr-prog">'+barra+'</div>':'')+'</div><span class="spacer"></span>'+
+      (fim?'<span class="pill '+(APR_RES[a.res]||['mute'])[0]+'">'+esc((APR_RES[a.res]||['','—'])[1])+'</span>'+(a.feedbackEm?'':' <span class="pill mute">feedback pendente</span>'):aprSugPill(R))+
+      '<button class="btn sm" type="button" data-aprabrir="'+esc(a.id)+'" aria-expanded="'+(aberto?'true':'false')+'">'+(aberto?'Fechar':fim?'Ver':'Avaliar')+'</button></div>';
+    if (aberto) h+=aprAvalHTML(a,R);
     return h+'</div>'; }
-  function aprLerForm(){ var f=Object.assign({},state.aprForm||{}); f.k=($('aprK')||{}).value||f.k||''; f.pop=String(($('aprPop')||{}).value||'').trim(); f.popTit=String(($('aprPopTit')||{}).value||'').trim(); f.inicio=($('aprIni')||{}).value||mesHoje(); f.ciclos=Math.max(1,Math.min(24,+($('aprCic')||{}).value||3)); f.minAtos=Math.max(0,+($('aprMin')||{}).value||0); f.obs=String(($('aprObs')||{}).value||'').trim();
-    f.fns=[].slice.call(document.querySelectorAll('[data-aprfn]:checked')).map(function(x){ return x.dataset.aprfn; }); f.nats=[].slice.call(document.querySelectorAll('[data-aprnat]:checked')).map(function(x){ return x.dataset.aprnat; }); return f; }
-  function aprClique(t){
-    if (t.dataset.aprnovo){ state.aprForm={ciclos:3,minAtos:10,inicio:mesHoje(),fns:[],nats:[]}; renderApr(); return true; }
-    if (t.dataset.aprcancelar){ state.aprForm=null; renderApr(); return true; }
-    if (t.dataset.apreditar){ state.aprForm=JSON.parse(JSON.stringify(state.apr[t.dataset.apreditar])); renderApr(); return true; }
-    if (t.dataset.aprsalvarf){ var f=aprLerForm(); if (!f.k){ toast('Escolha a pessoa'); return true; } if (!f.pop){ toast('Informe o código do POP'); return true; } if (!f.fns.length){ toast('Marque ao menos uma função do escopo'); return true; }
-      var P=aprPessoas(), novo=!f.id; f.id=f.id||('apr-'+Date.now().toString(36)); f.nome=P[f.k]||f.nome||f.k; f.avals=f.avals||{}; f.status=f.status||'ativo'; f.criadoEm=f.criadoEm||new Date().toISOString(); f.por=f.por||nomeUsuario();
-      aprSalvar(f).then(function(){ toast(novo?'Registro criado':'Registro atualizado'); }); state.aprForm=null; state.aprAberto=f.id; renderApr(); return true; }
-    if (t.dataset.aprarquivar){ if (!confirm('Arquivar este registro? Ele sai da lista (fica guardado no banco).')) return true; var a0=state.apr[t.dataset.aprarquivar]; if (dbPronto&&podeEscrever) db.doc('aprendiz/'+a0.id).delete(); var c=Object.assign({},state.apr); delete c[a0.id]; state.apr=c; state.aprForm=null; renderApr(); return true; }
-    if (t.dataset.aprabrir!=null){ var id=t.dataset.aprabrir; if (t.dataset.aprmes){ state.aprAberto=id; state.aprMes=t.dataset.aprmes; } else state.aprAberto=state.aprAberto===id?null:id; renderApr(); return true; }
-    if (t.dataset.aprsalvarav){ var a=JSON.parse(JSON.stringify(state.apr[t.dataset.aprsalvarav])), m=state.aprMes, R=aprMes(a,m), v=($('aprRes')||{}).value||''; a.avals=a.avals||{}; a.avals[m]=Object.assign({},a.avals[m]||{},{res:v||null, obs:String(($('aprResObs')||{}).value||'').trim(), sug:R.sug, nd:R.nd, ninc:R.inc.length, nrel:R.nRel, em:new Date().toISOString(), por:nomeUsuario()});
-      aprSalvar(a).then(function(){ toast('Ciclo salvo'); }); renderApr(); return true; }
-    if (t.dataset.aprconcluir){ var c2=($('aprConc')||{}).value, o2=String(($('aprConcObs')||{}).value||'').trim(); if (!c2){ toast('Escolha Eficaz ou Não eficaz'); return true; } if (!o2){ toast('Escreva a justificativa'); return true; }
-      var b=JSON.parse(JSON.stringify(state.apr[t.dataset.aprconcluir])); b.status='concluido'; b.conclusao=c2; b.concObs=o2; b.concluidoEm=new Date().toISOString(); b.concPor=nomeUsuario(); aprSalvar(b).then(function(){ toast('Aprendizagem concluída'); }); renderApr(); return true; }
-    if (t.dataset.aprreabrir){ var r2=JSON.parse(JSON.stringify(state.apr[t.dataset.aprreabrir])); r2.status='ativo'; aprSalvar(r2); renderApr(); return true; }
-    if (t.dataset.aprxls){ aprXls(); return true; }
+  function aprIncTabela(a, R, fim){ if (!R.inc.length) return '<p class="hint">Nenhuma inconformidade da pessoa nos documentos avaliados.</p>';
+    var ed=podeEscrever&&!fim;
+    return '<div class="tbl-wrap"><table class="tleft"><thead><tr><th>Conta?</th><th>Data</th><th>Documento</th><th>Tipo do erro</th>'+(fim?'':'<th>Observação</th>')+'</tr></thead><tbody>'+R.inc.map(function(x){
+      return '<tr><td><label class="lc-chk"><input type="checkbox" data-aprrel="'+esc(x.id)+'" data-aprpre="'+(x.pre?1:0)+'"'+(x.rel?' checked':'')+(ed?'':' disabled')+'> sim</label>'+(x.pre?'':' <span class="pill mute">'+(x.no?'outra fase':'fora do escopo')+'</span>')+
+        (!x.rel&&x.pre?'<div><input type="text" class="mini" data-aprmot="'+esc(x.id)+'" value="'+esc(x.mot)+'" placeholder="por que não conta? (obrigatório)"'+(ed?'':' disabled')+'></div>':'')+'</td><td>'+fmtData(x.d)+'</td><td>'+protLink(x.c)+' <span class="mut">'+esc(x.t||'')+'</span></td><td>'+esc(x.cat)+'</td>'+(fim?'':'<td style="min-width:240px">'+esc(x.o||'')+'</td>')+'</tr>'; }).join('')+'</tbody></table></div>'; }
+  function aprAvalHTML(a, R){ var fim=a.status==='concluido', d=state.aprDraft[a.id]||{}, P=aprNomes(), h='<div class="apr-av">';
+    if (R.mede){ h+='<div class="kpis" style="margin-bottom:10px">'+kpi('Atos no escopo',String(R.n),'mínimo do POP: '+R.min,R.n<R.min?'':'')+kpi('Inconformidades que contam',String(R.nRel),'em '+R.n+' documentos')+kpi('Taxa',aprPct(R.taxa),'limite: '+numBR(R.lim,1)+'%')+kpi('Sugestão do painel',R.sug==='apto'?'Apto':R.sug==='nao'?'Não apto':'Amostra pequena',R.sug==='pequena'?'faltam '+(R.min-R.n)+' atos para o mínimo':'a decisão é do superior')+'</div>';
+      h+=aprIncTabela(a,R,fim);
+      if (!fim&&R.outras.length) h+='<details class="apr-det"><summary>Outras inconformidades da pessoa no período ('+R.outras.length+', fora dos documentos avaliados)</summary><div class="tbl-wrap"><table class="tleft"><tbody>'+R.outras.map(function(x){ return '<tr><td><label class="lc-chk"><input type="checkbox" data-aprrel="'+esc(x.id)+'" data-aprpre="0"'+(podeEscrever?'':' disabled')+'> contar</label></td><td>'+fmtData(x.d)+'</td><td>'+protLink(x.c)+'</td><td>'+esc(x.cat)+'</td></tr>'; }).join('')+'</tbody></table></div></details>';
+      h+='<p class="hint">Contam, já marcadas, as inconformidades internas da pessoa nos documentos do escopo feitos a partir do treinamento. Se ela fez outra fase no mesmo documento (ex.: qualificação e minuta), o tipo do erro decide a fase. Desmarcar pede o motivo.</p>'; }
+    else h+='<p class="hint">Sem medição automática: registre a avaliação de quem acompanhou na justificativa.</p>';
+    if (a.obs) h+='<p class="hint">Observação do cadastro: '+esc(a.obs)+'</p>';
+    if (fim){ h+='<p class="hint">Concluído em '+fmtData(String(a.avalEm||'').slice(0,10))+' por '+esc(a.avaliador||'—')+': <b>'+esc((APR_RES[a.res]||['','—'])[1])+'</b>'+(a.justif?' — '+esc(a.justif):'')+'. Feedback: '+(a.feedbackEm?fmtData(a.feedbackEm):'<b>pendente</b>')+'.</p>';
+      h+='<div class="ctl apr-bt">'+'<button class="btn sm" type="button" data-aprrel1="'+esc(a.id)+'">Baixar relatório (evidência)</button>';
+      if (podeEscrever){ if (!a.feedbackEm) h+='<label class="apr-inl">Feedback dado em <input type="date" id="aprFb_'+esc(a.id)+'" value="'+aprHoje()+'"></label><button class="btn sm" type="button" data-aprfb="'+esc(a.id)+'">Registrar feedback</button>';
+        if (a.res==='nao'&&!aprLista().some(function(x){ return x.pai===a.id; })) h+='<button class="btn sm" type="button" data-aprreforco="'+esc(a.id)+'">Abrir reforço</button>';
+        h+='<button class="btn sm" type="button" data-aprreabrir="'+esc(a.id)+'">Reabrir</button>'; }
+      return h+'</div></div>'; }
+    if (!podeEscrever) return h+'</div>';
+    var sugRes=R.sug==='apto'?'apto':R.sug==='nao'?'nao':'';
+    h+='<div class="apr-res"><label>Resultado<select id="aprRes_'+esc(a.id)+'" data-aprdr="'+esc(a.id)+'"><option value="">—</option><option value="apto"'+((d.res||sugRes)==='apto'?' selected':'')+'>Apto</option><option value="nao"'+((d.res||sugRes)==='nao'?' selected':'')+'>Não apto</option></select></label>'+
+      '<label>Avaliado por (superior imediato)<input type="text" id="aprAv_'+esc(a.id)+'" data-aprdr="'+esc(a.id)+'" list="aprNomesDl" value="'+esc(d.av||'')+'" placeholder="nome"></label>'+
+      '<label>Feedback dado em<input type="date" id="aprFbd_'+esc(a.id)+'" data-aprdr="'+esc(a.id)+'" value="'+esc(d.fb||'')+'"></label>'+
+      '<label class="apr-jus">Justificativa'+(R.mede&&R.sug!=='pequena'?' (obrigatória se for contra a sugestão)':' (obrigatória)')+'<input type="text" id="aprJus_'+esc(a.id)+'" data-aprdr="'+esc(a.id)+'" value="'+esc(d.jus||'')+'" placeholder="ex.: acompanhamento dos 10 primeiros títulos sem erro"></label></div>'+
+      '<datalist id="aprNomesDl">'+Object.keys(P).map(function(k){ return '<option value="'+esc(P[k])+'">'; }).join('')+'</datalist>'+
+      '<div class="ctl apr-bt" style="margin-top:8px"><button class="btn primary sm" type="button" data-aprconcluir="'+esc(a.id)+'">Concluir avaliação</button><button class="btn sm" type="button" data-aprrel1="'+esc(a.id)+'">Baixar relatório parcial</button><button class="btn sm" type="button" data-apreditar="'+esc(a.id)+'">Editar</button></div>';
+    return h+'</div>'; }
+  // rascunhos do veredito (sobrevivem ao redesenho da página)
+  function aprLerRascunhos(){ document.querySelectorAll('#tabApr [data-aprdr]').forEach(function(e){ var id=e.dataset.aprdr, d=state.aprDraft[id]=state.aprDraft[id]||{}, k=e.id.split('_')[0];
+    if (k==='aprRes') d.res=e.value; else if (k==='aprAv') d.av=e.value; else if (k==='aprFbd') d.fb=e.value; else if (k==='aprJus') d.jus=e.value; }); }
+
+  // ——— treinamento em grupo (antes × depois) ———
+  function aprGFormHTML(f){ var p=popDe(f.pop), P=aprNomes(), ks=[];
+    if (p&&popMede(p)){ var corte=aprMesesAtras(12)+'-01', I=aprEscopoIdx(p); ks=Object.keys(I.porK).filter(function(k){ return I.porK[k].some(function(x){ return x.d>=corte; }); }).sort(function(a,b){ return String(P[a]).localeCompare(String(P[b]),'pt-BR'); }); }
+    var sel=f.ks||ks;
+    return '<div class="panel apr-f"><div class="sub-h">Treinamento em grupo · antes × depois</div><p class="hint">Para um treinamento com várias pessoas de uma vez (ex.: POP revisado apresentado à equipe). O painel compara a taxa de inconformidade no escopo nos meses antes e depois da data.</p><div class="apr-g">'+
+      '<label>Documento (POP / IT)<select id="aprGPop">'+aprPopOpc(f.pop)+'</select></label><label>Data do treinamento<input type="date" id="aprGTr" value="'+esc(f.treino||aprHoje())+'"></label>'+
+      '<label>Treinado por<input type="text" id="aprGIns" value="'+esc(f.instrutor||'')+'"></label><label>Meses antes e depois<input type="number" id="aprGM" min="1" max="12" value="'+(+f.meses||aprCfg().jan)+'"></label></div>'+aprEscopoTxt(p)+
+      (ks.length?'<div class="sub-h" style="margin-top:8px">Participantes (quem executou o escopo nos últimos 12 meses)</div><div class="apr-chk">'+ks.map(function(k){ return '<label><input type="checkbox" data-aprgk="'+esc(k)+'"'+(sel.indexOf(k)>=0?' checked':'')+'> '+esc(P[k])+'</label>'; }).join('')+'</div>'+
+        '<label class="apr-inl" style="margin-top:8px"><input type="checkbox" id="aprGInd"'+(f.ind?' checked':'')+'> Abrir também a aprendizagem individual de cada participante</label>':'')+
+      '<label class="apr-obs">Ata / evidência do treinamento<input type="text" id="aprGObs" value="'+esc(f.obs||'')+'" placeholder="ex.: ATA-008 (28/08/2026)"></label>'+
+      '<div class="ctl" style="margin-top:8px"><button class="btn primary sm" type="button" data-aprgsalvar="1">Salvar</button><button class="btn sm" type="button" data-aprcancelar="1">Cancelar</button></div></div>'; }
+  function aprLerGForm(){ var f=Object.assign({},state.aprGForm||{}); f.pop=($('aprGPop')||{}).value||f.pop||''; f.treino=($('aprGTr')||{}).value||aprHoje(); f.instrutor=String(($('aprGIns')||{}).value||'').trim(); f.meses=Math.max(1,Math.min(12,+($('aprGM')||{}).value||aprCfg().jan)); f.obs=String(($('aprGObs')||{}).value||'').trim(); f.ind=!!($('aprGInd')||{}).checked;
+    var cx=document.querySelectorAll('#tabApr [data-aprgk]'); if (cx.length) f.ks=[].slice.call(cx).filter(function(x){ return x.checked; }).map(function(x){ return x.dataset.aprgk; }); return f; }
+  // z de duas proporções (antes × depois)
+  function aprZ(x1,n1,x2,n2){ if (!n1||!n2) return null; var p=(x1+x2)/(n1+n2); if (p<=0||p>=1) return null; var se=Math.sqrt(p*(1-p)*(1/n1+1/n2)); return se?(x2/n2-x1/n1)/se:null; }
+  function aprGAval(g){ var p=popDe(g.pop)||{c:g.pop}, out={mede:popMede(p)}; if (!out.mede) return out;
+    var ini=aprAddMes(g.treino,-(+g.meses||3)), antesFim=aprAddMes(g.treino,0), dep=aprAddMes(g.treino,+(+g.meses||3)), hoje=aprHoje(), ate=dep<hoje?dep:hoje;
+    var dAntes=new Date(Date.parse(antesFim)-864e5).toISOString().slice(0,10), ks=(g.ks&&g.ks.length)?g.ks:Object.keys(aprEscopoIdx(p).porK);
+    function soma(a,b){ var n=0, x=0, porK=[]; ks.forEach(function(k){ var M=aprMedirJanela(p,k,a,b); n+=M.n; x+=M.nRel; if (M.n) porK.push({k:k,n:M.n,x:M.nRel}); }); return {n:n, x:x, taxa:n?x/n*100:null, porK:porK}; }
+    out.antes=soma(ini,dAntes); out.depois=soma(g.treino,ate); out.de=ini; out.ate=ate; out.fim=dep; out.acabou=dep<=hoje;
+    out.z=aprZ(out.antes.x,out.antes.n,out.depois.x,out.depois.n); out.pequeno=out.antes.n<20||out.depois.n<20;
+    var dif=out.antes.taxa!=null&&out.depois.taxa!=null?out.depois.taxa-out.antes.taxa:null; out.dif=dif;
+    out.txt=dif==null?'sem atos suficientes para comparar':(out.pequeno?'amostra pequena (menos de 20 atos de um dos lados): ':'')+(Math.abs(dif)<0.05?'sem mudança':(dif<0?'caiu ':'subiu ')+numBR(Math.abs(dif),1)+' p.p.')+(out.z!=null&&Math.abs(out.z)>=1.96?' · diferença real (95% de confiança)':' · a diferença pode ser acaso');
+    return out; }
+  // medição de janela fechada (usada no antes × depois): só a pré-marcação, sem ajustes manuais
+  function aprMedirJanela(p,k,a,b){ var X=(aprEscopoIdx(p).porK[k]||[]).filter(function(x){ return x.d>=a&&x.d<=b; }), docs={}; X.forEach(function(x){ docs[x.c]=1; });
+    var nRel=(aprIncPorK()[k]||[]).filter(function(r){ return r.d>=a && docs[String(r.c)] && aprPreMarca(p,k,r); }).length; return {n:Object.keys(docs).length, nRel:nRel}; }
+  function aprGCardHTML(g){ var R=aprGAval(g), ab=state.aprAberto===g.id;
+    var h='<div class="panel apr-c"><div class="apr-h"><div class="apr-hd"><b>'+esc(g.pop)+'</b> · treinamento em grupo em '+fmtData(g.treino)+(g.instrutor?' por '+esc(g.instrutor):'')+'<div class="hint" style="margin:2px 0 0">'+((g.ks||[]).length?g.ks.length+' participantes':'toda a equipe do escopo')+(g.obs?' · '+esc(g.obs):'')+'</div></div><span class="spacer"></span>'+
+      (R.mede?'<span class="pill '+(R.dif!=null&&R.dif<0&&R.z!=null&&R.z<=-1.96?'good':'mute')+'">'+aprPct(R.antes.taxa)+' → '+aprPct(R.depois.taxa)+'</span>':'<span class="pill mute">sem medição automática</span>')+
+      '<button class="btn sm" type="button" data-aprabrir="'+esc(g.id)+'">'+(ab?'Fechar':'Ver')+'</button></div>';
+    if (ab){ if (R.mede) h+='<div class="kpis" style="margin:10px 0">'+kpi('Antes',aprPct(R.antes.taxa),R.antes.x+' em '+R.antes.n+' atos · '+fmtData(R.de)+' a '+fmtData(aprAddMes(g.treino,0)))+kpi('Depois',aprPct(R.depois.taxa),R.depois.x+' em '+R.depois.n+' atos · até '+fmtData(R.ate)+(R.acabou?'':' (em andamento)'))+kpi('Leitura',R.dif==null?'—':(R.dif<=0?'−':'+')+numBR(Math.abs(R.dif),1)+' p.p.',esc(R.txt))+'</div>';
+      h+='<div class="ctl apr-bt"><button class="btn sm" type="button" data-aprgrel="'+esc(g.id)+'">Baixar relatório (anexar na ata)</button>'+(podeEscrever?'<button class="btn sm" type="button" data-aprgarq="'+esc(g.id)+'">Arquivar</button>':'')+'</div>'; }
+    return h+'</div>'; }
+
+  // ——— quem precisa ser treinado (POP com versão nova) ———
+  function aprRevLista(){ var hoje=aprHoje(), out=[], P=aprNomes();
+    popsTodos().forEach(function(p){ if (!p.verDesde||!popMede(p)) return; if (aprAddMes(p.verDesde,12)<hoje) return;
+      var corte=aprAddMes(p.verDesde,-12), I=aprEscopoIdx(p), tem={};
+      aprLista().forEach(function(a){ if (a.pop===p.c&&(a.popVer===p.v||(a.treino&&a.treino>=p.verDesde))) tem[a.k]=1; });
+      var cont={}; Object.keys(I.porK).forEach(function(k){ if (tem[k]) return; var d={}; I.porK[k].forEach(function(x){ if (x.d>=corte) d[x.c]=1; }); var n=Object.keys(d).length; if (n) cont[k]=n; });
+      var ks=Object.keys(cont).sort(function(a,b){ return cont[b]-cont[a]; });
+      if (ks.length) out.push({p:p, ks:ks, n:cont}); });
+    return out; }
+  function aprRevHTML(){ var L=aprRevLista(); if (!L.length) return ''; var P=aprNomes();
+    return '<div class="panel apr-rev"><div class="sub-h">Quem precisa ser treinado · POP com versão nova</div>'+L.map(function(r){ var id=r.p.c;
+      return '<div class="apr-rv"><b>'+esc(id)+'</b> v'+esc(r.p.v||'')+' desde '+fmtData(r.p.verDesde)+' · '+r.ks.length+' pessoa(s) executaram o escopo nos 12 meses anteriores (vem marcado quem fez 3 ou mais atos)<div class="apr-chk" style="margin:6px 0">'+r.ks.map(function(k){ var n=r.n[k]||0; return '<label><input type="checkbox" data-aprrevk="'+esc(id)+'|'+esc(k)+'"'+(n>=3?' checked':'')+'> '+esc(P[k])+' <span class="mut">'+n+' atos</span></label>'; }).join('')+'</div>'+
+        (podeEscrever?'<div class="ctl"><label class="apr-inl">Data do treinamento <input type="date" id="aprRevTr_'+esc(id)+'" value="'+aprHoje()+'"></label><label class="apr-inl">Treinado por <input type="text" id="aprRevIns_'+esc(id)+'" class="mini"></label><button class="btn sm primary" type="button" data-aprrevabrir="'+esc(id)+'">Abrir aprendizagem dos marcados</button></div>':'')+'</div>'; }).join('')+'</div>'; }
+
+  // ——— carga inicial: Apto por experiência ———
+  function aprExpCalc(){ var cf=aprCfg(), ini=aprMesesAtras(cf.exp)+'-01', fimM=mesHoje(), fim=new Date(Date.parse(fimM+'-01')-864e5).toISOString().slice(0,10), P=aprNomes(), out=[];
+    var tem={}; aprLista().forEach(function(a){ tem[a.pop+'|'+a.k]=1; });
+    popsTodos().filter(popMede).forEach(function(p){ var mn=popMinimo(p).v, I=aprEscopoIdx(p);
+      Object.keys(I.porK).forEach(function(k){ if (tem[p.c+'|'+k]) return; var M=aprMedir(p,k,ini,fim,{}); if (M.n<mn) return;
+        out.push({p:p.c, k:k, nome:P[k], n:M.n, x:M.nRel, taxa:M.taxa, ok:M.taxa<=cf.lim, min:mn}); }); });
+    out.sort(function(a,b){ return String(a.nome).localeCompare(String(b.nome),'pt-BR')||(a.p<b.p?-1:1); });
+    return {ini:ini, fim:fim, L:out}; }
+  function aprExpHTML(){ var cf=aprCfg(), E=state.aprExp;
+    var h='<details class="apr-det" data-aprdet="exp"'+(state.aprExpAberto?' open':'')+'><summary>Carga inicial · Apto por experiência</summary><p class="hint">Para registrar quem já domina um POP sem treinar de novo (ISO 9001 7.2 b: competência por experiência). Entra quem fez, nos últimos <b>'+cf.exp+' meses fechados</b>, pelo menos o mínimo de atos do POP no escopo. Até '+numBR(cf.lim,1)+'% vem marcado; acima do limite fica desmarcado para conversar com o superior antes. Quem já tem registro naquele POP não aparece.</p>';
+    if (!E) return h+'<div class="ctl"><button class="btn sm" type="button" data-aprexpcalc="1">Calcular candidatos</button></div></details>';
+    if (!E.L.length) return h+'<p class="hint">Nenhum candidato no período '+fmtData(E.ini)+' a '+fmtData(E.fim)+'.</p></details>';
+    var porP={}; E.L.forEach(function(x){ porP[x.p]=(porP[x.p]||0)+1; });
+    h+='<p class="hint">Período: '+fmtData(E.ini)+' a '+fmtData(E.fim)+' · '+E.L.length+' combinações pessoa × documento ('+E.L.filter(function(x){ return x.ok; }).length+' dentro do limite).</p><div class="tbl-wrap"><table class="tleft"><thead><tr><th><input type="checkbox" data-aprexptodos="1" aria-label="Marcar todos"></th><th>Pessoa</th><th>Documento</th><th class="n">Atos</th><th class="n">Inconf.</th><th class="n">Taxa</th></tr></thead><tbody>'+
+      E.L.map(function(x,i){ return '<tr><td><input type="checkbox" data-aprexp="'+i+'"'+(x.ok?' checked':'')+'></td><td>'+esc(x.nome)+'</td><td>'+esc(x.p)+'</td><td class="n">'+x.n+'</td><td class="n">'+x.x+'</td><td class="n">'+(x.ok?'':'<span class="pill warn">')+aprPct(x.taxa)+(x.ok?'':'</span>')+'</td></tr>'; }).join('')+'</tbody></table></div>'+
+      '<div class="ctl" style="margin-top:8px"><label class="apr-inl">Avaliado por <input type="text" id="aprExpAv" class="mini" value="'+esc(nomeUsuario())+'"></label><button class="btn primary sm" type="button" data-aprexpok="1">Registrar marcados como Apto por experiência</button><button class="btn sm" type="button" data-aprexpcalc="1">Recalcular</button></div></details>';
+    return h; }
+
+  // ——— cliques e mudanças ———
+  function aprClique(t){ var d=t.dataset||{};
+    if (d.aprnovo){ state.aprForm={motivo:'novo', treino:aprHoje()}; state.aprGForm=null; renderApr(); return true; }
+    if (d.aprgnovo){ state.aprGForm={treino:aprHoje()}; state.aprForm=null; renderApr(); return true; }
+    if (d.aprcancelar){ state.aprForm=null; state.aprGForm=null; renderApr(); return true; }
+    if (d.apreditar){ state.aprForm=JSON.parse(JSON.stringify(state.apr[d.apreditar])); renderApr(); return true; }
+    if (d.aprsalvarf){ var f=aprLerForm(); if (!f.k){ toast('Escolha a pessoa'); return true; } if (!f.pop){ toast('Escolha o documento'); return true; }
+      var a=f.id?Object.assign({},state.apr[f.id],{motivo:f.motivo,treino:f.treino,instrutor:f.instrutor,jan:f.jan,obs:f.obs}):aprNovo({k:f.k, nome:aprNomes()[f.k]||f.k, pop:f.pop, motivo:f.motivo, treino:f.treino, instrutor:f.instrutor, jan:f.jan, obs:f.obs, pai:f.pai||null});
+      aprSalvar(a).then(function(){ toast(f.id?'Registro atualizado':'Aprendizagem aberta'); }); state.aprForm=null; state.aprAberto=a.id; renderApr(); return true; }
+    if (d.aprarquivar){ if (!confirm('Arquivar este registro? Ele sai da lista (fica guardado no banco).')) return true; var id0=d.aprarquivar; if (dbPronto&&podeEscrever) db.doc('aprendiz/'+id0).delete(); var c=Object.assign({},state.apr); delete c[id0]; state.apr=c; state.aprForm=null; renderApr(); return true; }
+    if (d.aprgarq){ if (!confirm('Arquivar este treinamento em grupo?')) return true; if (dbPronto&&podeEscrever) db.doc('aprendiz/'+d.aprgarq).delete(); var c2=Object.assign({},state.apr); delete c2[d.aprgarq]; state.apr=c2; renderApr(); return true; }
+    if (d.aprabrir){ state.aprAberto=state.aprAberto===d.aprabrir?null:d.aprabrir; renderApr(); return true; }
+    if (d.aprconcluir){ var a1=JSON.parse(JSON.stringify(state.apr[d.aprconcluir])); aprLerRascunhos(); var dr=state.aprDraft[a1.id]||{}, R=aprAval(a1);
+      if (!dr.res){ toast('Escolha Apto ou Não apto'); return true; } if (!String(dr.av||'').trim()){ toast('Informe quem avaliou (superior imediato)'); return true; }
+      var contra=R.mede&&R.sug!=='pequena'&&dr.res!==R.sug, precisa=!R.mede||R.sug==='pequena'||contra;
+      if (precisa&&!String(dr.jus||'').trim()){ toast(contra?'Contra a sugestão do painel: escreva a justificativa':'Escreva a justificativa'); return true; }
+      if (R.mede&&R.inc.some(function(x){ return x.pre&&!x.rel&&!x.mot; })){ toast('Escreva o motivo de cada inconformidade desmarcada'); return true; }
+      a1.status='concluido'; a1.res=dr.res; a1.avaliador=String(dr.av).trim(); a1.avalEm=new Date().toISOString(); a1.feedbackEm=dr.fb||''; a1.justif=String(dr.jus||'').trim(); a1.avalPor=nomeUsuario();
+      a1.snap=Object.assign({},R,{inc:R.inc.map(function(x){ return {id:x.id,d:x.d,c:x.c,t:x.t,cat:x.cat,pre:x.pre,no:x.no,rel:x.rel,mot:x.mot}; }), outras:[]});
+      delete state.aprDraft[a1.id]; aprSalvar(a1).then(function(){ toast('Avaliação concluída'); }); renderApr(); return true; }
+    if (d.aprfb){ var a2=JSON.parse(JSON.stringify(state.apr[d.aprfb])), v=($('aprFb_'+d.aprfb)||{}).value; if (!v){ toast('Informe a data'); return true; } a2.feedbackEm=v; aprSalvar(a2).then(function(){ toast('Feedback registrado'); }); renderApr(); return true; }
+    if (d.aprreabrir){ if (!confirm('Reabrir esta avaliação? O resultado salvo é descartado e os números voltam a ser calculados ao vivo.')) return true; var a3=JSON.parse(JSON.stringify(state.apr[d.aprreabrir])); a3.status='aberto'; delete a3.snap; delete a3.res; aprSalvar(a3); renderApr(); return true; }
+    if (d.aprreforco){ var o=state.apr[d.aprreforco]; state.aprForm={k:o.k, pop:o.pop, motivo:'reforco', treino:aprHoje(), pai:o.id, jan:o.jan}; state.aprGForm=null; renderApr(); var ff=$('aprTr'); if (ff&&ff.scrollIntoView) ff.scrollIntoView({block:'center'}); return true; }
+    if (d.aprrel1){ aprBaixarInd(state.apr[d.aprrel1]); return true; }
+    if (d.aprgrel){ aprBaixarGrupo(state.apr[d.aprgrel]); return true; }
+    if (d.aprcons){ aprBaixarCons(); return true; }
+    if (d.aprcompet){ aprBaixarCompet(); return true; }
+    if (d.aprgsalvar){ var g=aprLerGForm(); if (!g.pop){ toast('Escolha o documento'); return true; }
+      var gp=popDe(g.pop)||{}, reg={v:2, tipo:'grupo', id:aprId(), pop:g.pop, popVer:gp.v||'', treino:g.treino, instrutor:g.instrutor, meses:g.meses, ks:g.ks||[], obs:g.obs, criadoEm:new Date().toISOString(), por:nomeUsuario()};
+      aprSalvar(reg); var nInd=0;
+      if (g.ind&&(g.ks||[]).length){ g.ks.forEach(function(k){ if (aprLista().some(function(a){ return a.k===k&&a.pop===g.pop&&a.status==='aberto'; })) return; aprSalvar(aprNovo({k:k, nome:aprNomes()[k]||k, pop:g.pop, motivo:gp.verDesde&&g.treino>=gp.verDesde?'pop-rev':'novo', treino:g.treino, instrutor:g.instrutor, jan:g.meses, obs:'Treinamento em grupo'+(g.obs?' · '+g.obs:''), grupo:reg.id})); nInd++; }); }
+      toast('Treinamento em grupo salvo'+(nInd?' · '+nInd+' aprendizagem(ns) individual(is)':'')); state.aprGForm=null; state.aprAberto=reg.id; renderApr(); return true; }
+    if (d.aprrevabrir){ var pc=d.aprrevabrir, pp=popDe(pc), tr=($('aprRevTr_'+pc)||{}).value||aprHoje(), ins=String(($('aprRevIns_'+pc)||{}).value||'').trim(), n=0;
+      document.querySelectorAll('#tabApr [data-aprrevk]').forEach(function(x){ var q=x.dataset.aprrevk.split('|'); if (q[0]!==pc||!x.checked) return; aprSalvar(aprNovo({k:q[1], nome:aprNomes()[q[1]]||q[1], pop:pc, motivo:'pop-rev', treino:tr, instrutor:ins, obs:'POP revisado para a v'+(pp.v||'')})); n++; });
+      toast(n?n+' aprendizagem(ns) aberta(s)':'Nenhuma pessoa marcada'); renderApr(); return true; }
+    if (d.aprexpcalc){ state.aprExp=aprExpCalc(); state.aprExpAberto=true; renderApr(); return true; }
+    if (d.aprexpok){ var E=state.aprExp; if (!E) return true; var av=String(($('aprExpAv')||{}).value||'').trim(); if (!av){ toast('Informe quem avaliou'); return true; } var cf=aprCfg(), n2=0;
+      document.querySelectorAll('#tabApr [data-aprexp]').forEach(function(x){ if (!x.checked) return; var c3=E.L[+x.dataset.aprexp]; if (!c3) return; var pp2=popDe(c3.p)||{c:c3.p};
+        var M=aprMedir(pp2,c3.k,E.ini,E.fim,{}), snap={mede:true, de:E.ini, ate:E.fim, fimJ:E.fim, acabou:true, lim:cf.lim, min:c3.min, n:M.n, inc:M.inc.map(function(y){ return {id:y.id,d:y.d,c:y.c,t:y.t,cat:y.cat,pre:y.pre,no:y.no,rel:y.rel,mot:''}; }), outras:[], nRel:M.nRel, taxa:M.taxa, sug:M.n<c3.min?'pequena':(M.taxa<=cf.lim?'apto':'nao')};
+        aprSalvar(aprNovo({k:c3.k, nome:c3.nome, pop:c3.p, motivo:'experiencia', treino:null, ini:E.ini, fim:E.fim, status:'concluido', res:'apto', avaliador:av, avalEm:new Date().toISOString(), avalPor:nomeUsuario(), feedbackEm:'', justif:'Competência por experiência (ISO 9001 7.2 b): '+M.n+' atos no escopo de '+fmtData(E.ini)+' a '+fmtData(E.fim)+', taxa '+aprPct(M.taxa)+(M.taxa<=cf.lim?' ≤ ':' > ')+numBR(cf.lim,1)+'%.', snap:snap})); n2++; });
+      state.aprExp=null; toast(n2?n2+' registro(s) de Apto por experiência':'Nenhum marcado'); renderApr(); return true; }
+    if (d.aprexptodos){ document.querySelectorAll('#tabApr [data-aprexp]').forEach(function(x){ x.checked=t.checked; }); return true; }
+    if (t.tagName==='SUMMARY'&&t.parentNode&&t.parentNode.dataset&&t.parentNode.dataset.aprdet){ var k2=t.parentNode.dataset.aprdet; setTimeout(function(){ if (k2==='fim') state.aprVerFim=t.parentNode.open; if (k2==='exp') state.aprExpAberto=t.parentNode.open; },0); return false; }
     return false; }
-  function aprMudou(t){
-    if (t.dataset.aprrel!=null){ var a=JSON.parse(JSON.stringify(state.apr[state.aprAberto])), m=state.aprMes; a.avals=a.avals||{}; var av=a.avals[m]=Object.assign({},a.avals[m]||{}); av.rel=Object.assign({},av.rel||{}); if (t.checked) av.rel[t.dataset.aprrel]=true; else delete av.rel[t.dataset.aprrel]; aprSalvar(a); renderApr(); return true; }
-    if (t.id==='aprK'||t.dataset.aprfn!=null){ state.aprForm=aprLerForm(); renderApr(); return true; }
+  function aprMudou(t){ var d=t.dataset||{};
+    if (d.aprrel!=null){ var a=JSON.parse(JSON.stringify(state.apr[state.aprAberto])), id=d.aprrel, pre=d.aprpre==='1'; aprLerRascunhos(); a.aj=a.aj||{};
+      if (t.checked===pre) delete a.aj[id]; else a.aj[id]={rel:t.checked, mot:(a.aj[id]&&a.aj[id].mot)||''};
+      aprSalvar(a); renderApr(); return true; }
+    if (d.aprmot!=null){ var b=JSON.parse(JSON.stringify(state.apr[state.aprAberto])); b.aj=b.aj||{}; b.aj[d.aprmot]={rel:false, mot:String(t.value||'').trim()}; aprSalvar(b); return true; }
+    if (d.aprdr!=null){ aprLerRascunhos(); return true; }
+    if (t.id==='aprK'||t.id==='aprPop'){ state.aprForm=aprLerForm(); renderApr(); return true; }
+    if (t.id==='aprGPop'){ var g=aprLerGForm(); delete g.ks; state.aprGForm=g; renderApr(); return true; }
     return false; }
-  function aprXls(){ precisaXLSX().then(function(X){ var rows=[['Pessoa','POP','Título do POP','Escopo (funções)','Naturezas','Ciclo','Mês','Atos no escopo','Inconformidades no mês','Relacionadas ao POP','Sugestão do painel','Resultado','Observação','Salvo em','Por','Conclusão','Justificativa']];
-      aprLista().forEach(function(a){ aprMeses(a).forEach(function(m,i){ var R=aprMes(a,m), av=(a.avals||{})[m]||{}; rows.push([a.nome,a.pop,a.popTit||'',(a.fns||[]).join(', '),(a.nats||[]).join(', '),i+1,nomeMes(m),R.nd,R.inc.length,R.nRel,(APR_RES[R.sug]||['',''])[1],(APR_RES[av.res]||['','pendente'])[1],av.obs||'',av.em?new Date(av.em).toLocaleString('pt-BR'):'',av.por||'',a.status==='concluido'?(APR_RES[a.conclusao]||['',''])[1]:'',a.concObs||'']); }); });
-      var ws=X.utils.aoa_to_sheet(rows), wb=X.utils.book_new(); X.utils.book_append_sheet(wb,ws,'Aprendizagem'); var out=X.write(wb,{type:'array',bookType:'xlsx'});
+
+  // ——— relatórios (HTML para imprimir ou salvar em PDF, como o relatório por pessoa) ———
+  function aprDoc(titulo, corpo){ return '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(titulo)+'</title><style>body{margin:0;background:#fff}'+REL_CSS+
+    '.apr-ass{margin-top:28px;display:flex;gap:40px}.apr-ass div{flex:1;border-top:1px solid #444;padding-top:4px;font-size:11px}@media print{.noprint{display:none}.relsheet{padding:0}}</style></head><body>'+
+    '<div class="noprint" style="font-family:Segoe UI,Arial,sans-serif;background:#fde8da;padding:8px 12px;margin:12px auto;max-width:860px;border-radius:6px;font-size:12px">Para imprimir ou salvar em PDF: Ctrl+P (Cmd+P no Mac).</div><div class="relsheet">'+corpo+
+    '<p class="nota" style="margin-top:18px">Gerado pelo Painel SGQ · CRCO (ferramenta auxiliar, versão '+esc(Motor.VERSAO)+') em '+esc(new Date().toLocaleString('pt-BR'))+'. Fontes: Produção por Etapa e Prazo e Tempo Médio do VHL, Relatório de andamentos do Tri7 e Consulta de inconformidades do VHL. O mesmo cálculo pode ser feito sem o painel: ver "Como é calculado".</p></div></body></html>'; }
+  function aprSalvarArq(nome, html){ if (!downloads){ toast('Download indisponível nesta visualização'); return; } downloads.save({filename:nome, data:html}).then(function(){ toast('Relatório baixado — abra e use Ctrl+P'); }).catch(function(e){ if (e&&e.code!=='declined') toast('Não consegui gerar o arquivo'); }); }
+  function aprArqNome(a){ return 'Eficacia - '+String(a.nome||'').split(' ')[0]+' - '+a.pop+' - '+String(a.treino||a.ini||'').slice(0,10)+'.html'; }
+  function aprIndCorpo(a){ var R=aprAval(a), p=popDe(a.pop)||{}, fim=a.status==='concluido', cf=aprCfg();
+    var h='<h1>Avaliação de eficácia da capacitação</h1><p class="sub">'+esc(a.nome)+' · '+esc(a.pop)+(a.popVer?' v'+esc(a.popVer):'')+' — '+esc(a.popTit||p.t||'')+'</p>'+
+      '<table><tbody><tr><th>Motivo</th><td>'+esc(APR_MOTIVOS[a.motivo]||a.motivo||'')+'</td></tr>'+(a.treino?'<tr><th>Treinamento</th><td>'+fmtData(a.treino)+(a.instrutor?' · por '+esc(a.instrutor):'')+'</td></tr>':'')+
+      '<tr><th>Objetivo</th><td>Executar o documento no escopo sem inconformidade relacionada a ele (PCAP · Capacitação em POP)</td></tr>'+
+      '<tr><th>Critério</th><td>'+(R.mede?'Taxa de inconformidade relacionada ≤ '+numBR(R.lim,1)+'% dos atos no escopo; mínimo de '+R.min+' atos para a amostra; janela de referência de '+(+(a.jan||cf.jan))+' meses':'Sem medição automática: avaliação de quem acompanhou')+'</td></tr>'+
+      (R.mede?'<tr><th>Escopo</th><td>Etapas '+esc((p.ets||[]).join(', '))+' · naturezas '+esc((p.nats||[]).join(', '))+'</td></tr><tr><th>Período avaliado</th><td>'+fmtData(R.de)+' a '+fmtData(R.ate)+'</td></tr>'+
+        '<tr><th>Resultado medido</th><td><b>'+R.n+'</b> atos · <b>'+R.nRel+'</b> inconformidade(s) relacionada(s) · taxa <b>'+aprPct(R.taxa)+'</b> · sugestão: '+esc(aprSugTxt(R))+'</td></tr>':'')+
+      '<tr><th>Decisão</th><td>'+(fim?'<b>'+esc((APR_RES[a.res]||['','—'])[1])+'</b> · avaliado por '+esc(a.avaliador||'—')+' em '+fmtData(String(a.avalEm||'').slice(0,10))+(a.justif?' · '+esc(a.justif):''):'<b>em aprendizagem</b> (relatório parcial)')+'</td></tr>'+
+      '<tr><th>Feedback ao colaborador</th><td>'+(a.feedbackEm?fmtData(a.feedbackEm):'pendente')+'</td></tr></tbody></table>';
+    if (R.mede) h+='<h2>Inconformidades consideradas</h2>'+(R.inc.length?'<table><thead><tr><th>Data</th><th>Documento</th><th>Tipo do erro</th><th>Conta?</th></tr></thead><tbody>'+R.inc.map(function(x){ return '<tr><td>'+fmtData(x.d)+'</td><td>'+esc(x.c)+'</td><td>'+esc(x.cat)+'</td><td>'+(x.rel?'sim':'não — '+esc(x.mot||(x.no?'outra fase':'')))+'</td></tr>'; }).join('')+'</tbody></table>':'<p>Nenhuma inconformidade nos documentos avaliados.</p>')+
+      '<p class="nota">Observações das inconformidades omitidas (LGPD); o detalhe está na Consulta de inconformidades do VHL.</p>';
+    return h+'<div class="apr-ass"><div>Superior imediato</div><div>Colaborador (ciência do feedback)</div></div>'; }
+  function aprBaixarInd(a){ if (!a) return; aprSalvarArq(aprArqNome(a), aprDoc('Eficácia · '+a.nome+' · '+a.pop, aprIndCorpo(a))); }
+  function aprBaixarGrupo(g){ if (!g) return; var R=aprGAval(g), p=popDe(g.pop)||{}, P=aprNomes();
+    var h='<h1>Eficácia de treinamento em grupo</h1><p class="sub">'+esc(g.pop)+(g.popVer?' v'+esc(g.popVer):'')+' — '+esc(p.t||'')+'</p><table><tbody><tr><th>Treinamento</th><td>'+fmtData(g.treino)+(g.instrutor?' · por '+esc(g.instrutor):'')+(g.obs?' · '+esc(g.obs):'')+'</td></tr>'+
+      '<tr><th>Participantes</th><td>'+((g.ks||[]).length?g.ks.map(function(k){ return esc(P[k]||k); }).join(', '):'toda a equipe que executa o escopo')+'</td></tr>';
+    if (R.mede) h+='<tr><th>Antes</th><td>'+fmtData(R.de)+' a '+fmtData(new Date(Date.parse(g.treino)-864e5).toISOString().slice(0,10))+': '+R.antes.x+' inconformidade(s) em '+R.antes.n+' atos = <b>'+aprPct(R.antes.taxa)+'</b></td></tr><tr><th>Depois</th><td>'+fmtData(g.treino)+' a '+fmtData(R.ate)+(R.acabou?'':' (em andamento)')+': '+R.depois.x+' em '+R.depois.n+' atos = <b>'+aprPct(R.depois.taxa)+'</b></td></tr><tr><th>Leitura</th><td>'+esc(R.txt)+'</td></tr>';
+    else h+='<tr><th>Medição</th><td>Documento sem medição automática</td></tr>';
+    h+='</tbody></table><p class="nota">Taxa = inconformidades internas relacionadas ao documento ÷ atos (documentos distintos) no escopo. "Diferença real" = teste de duas proporções com 95% de confiança; com menos de 20 atos de um dos lados, a leitura é só indicativa. Mostra o grupo, não ordena pessoas.</p>';
+    aprSalvarArq('Eficacia grupo - '+g.pop+' - '+g.treino+'.html', aprDoc('Eficácia · grupo · '+g.pop, h)); }
+  function aprBaixarCons(){ var L=aprLista(), G=aprGrupos();
+    var h='<h1>Aprendizagem · relatório consolidado</h1><p class="sub">Situação em '+esc(new Date().toLocaleDateString('pt-BR'))+' · '+L.length+' registro(s) individual(is) e '+G.length+' treinamento(s) em grupo</p>';
+    var ab=L.filter(function(a){ return a.status!=='concluido'; }), fe=L.filter(function(a){ return a.status==='concluido'; }), fbp=fe.filter(function(a){ return !a.feedbackEm; });
+    h+='<table><tbody><tr><th>Em aprendizagem</th><td>'+ab.length+'</td></tr><tr><th>Concluídas</th><td>'+fe.length+' ('+fe.filter(function(a){ return a.res==='apto'; }).length+' Apto · '+fe.filter(function(a){ return a.res==='nao'; }).length+' Não apto)</td></tr><tr><th>Feedback pendente</th><td>'+fbp.length+'</td></tr></tbody></table>';
+    function tab(T){ return '<table><thead><tr><th>Pessoa</th><th>Documento</th><th>Motivo</th><th>Treino</th><th class="n">Atos</th><th class="n">Taxa</th><th>Situação</th><th>Feedback</th></tr></thead><tbody>'+T.map(function(a){ var R=aprAval(a);
+      return '<tr><td>'+esc(a.nome)+'</td><td>'+esc(a.pop)+'</td><td>'+esc(APR_MOTIVOS[a.motivo]||'')+'</td><td>'+(a.treino?fmtData(a.treino):'—')+'</td><td class="n">'+(R.mede?R.n+'/'+R.min:'—')+'</td><td class="n">'+(R.mede?aprPct(R.taxa):'—')+'</td><td>'+(a.status==='concluido'?esc((APR_RES[a.res]||['','—'])[1]):'em aprendizagem')+'</td><td>'+(a.feedbackEm?fmtData(a.feedbackEm):a.status==='concluido'?'pendente':'—')+'</td></tr>'; }).join('')+'</tbody></table>'; }
+    if (ab.length) h+='<h2>Em aprendizagem</h2>'+tab(ab); if (fe.length) h+='<h2>Concluídas</h2>'+tab(fe);
+    if (G.length) h+='<h2>Treinamentos em grupo</h2><table><thead><tr><th>Documento</th><th>Data</th><th class="n">Antes</th><th class="n">Depois</th><th>Leitura</th></tr></thead><tbody>'+G.map(function(g){ var R=aprGAval(g); return '<tr><td>'+esc(g.pop)+'</td><td>'+fmtData(g.treino)+'</td><td class="n">'+(R.mede?aprPct(R.antes.taxa):'—')+'</td><td class="n">'+(R.mede?aprPct(R.depois.taxa):'—')+'</td><td>'+esc(R.mede?R.txt:'sem medição')+'</td></tr>'; }).join('')+'</tbody></table>';
+    h+='<p class="nota">Uso exclusivo para competência e eficácia da capacitação (ISO 9001 7.2; NBR 15906 7.2.4). Não serve para bonificação, progressão ou comparação entre pessoas.</p>';
+    aprSalvarArq('Aprendizagem - consolidado - '+aprHoje()+'.html', aprDoc('Aprendizagem · consolidado', h)); }
+  function aprBaixarCompet(){ precisaXLSX().then(function(X){ var rows=[['Colaborador','Função (PCS)','POP / IT','Versão','Motivo','Treinado em','Por quem','Situação','Avaliado por','Data da avaliação','Feedback dado em','Evidência','Ação (se Não apto)']];
+      aprLista().sort(function(a,b){ return String(a.nome).localeCompare(String(b.nome),'pt-BR')||(a.pop<b.pop?-1:1); }).forEach(function(a){ var fim=a.status==='concluido', filho=aprLista().filter(function(x){ return x.pai===a.id; })[0];
+        rows.push([a.nome,'',a.pop,a.popVer||'',APR_MOTIVOS[a.motivo]||a.motivo||'',a.treino?fmtData(a.treino):'',a.instrutor||'',fim?(APR_RES[a.res]||['',''])[1]:'Em aprendizagem',a.avaliador||'',fim?fmtData(String(a.avalEm||'').slice(0,10)):'',a.feedbackEm?fmtData(a.feedbackEm):'',fim||a.treino?aprArqNome(a).replace(/\.html$/,'.pdf'):'',a.res==='nao'?(filho?'Reforço aberto em '+fmtData(filho.treino):'Definir reforço'):'']); });
+      var ws=X.utils.aoa_to_sheet(rows), wb=X.utils.book_new(); ws['!cols']=[{wch:34},{wch:16},{wch:18},{wch:8},{wch:28},{wch:12},{wch:20},{wch:16},{wch:22},{wch:14},{wch:14},{wch:44},{wch:26}]; X.utils.book_append_sheet(wb,ws,'COMPET'); var out=X.write(wb,{type:'array',bookType:'xlsx'});
       if (!downloads) return toast('Download indisponível nesta visualização');
-      downloads.save({filename:'Aprendizagem - avaliacao de eficacia - '+new Date().toISOString().slice(0,10)+'.xlsx', data:new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})}).then(function(){ toast('Planilha baixada'); }); }).catch(function(e){ toast(e.message); }); }
-  // relatório por pessoa: seção "Em aprendizagem"
-  function aprRelHTML(k){ var L=aprLista().filter(function(a){ return a.k===k; }); if (!L.length) return '';
-    return '<h2>Em aprendizagem</h2>'+L.map(function(a){ var ms=aprMeses(a);
-      return '<p class="nota"><b>'+esc(a.pop)+(a.popTit?' — '+esc(a.popTit):'')+'</b> · escopo: '+esc((a.fns||[]).join(', '))+' · '+ms.length+' ciclo(s) desde '+esc(nomeMes(ms[0]))+(a.status==='concluido'?' · concluído: '+esc((APR_RES[a.conclusao]||['','—'])[1]):'')+'</p><table><thead><tr><th>Mês</th><th class="n">Atos no escopo</th><th class="n">Inconf. relacionadas</th><th>Resultado</th><th>Observação</th></tr></thead><tbody>'+
-        ms.map(function(m){ var R=aprMes(a,m), av=(a.avals||{})[m]||{}; return '<tr><td>'+esc(nomeMes(m))+'</td><td class="n">'+R.nd+'</td><td class="n">'+R.nRel+'</td><td>'+aprPill(av.res)+'</td><td>'+esc(av.obs||'')+'</td></tr>'; }).join('')+'</tbody></table>'; }).join(''); }
+      downloads.save({filename:'Linhas COMPET-SGQ-001 - '+aprHoje()+'.xlsx', data:new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})}).then(function(){ toast('Planilha baixada'); }); }).catch(function(e){ toast(e.message); }); }
+  // relatório por pessoa: seção "Aprendizagem"
+  function aprRelHTML(k){ var ck=chavePessoa(k), L=aprLista().filter(function(a){ return a.k===ck; }); if (!L.length) return '';
+    return '<h2>Aprendizagem</h2><table><thead><tr><th>Documento</th><th>Motivo</th><th>Treino</th><th class="n">Atos</th><th class="n">Taxa</th><th>Situação</th></tr></thead><tbody>'+L.map(function(a){ var R=aprAval(a);
+      return '<tr><td>'+esc(a.pop)+'</td><td>'+esc(APR_MOTIVOS[a.motivo]||'')+'</td><td>'+(a.treino?fmtData(a.treino):'—')+'</td><td class="n">'+(R.mede?R.n:'—')+'</td><td class="n">'+(R.mede?aprPct(R.taxa):'—')+'</td><td>'+(a.status==='concluido'?esc((APR_RES[a.res]||['','—'])[1]):'em aprendizagem')+'</td></tr>'; }).join('')+'</tbody></table>'; }
