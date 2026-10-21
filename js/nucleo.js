@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/nucleo.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/nucleo.js']='0.21.1';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/nucleo.js']='0.21.2';
   // ——— tema (automático / claro / escuro) e barra lateral recolhida: preferências deste navegador
   function prefLer(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
   function prefGravar(k,v){ try{ if (v==null) localStorage.removeItem(k); else localStorage.setItem(k,v); }catch(e){} }

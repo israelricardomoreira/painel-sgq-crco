@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/inconformidades.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inconformidades.js']='0.21.1';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inconformidades.js']='0.21.2';
   var INC_PASSO=50;
   function incRecs(){ var out=[]; Object.keys(state.inconf).sort().forEach(function(m){ if (state.periodo==='todos'||state.periodo===m) out=out.concat(state.inconf[m]); }); return out; }
   function incTodos(){ var out=[]; Object.keys(state.inconf).forEach(function(m){ out=out.concat(state.inconf[m]); }); return out; }
