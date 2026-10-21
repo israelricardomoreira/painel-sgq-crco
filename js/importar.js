@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/importar.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/importar.js']='0.21.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/importar.js']='0.21.1';
   function salvarCfg(){ if (dbPronto&&podeEscrever) db.doc('config/geral').set({feriadosExtras:state.extras, expIni:state.cfg.expIni, expFim:state.cfg.expFim, intim:null}).catch(function(){ toast('Não consegui salvar a configuração'); }); }
 
   function avDoc(a,res,ob){ return res?{codigo:a.c,mes:a.mes,natureza:a.natOrig||a.nat,exigencias:a.nex,resultado:res,obs:ob,em:new Date().toISOString()}:null; }

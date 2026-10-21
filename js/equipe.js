@@ -1,7 +1,7 @@
 /* Painel SGQ · CRCO — js/equipe.js (0.15.0: página "Equipe e funções" e o que ela leva para o relatório por pessoa)
  * Quem faz o quê (VHL · Produção por Etapa + Tri7 · andamentos e certidões) e comparação só com quem faz a mesma tarefa
  * na mesma natureza. Não soma funções diferentes, não faz ranking, não usa ausência nem atestado. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/equipe.js']='0.21.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/equipe.js']='0.21.1';
   var EQ_CORES=['var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)','var(--c6)'], EQ_OUTRAS='var(--ink-3)';
   var EQ_TRI={PN:'Prenotação',PA:'Prenotação',RE:'Revisão de exigência',NE:'Nota de exigência',RA:'Re-análise (entrada)',CI:'Custas informadas',SG:'Selos / registro',RC:'Recebido para entrega',CD:'Cancelamento',CP:'Cancelamento',CC:'Cancelamento'};
   // nome da função a partir da etapa do VHL: tira o prazo do nome ("Análise - 1 D", "4H - Análise" e "Análise - 2 D" viram "Análise")

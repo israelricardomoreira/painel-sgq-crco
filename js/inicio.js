@@ -1,8 +1,8 @@
 /* Painel SGQ · CRCO — js/inicio.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inicio.js']='0.21.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inicio.js']='0.21.1';
   // 0.12.0: confere logo de saída se todos os arquivos do painel vieram da mesma entrega
   var ARQUIVOS_APP=["js/nucleo.js", "js/prazos.js", "js/inconformidades.js", "js/relatorios.js", "js/kpis.js", "js/atendimento.js", "js/ficha.js", "js/configuracao.js", "js/tri7.js", "js/serventias.js", "js/dados.js", "js/graficos.js", "js/desempenho.js", "js/visual.js", "js/certidoes.js", "js/importar.js", "js/saude.js", "js/equipe.js", "js/catalogo.js", "js/aprendizagem.js", "js/construtor.js", "js/navegacao.js", "js/inicio.js"];
-  try{ checarVersoes('0.21.0'); }catch(e){ var avv=document.getElementById('avisoVersao'); if (avv){ avv.hidden=false; avv.textContent='Faltam arquivos do painel ou eles são de versões diferentes. Suba de novo todos os arquivos da entrega e recarregue a página.'; } }
+  try{ checarVersoes('0.21.1'); }catch(e){ var avv=document.getElementById('avisoVersao'); if (avv){ avv.hidden=false; avv.textContent='Faltam arquivos do painel ou eles são de versões diferentes. Suba de novo todos os arquivos da entrega e recarregue a página.'; } }
   var $=function(id){ return document.getElementById(id); };
   var TEMAS={auto:['◐ Auto','Tema: automático (segue o computador)'],claro:['☀ Claro','Tema: claro'],escuro:['☾ Escuro','Tema: escuro']};
   var temaAtual=temaAplicar(prefLer('crco-tema')||'auto');
@@ -169,7 +169,7 @@
   var KPIS_PADRAO=null;
 
   // ——— versão, dados brutos, recálculo, backup e memória de cálculo (site no GitHub + Supabase)
-  var APP_VERSAO='0.21.0';
+  var APP_VERSAO='0.21.1';
   // 0.11.0: a biblioteca de planilhas (≈310 KB) só é baixada quando precisa — importar, recalcular ou baixar a memória de cálculo
   var XLSX_URL='xlsx.full.min.js?v=0.20.3', XLSX_SRI='sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT', xlsxProm=null;
   var BRUTO_COLS={prazo:['tipo de documento','codigo','natureza','ingresso','finalizacao','prazo','tempo'], etapa:['codigo','data execucao','etapa','responsavel','prazo'], demanda:['codigo','status']};
@@ -249,6 +249,7 @@
     if (t.dataset && (t.dataset.fnsalvar||t.dataset.fndescartar) && fnClique(t)) return;
     if (t.closest && t.closest('#tabApr') && t.dataset && aprClique(t)) return;
     if (t.closest && t.closest('#tabCfg') && t.dataset && popClique(t)) return;
+    if (t.closest && t.closest('[data-poplista]')){ var pl=t.closest('[data-poplista]'), pc=document.querySelector('[data-popcont="'+pl.dataset.poplista+'"]'); if (pc) pc.textContent=pl.querySelectorAll('input:checked').length+' marcada(s)'; }
     if (t.closest && t.closest('#tabPn') && t.dataset && pnClique(t)) return;
     if (t.dataset && t.dataset.eqsetor!=null){ state.eqSetor=t.dataset.eqsetor||''; state.eqFn=null; state.eqNat=null; state.eqAud=null; return renderEqp(); }
     if (t.dataset && t.dataset.cfgir){ state.cfgEd=t.dataset.cfgir==='cal'?null:t.dataset.cfgir; irAba('cfg'); if (t.dataset.cfgir==='cal'){ var c=$('cfgCal'); if (c&&c.scrollIntoView) c.scrollIntoView({block:'start'}); } return; }
@@ -476,6 +477,7 @@
     db.collection('cert').onSnapshot(function(snap){ var m={}; snap.docs.forEach(function(d){ var x=d.data(); if (x&&x.recs) m[x.mes||d.id]={raw:x,recs:Motor.decodificarCert(x)}; }); state.cert=m; agendarRender(); }, function(){});
   });
   }
+  document.addEventListener('input',function(e){ var t=e.target; if (t.dataset && t.dataset.popbusca!=null) popFiltrar(t); }); // 0.21.1: filtro das listas do catálogo
   // 0.14.0: a nuvem avisa quando descobre (ou carrega) meses anteriores aos 12 da abertura
   window.aoMudarJanela=function(){ renderSelect(); if (state.aba==='sau') renderSau(); };
   // 0.13.0: o menu da conta fecha ao clicar fora

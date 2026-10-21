@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/dados.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/dados.js']='0.21.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/dados.js']='0.21.1';
  // 0.x = em validação; vira 1.0.0 depois da apresentação ao Oficial
   // 0.11.0: proteção de versão — index.html, motor.js e nuvem.js levam a versão; se algum arquivo ficou de outra entrega, avisa no topo
   function checarVersoes(ver){ ver=ver||APP_VERSAO; var el=document.getElementById('avisoVersao'); if (!el) return; var meta=document.querySelector('meta[name="painel-versao"]'), dif=[];

@@ -8,7 +8,7 @@
  * Coleção aprendiz/{id}: registro individual {v:2, k, nome, pop, popVer, popTit, motivo, treino, instrutor, jan, obs, aj{incId:{rel,mot}},
  *   status aberto|concluido, res apto|nao, avaliador, avalEm, feedbackEm, justif, snap{…}, pai, grupo, criadoEm, por}
  *   ou treinamento em grupo {v:2, tipo:'grupo', pop, popVer, treino, instrutor, meses, ks[], obs, criadoEm, por}. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/aprendizagem.js']='0.21.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/aprendizagem.js']='0.21.1';
   var APR_MOTIVOS={novo:'Colaborador novo na função', 'pop-novo':'POP novo', 'pop-rev':'POP revisado', funcao:'Mudança de função', reforco:'Reforço (depois de Não apto)', experiencia:'Apto por experiência (ISO 9001 7.2 b)'};
   var APR_RES={apto:['good','Apto'], nao:['warn','Não apto']};
   function aprCfg(){ return {lim:+cfgS('apr.limite'), jan:+cfgS('apr.janela'), minMeses:+cfgS('apr.minMeses'), piso:+cfgS('apr.piso'), teto:+cfgS('apr.teto'), exp:+cfgS('apr.expMeses'), ref:+cfgS('apr.refMeses')}; }
@@ -117,6 +117,18 @@
     if (fe.length) h+='<details class="apr-det"'+(state.aprVerFim?' open':'')+' data-aprdet="fim"><summary>Concluídas · '+fe.length+' ('+fe.filter(function(a){ return a.res==='apto'; }).length+' Apto · '+fe.filter(function(a){ return a.res==='nao'; }).length+' Não apto)</summary>'+fe.map(aprCardHTML).join('')+'</details>';
     if (podeEscrever) h+=aprExpHTML();
     el.innerHTML=h; }
+  // 0.21.1: tudo que dá para escolher vira lista (sem digitar nome)
+  var APR_MOT_DESM=['Erro de outra fase','Erro não ligado a este POP','Registro duplicado ou equivocado'];
+  function aprEquipe(){ var P=aprNomes(), corte=aprMesesAtras(12), at={}; aprExecs().forEach(function(x){ if (x.m>=corte) at[x.k]=1; });
+    return Object.keys(P).filter(function(k){ return at[k]; }).map(function(k){ return P[k]; }).sort(function(a,b){ return a.localeCompare(b,'pt-BR'); }); }
+  function aprEu(){ var u=semAc(nomeUsuario()); if (!u) return ''; var L=aprEquipe(); for (var i=0;i<L.length;i++) if (semAc(L[i])===u||semAc(L[i]).indexOf(u+' ')===0) return L[i]; return ''; }
+  // lista de pessoas da equipe; com "outro", abre um campo para quem é de fora (IMQC, ENNOR…)
+  function aprSelPessoa(id, valor, outro, attrs){ var L=aprEquipe(), v=String(valor||''), tem=!v||L.indexOf(v)>=0;
+    var h='<select id="'+id+'" data-aprsel="'+id+'"'+(attrs||'')+'><option value="">Escolha…</option>'+L.map(function(n){ return '<option'+(n===v?' selected':'')+'>'+esc(n)+'</option>'; }).join('')+
+      (!tem&&!outro?'<option selected>'+esc(v)+'</option>':'')+(outro?'<option value="__outro"'+(tem?'':' selected')+'>Outro (de fora da equipe)…</option>':'')+'</select>';
+    if (outro) h+='<input type="text" id="'+id+'_o" class="mini apr-outro" value="'+esc(tem?'':v)+'" placeholder="nome ou instituição"'+(tem?' hidden':'')+'>';
+    return h; }
+  function aprLerSel(id){ var s=$(id); if (!s) return ''; if (s.value==='__outro'){ var o=$(id+'_o'); return String(o&&o.value||'').trim(); } return s.value; }
   function aprPessoasOpc(sel, extra){ var P=aprNomes(), corte=aprMesesAtras(12), ativos={}; aprExecs().forEach(function(x){ if (x.m>=corte) ativos[x.k]=1; });
     var ks=Object.keys(P).filter(function(k){ return ativos[k]||k===sel; }).sort(function(a,b){ return String(P[a]).localeCompare(String(P[b]),'pt-BR'); });
     return '<option value="">Escolha…</option>'+ks.map(function(k){ return '<option value="'+esc(k)+'"'+(k===sel?' selected':'')+'>'+esc(P[k])+'</option>'; }).join('')+(extra||''); }
@@ -132,13 +144,13 @@
       '<label>Documento (POP / IT)<select id="aprPop"'+(f.id?' disabled':'')+'>'+aprPopOpc(f.pop)+'</select></label>'+
       '<label>Motivo<select id="aprMot">'+Object.keys(APR_MOTIVOS).filter(function(m){ return m!=='experiencia'; }).map(function(m){ return '<option value="'+m+'"'+(f.motivo===m?' selected':'')+'>'+APR_MOTIVOS[m]+'</option>'; }).join('')+'</select></label>'+
       '<label>Data do treinamento<input type="date" id="aprTr" value="'+esc(f.treino||aprHoje())+'"></label>'+
-      '<label>Treinado por<input type="text" id="aprIns" value="'+esc(f.instrutor||'')+'" placeholder="ex.: Alyrio (1º Substituto)"></label>'+
+      '<label>Treinado por'+aprSelPessoa('aprIns',f.instrutor,true)+'</label>'+
       '<label>Janela de referência (meses)<input type="number" id="aprJan" min="1" max="12" value="'+(+f.jan||aprCfg().jan)+'"></label></div>'+
       aprEscopoTxt(p)+(n12!=null?'<p class="hint">'+esc(P[f.k]||'')+' fez <b>'+n12+'</b> atos neste escopo nos últimos 12 meses.'+(n12>=popMinimo(p).v?' Se já domina o POP, use a carga "Apto por experiência".':'')+'</p>':'')+
       '<label class="apr-obs">Observação<textarea id="aprObs" rows="2" placeholder="Ex.: treinamento prático com acompanhamento dos 10 primeiros títulos">'+esc(f.obs||'')+'</textarea></label>'+
       '<div class="ctl" style="margin-top:8px"><button class="btn primary sm" type="button" data-aprsalvarf="1">Salvar</button><button class="btn sm" type="button" data-aprcancelar="1">Cancelar</button>'+(f.id?'<span class="spacer"></span><button class="btn sm" type="button" data-aprarquivar="'+esc(f.id)+'">Arquivar registro</button>':'')+'</div></div>'; }
   function aprLerForm(){ var f=Object.assign({},state.aprForm||{}); if (!f.id){ f.k=($('aprK')||{}).value||f.k||''; f.pop=($('aprPop')||{}).value||f.pop||''; }
-    f.motivo=($('aprMot')||{}).value||f.motivo||'novo'; f.treino=($('aprTr')||{}).value||f.treino||aprHoje(); f.instrutor=String(($('aprIns')||{}).value||'').trim(); f.jan=Math.max(1,Math.min(12,+($('aprJan')||{}).value||aprCfg().jan)); f.obs=String(($('aprObs')||{}).value||'').trim(); return f; }
+    f.motivo=($('aprMot')||{}).value||f.motivo||'novo'; f.treino=($('aprTr')||{}).value||f.treino||aprHoje(); f.instrutor=$('aprIns')?aprLerSel('aprIns'):(f.instrutor||''); f.jan=Math.max(1,Math.min(12,+($('aprJan')||{}).value||aprCfg().jan)); f.obs=String(($('aprObs')||{}).value||'').trim(); return f; }
 
   // cartão de um registro
   function aprCardHTML(a){ var R=aprAval(a), aberto=state.aprAberto===a.id, fim=a.status==='concluido', p=popDe(a.pop);
@@ -147,14 +159,17 @@
       '<div class="hint" style="margin:2px 0 0">'+esc(APR_MOTIVOS[a.motivo]||a.motivo||'')+(a.treino?' · treinado em '+fmtData(a.treino)+(a.instrutor?' por '+esc(a.instrutor):''):'')+(R.mede?' · período avaliado '+fmtData(R.de)+' a '+fmtData(R.ate)+(fim||R.acabou?'':' (janela até '+fmtData(R.fimJ)+')'):'')+'</div>'+
       (barra?'<div class="apr-prog">'+barra+'</div>':'')+'</div><span class="spacer"></span>'+
       (fim?'<span class="pill '+(APR_RES[a.res]||['mute'])[0]+'">'+esc((APR_RES[a.res]||['','—'])[1])+'</span>'+(a.feedbackEm?'':' <span class="pill mute">feedback pendente</span>'):aprSugPill(R))+
-      '<button class="btn sm" type="button" data-aprabrir="'+esc(a.id)+'" aria-expanded="'+(aberto?'true':'false')+'">'+(aberto?'Fechar':fim?'Ver':'Avaliar')+'</button></div>';
+      '<button class="btn sm" type="button" data-aprabrir="'+esc(a.id)+'" aria-expanded="'+(aberto?'true':'false')+'">'+(aberto?'Fechar':fim?'Ver':'Avaliar')+'</button>'+(podeEscrever?'<button class="btn sm" type="button" data-aprexcluir="'+esc(a.id)+'" title="Excluir registro lançado errado">Excluir</button>':'')+'</div>';
     if (aberto) h+=aprAvalHTML(a,R);
     return h+'</div>'; }
   function aprIncTabela(a, R, fim){ if (!R.inc.length) return '<p class="hint">Nenhuma inconformidade da pessoa nos documentos avaliados.</p>';
     var ed=podeEscrever&&!fim;
     return '<div class="tbl-wrap"><table class="tleft"><thead><tr><th>Conta?</th><th>Data</th><th>Documento</th><th>Tipo do erro</th>'+(fim?'':'<th>Observação</th>')+'</tr></thead><tbody>'+R.inc.map(function(x){
       return '<tr><td><label class="lc-chk"><input type="checkbox" data-aprrel="'+esc(x.id)+'" data-aprpre="'+(x.pre?1:0)+'"'+(x.rel?' checked':'')+(ed?'':' disabled')+'> sim</label>'+(x.pre?'':' <span class="pill mute">'+(x.no?'outra fase':'fora do escopo')+'</span>')+
-        (!x.rel&&x.pre?'<div><input type="text" class="mini" data-aprmot="'+esc(x.id)+'" value="'+esc(x.mot)+'" placeholder="por que não conta? (obrigatório)"'+(ed?'':' disabled')+'></div>':'')+'</td><td>'+fmtData(x.d)+'</td><td>'+protLink(x.c)+' <span class="mut">'+esc(x.t||'')+'</span></td><td>'+esc(x.cat)+'</td>'+(fim?'':'<td style="min-width:240px">'+esc(x.o||'')+'</td>')+'</tr>'; }).join('')+'</tbody></table></div>'; }
+        (!x.rel&&x.pre?aprMotDesmHTML(x,ed):'')+'</td><td>'+fmtData(x.d)+'</td><td>'+protLink(x.c)+' <span class="mut">'+esc(x.t||'')+'</span></td><td>'+esc(x.cat)+'</td>'+(fim?'':'<td style="min-width:240px">'+esc(x.o||'')+'</td>')+'</tr>'; }).join('')+'</tbody></table></div>'; }
+  function aprMotDesmHTML(x, ed){ var m=String(x.mot||''), padrao=APR_MOT_DESM.indexOf(m)>=0, outro=!!m&&!padrao, dis=ed?'':' disabled';
+    return '<div class="apr-mot"><select class="mini" data-aprmotsel="'+esc(x.id)+'"'+dis+' aria-label="Por que não conta?"><option value="">Por que não conta? (obrigatório)</option>'+APR_MOT_DESM.map(function(o){ return '<option'+(o===m?' selected':'')+'>'+esc(o)+'</option>'; }).join('')+'<option value="__outro"'+(outro?' selected':'')+'>Outro…</option></select>'+
+      '<input type="text" class="mini" data-aprmot="'+esc(x.id)+'" value="'+esc(outro?m:'')+'" placeholder="escreva o motivo"'+(outro?'':' hidden')+dis+'></div>'; }
   function aprAvalHTML(a, R){ var fim=a.status==='concluido', d=state.aprDraft[a.id]||{}, P=aprNomes(), h='<div class="apr-av">';
     if (R.mede){ h+='<div class="kpis" style="margin-bottom:10px">'+kpi('Atos no escopo',String(R.n),'mínimo do POP: '+R.min,R.n<R.min?'':'')+kpi('Inconformidades que contam',String(R.nRel),'em '+R.n+' documentos')+kpi('Taxa',aprPct(R.taxa),'limite: '+numBR(R.lim,1)+'%')+kpi('Sugestão do painel',R.sug==='apto'?'Apto':R.sug==='nao'?'Não apto':'Amostra pequena',R.sug==='pequena'?'faltam '+(R.min-R.n)+' atos para o mínimo':'a decisão é do superior')+'</div>';
       h+=aprIncTabela(a,R,fim);
@@ -171,10 +186,9 @@
     if (!podeEscrever) return h+'</div>';
     var sugRes=R.sug==='apto'?'apto':R.sug==='nao'?'nao':'';
     h+='<div class="apr-res"><label>Resultado<select id="aprRes_'+esc(a.id)+'" data-aprdr="'+esc(a.id)+'"><option value="">—</option><option value="apto"'+((d.res||sugRes)==='apto'?' selected':'')+'>Apto</option><option value="nao"'+((d.res||sugRes)==='nao'?' selected':'')+'>Não apto</option></select></label>'+
-      '<label>Avaliado por (superior imediato)<input type="text" id="aprAv_'+esc(a.id)+'" data-aprdr="'+esc(a.id)+'" list="aprNomesDl" value="'+esc(d.av||'')+'" placeholder="nome"></label>'+
+      '<label>Avaliado por'+aprSelPessoa('aprAv_'+a.id,d.av!=null?d.av:aprEu(),false,' data-aprdr="'+esc(a.id)+'"')+'</label>'+
       '<label>Feedback dado em<input type="date" id="aprFbd_'+esc(a.id)+'" data-aprdr="'+esc(a.id)+'" value="'+esc(d.fb||'')+'"></label>'+
       '<label class="apr-jus">Justificativa'+(R.mede&&R.sug!=='pequena'?' (obrigatória se for contra a sugestão)':' (obrigatória)')+'<input type="text" id="aprJus_'+esc(a.id)+'" data-aprdr="'+esc(a.id)+'" value="'+esc(d.jus||'')+'" placeholder="ex.: acompanhamento dos 10 primeiros títulos sem erro"></label></div>'+
-      '<datalist id="aprNomesDl">'+Object.keys(P).map(function(k){ return '<option value="'+esc(P[k])+'">'; }).join('')+'</datalist>'+
       '<div class="ctl apr-bt" style="margin-top:8px"><button class="btn primary sm" type="button" data-aprconcluir="'+esc(a.id)+'">Concluir avaliação</button><button class="btn sm" type="button" data-aprrel1="'+esc(a.id)+'">Baixar relatório parcial</button><button class="btn sm" type="button" data-apreditar="'+esc(a.id)+'">Editar</button></div>';
     return h+'</div>'; }
   // rascunhos do veredito (sobrevivem ao redesenho da página)
@@ -187,12 +201,12 @@
     var sel=f.ks||ks;
     return '<div class="panel apr-f"><div class="sub-h">Treinamento em grupo · antes × depois</div><p class="hint">Para um treinamento com várias pessoas de uma vez (ex.: POP revisado apresentado à equipe). O painel compara a taxa de inconformidade no escopo nos meses antes e depois da data.</p><div class="apr-g">'+
       '<label>Documento (POP / IT)<select id="aprGPop">'+aprPopOpc(f.pop)+'</select></label><label>Data do treinamento<input type="date" id="aprGTr" value="'+esc(f.treino||aprHoje())+'"></label>'+
-      '<label>Treinado por<input type="text" id="aprGIns" value="'+esc(f.instrutor||'')+'"></label><label>Meses antes e depois<input type="number" id="aprGM" min="1" max="12" value="'+(+f.meses||aprCfg().jan)+'"></label></div>'+aprEscopoTxt(p)+
+      '<label>Treinado por'+aprSelPessoa('aprGIns',f.instrutor,true)+'</label><label>Meses antes e depois<input type="number" id="aprGM" min="1" max="12" value="'+(+f.meses||aprCfg().jan)+'"></label></div>'+aprEscopoTxt(p)+
       (ks.length?'<div class="sub-h" style="margin-top:8px">Participantes (quem executou o escopo nos últimos 12 meses)</div><div class="apr-chk">'+ks.map(function(k){ return '<label><input type="checkbox" data-aprgk="'+esc(k)+'"'+(sel.indexOf(k)>=0?' checked':'')+'> '+esc(P[k])+'</label>'; }).join('')+'</div>'+
         '<label class="apr-inl" style="margin-top:8px"><input type="checkbox" id="aprGInd"'+(f.ind?' checked':'')+'> Abrir também a aprendizagem individual de cada participante</label>':'')+
       '<label class="apr-obs">Ata / evidência do treinamento<input type="text" id="aprGObs" value="'+esc(f.obs||'')+'" placeholder="ex.: ATA-008 (28/08/2026)"></label>'+
       '<div class="ctl" style="margin-top:8px"><button class="btn primary sm" type="button" data-aprgsalvar="1">Salvar</button><button class="btn sm" type="button" data-aprcancelar="1">Cancelar</button></div></div>'; }
-  function aprLerGForm(){ var f=Object.assign({},state.aprGForm||{}); f.pop=($('aprGPop')||{}).value||f.pop||''; f.treino=($('aprGTr')||{}).value||aprHoje(); f.instrutor=String(($('aprGIns')||{}).value||'').trim(); f.meses=Math.max(1,Math.min(12,+($('aprGM')||{}).value||aprCfg().jan)); f.obs=String(($('aprGObs')||{}).value||'').trim(); f.ind=!!($('aprGInd')||{}).checked;
+  function aprLerGForm(){ var f=Object.assign({},state.aprGForm||{}); f.pop=($('aprGPop')||{}).value||f.pop||''; f.treino=($('aprGTr')||{}).value||aprHoje(); f.instrutor=$('aprGIns')?aprLerSel('aprGIns'):(f.instrutor||''); f.meses=Math.max(1,Math.min(12,+($('aprGM')||{}).value||aprCfg().jan)); f.obs=String(($('aprGObs')||{}).value||'').trim(); f.ind=!!($('aprGInd')||{}).checked;
     var cx=document.querySelectorAll('#tabApr [data-aprgk]'); if (cx.length) f.ks=[].slice.call(cx).filter(function(x){ return x.checked; }).map(function(x){ return x.dataset.aprgk; }); return f; }
   // z de duas proporções (antes × depois)
   function aprZ(x1,n1,x2,n2){ if (!n1||!n2) return null; var p=(x1+x2)/(n1+n2); if (p<=0||p>=1) return null; var se=Math.sqrt(p*(1-p)*(1/n1+1/n2)); return se?(x2/n2-x1/n1)/se:null; }
@@ -211,7 +225,7 @@
   function aprGCardHTML(g){ var R=aprGAval(g), ab=state.aprAberto===g.id;
     var h='<div class="panel apr-c"><div class="apr-h"><div class="apr-hd"><b>'+esc(g.pop)+'</b> · treinamento em grupo em '+fmtData(g.treino)+(g.instrutor?' por '+esc(g.instrutor):'')+'<div class="hint" style="margin:2px 0 0">'+((g.ks||[]).length?g.ks.length+' participantes':'toda a equipe do escopo')+(g.obs?' · '+esc(g.obs):'')+'</div></div><span class="spacer"></span>'+
       (R.mede?'<span class="pill '+(R.dif!=null&&R.dif<0&&R.z!=null&&R.z<=-1.96?'good':'mute')+'">'+aprPct(R.antes.taxa)+' → '+aprPct(R.depois.taxa)+'</span>':'<span class="pill mute">sem medição automática</span>')+
-      '<button class="btn sm" type="button" data-aprabrir="'+esc(g.id)+'">'+(ab?'Fechar':'Ver')+'</button></div>';
+      '<button class="btn sm" type="button" data-aprabrir="'+esc(g.id)+'">'+(ab?'Fechar':'Ver')+'</button>'+(podeEscrever?'<button class="btn sm" type="button" data-aprexcluir="'+esc(g.id)+'" title="Excluir treinamento lançado errado">Excluir</button>':'')+'</div>';
     if (ab){ if (R.mede) h+='<div class="kpis" style="margin:10px 0">'+kpi('Antes',aprPct(R.antes.taxa),R.antes.x+' em '+R.antes.n+' atos · '+fmtData(R.de)+' a '+fmtData(aprAddMes(g.treino,0)))+kpi('Depois',aprPct(R.depois.taxa),R.depois.x+' em '+R.depois.n+' atos · até '+fmtData(R.ate)+(R.acabou?'':' (em andamento)'))+kpi('Leitura',R.dif==null?'—':(R.dif<=0?'−':'+')+numBR(Math.abs(R.dif),1)+' p.p.',esc(R.txt))+'</div>';
       h+='<div class="ctl apr-bt"><button class="btn sm" type="button" data-aprgrel="'+esc(g.id)+'">Baixar relatório (anexar na ata)</button>'+(podeEscrever?'<button class="btn sm" type="button" data-aprgarq="'+esc(g.id)+'">Arquivar</button>':'')+'</div>'; }
     return h+'</div>'; }
@@ -228,7 +242,7 @@
   function aprRevHTML(){ var L=aprRevLista(); if (!L.length) return ''; var P=aprNomes();
     return '<div class="panel apr-rev"><div class="sub-h">Quem precisa ser treinado · POP com versão nova</div>'+L.map(function(r){ var id=r.p.c;
       return '<div class="apr-rv"><b>'+esc(id)+'</b> v'+esc(r.p.v||'')+' desde '+fmtData(r.p.verDesde)+' · '+r.ks.length+' pessoa(s) executaram o escopo nos 12 meses anteriores (vem marcado quem fez 3 ou mais atos)<div class="apr-chk" style="margin:6px 0">'+r.ks.map(function(k){ var n=r.n[k]||0; return '<label><input type="checkbox" data-aprrevk="'+esc(id)+'|'+esc(k)+'"'+(n>=3?' checked':'')+'> '+esc(P[k])+' <span class="mut">'+n+' atos</span></label>'; }).join('')+'</div>'+
-        (podeEscrever?'<div class="ctl"><label class="apr-inl">Data do treinamento <input type="date" id="aprRevTr_'+esc(id)+'" value="'+aprHoje()+'"></label><label class="apr-inl">Treinado por <input type="text" id="aprRevIns_'+esc(id)+'" class="mini"></label><button class="btn sm primary" type="button" data-aprrevabrir="'+esc(id)+'">Abrir aprendizagem dos marcados</button></div>':'')+'</div>'; }).join('')+'</div>'; }
+        (podeEscrever?'<div class="ctl"><label class="apr-inl">Data do treinamento <input type="date" id="aprRevTr_'+esc(id)+'" value="'+aprHoje()+'"></label><label class="apr-inl">Treinado por '+aprSelPessoa('aprRevIns_'+id,'',true)+'</label><button class="btn sm primary" type="button" data-aprrevabrir="'+esc(id)+'">Abrir aprendizagem dos marcados</button></div>':'')+'</div>'; }).join('')+'</div>'; }
 
   // ——— carga inicial: Apto por experiência ———
   function aprExpCalc(){ var cf=aprCfg(), ini=aprMesesAtras(cf.exp)+'-01', fimM=mesHoje(), fim=new Date(Date.parse(fimM+'-01')-864e5).toISOString().slice(0,10), P=aprNomes(), out=[];
@@ -245,7 +259,7 @@
     var porP={}; E.L.forEach(function(x){ porP[x.p]=(porP[x.p]||0)+1; });
     h+='<p class="hint">Período: '+fmtData(E.ini)+' a '+fmtData(E.fim)+' · '+E.L.length+' combinações pessoa × documento ('+E.L.filter(function(x){ return x.ok; }).length+' dentro do limite).</p><div class="tbl-wrap"><table class="tleft"><thead><tr><th><input type="checkbox" data-aprexptodos="1" aria-label="Marcar todos"></th><th>Pessoa</th><th>Documento</th><th class="n">Atos</th><th class="n">Inconf.</th><th class="n">Taxa</th></tr></thead><tbody>'+
       E.L.map(function(x,i){ return '<tr><td><input type="checkbox" data-aprexp="'+i+'"'+(x.ok?' checked':'')+'></td><td>'+esc(x.nome)+'</td><td>'+esc(x.p)+'</td><td class="n">'+x.n+'</td><td class="n">'+x.x+'</td><td class="n">'+(x.ok?'':'<span class="pill warn">')+aprPct(x.taxa)+(x.ok?'':'</span>')+'</td></tr>'; }).join('')+'</tbody></table></div>'+
-      '<div class="ctl" style="margin-top:8px"><label class="apr-inl">Avaliado por <input type="text" id="aprExpAv" class="mini" value="'+esc(nomeUsuario())+'"></label><button class="btn primary sm" type="button" data-aprexpok="1">Registrar marcados como Apto por experiência</button><button class="btn sm" type="button" data-aprexpcalc="1">Recalcular</button></div></details>';
+      '<div class="ctl" style="margin-top:8px"><label class="apr-inl">Avaliado por '+aprSelPessoa('aprExpAv',aprEu(),false)+'</label><button class="btn primary sm" type="button" data-aprexpok="1">Registrar marcados como Apto por experiência</button><button class="btn sm" type="button" data-aprexpcalc="1">Recalcular</button></div></details>';
     return h; }
 
   // ——— cliques e mudanças ———
@@ -258,10 +272,13 @@
       var a=f.id?Object.assign({},state.apr[f.id],{motivo:f.motivo,treino:f.treino,instrutor:f.instrutor,jan:f.jan,obs:f.obs}):aprNovo({k:f.k, nome:aprNomes()[f.k]||f.k, pop:f.pop, motivo:f.motivo, treino:f.treino, instrutor:f.instrutor, jan:f.jan, obs:f.obs, pai:f.pai||null});
       aprSalvar(a).then(function(){ toast(f.id?'Registro atualizado':'Aprendizagem aberta'); }); state.aprForm=null; state.aprAberto=a.id; renderApr(); return true; }
     if (d.aprarquivar){ if (!confirm('Arquivar este registro? Ele sai da lista (fica guardado no banco).')) return true; var id0=d.aprarquivar; if (dbPronto&&podeEscrever) db.doc('aprendiz/'+id0).delete(); var c=Object.assign({},state.apr); delete c[id0]; state.apr=c; state.aprForm=null; renderApr(); return true; }
+    if (d.aprexcluir){ var ex=state.apr[d.aprexcluir]; if (!ex) return true; var filhos=aprLista().filter(function(x){ return x.pai===ex.id||x.grupo===ex.id; }).length;
+      if (!confirm('Excluir '+(ex.tipo==='grupo'?'o treinamento em grupo de '+ex.pop:'a aprendizagem de '+ex.nome+' em '+ex.pop)+'?'+(filhos?' Os '+filhos+' registro(s) ligados a ele continuam.':'')+' Ele sai da lista e fica guardado no banco (arquivado).')) return true;
+      if (dbPronto&&podeEscrever) db.doc('aprendiz/'+ex.id).delete(); var c3=Object.assign({},state.apr); delete c3[ex.id]; state.apr=c3; if (state.aprAberto===ex.id) state.aprAberto=null; delete state.aprDraft[ex.id]; toast('Registro excluído'); renderApr(); return true; }
     if (d.aprgarq){ if (!confirm('Arquivar este treinamento em grupo?')) return true; if (dbPronto&&podeEscrever) db.doc('aprendiz/'+d.aprgarq).delete(); var c2=Object.assign({},state.apr); delete c2[d.aprgarq]; state.apr=c2; renderApr(); return true; }
     if (d.aprabrir){ state.aprAberto=state.aprAberto===d.aprabrir?null:d.aprabrir; renderApr(); return true; }
     if (d.aprconcluir){ var a1=JSON.parse(JSON.stringify(state.apr[d.aprconcluir])); aprLerRascunhos(); var dr=state.aprDraft[a1.id]||{}, R=aprAval(a1);
-      if (!dr.res){ toast('Escolha Apto ou Não apto'); return true; } if (!String(dr.av||'').trim()){ toast('Informe quem avaliou (superior imediato)'); return true; }
+      if (!dr.res){ toast('Escolha Apto ou Não apto'); return true; } if (!String(dr.av||'').trim()){ toast('Escolha quem avaliou'); return true; }
       var contra=R.mede&&R.sug!=='pequena'&&dr.res!==R.sug, precisa=!R.mede||R.sug==='pequena'||contra;
       if (precisa&&!String(dr.jus||'').trim()){ toast(contra?'Contra a sugestão do painel: escreva a justificativa':'Escreva a justificativa'); return true; }
       if (R.mede&&R.inc.some(function(x){ return x.pre&&!x.rel&&!x.mot; })){ toast('Escreva o motivo de cada inconformidade desmarcada'); return true; }
@@ -280,11 +297,11 @@
       aprSalvar(reg); var nInd=0;
       if (g.ind&&(g.ks||[]).length){ g.ks.forEach(function(k){ if (aprLista().some(function(a){ return a.k===k&&a.pop===g.pop&&a.status==='aberto'; })) return; aprSalvar(aprNovo({k:k, nome:aprNomes()[k]||k, pop:g.pop, motivo:gp.verDesde&&g.treino>=gp.verDesde?'pop-rev':'novo', treino:g.treino, instrutor:g.instrutor, jan:g.meses, obs:'Treinamento em grupo'+(g.obs?' · '+g.obs:''), grupo:reg.id})); nInd++; }); }
       toast('Treinamento em grupo salvo'+(nInd?' · '+nInd+' aprendizagem(ns) individual(is)':'')); state.aprGForm=null; state.aprAberto=reg.id; renderApr(); return true; }
-    if (d.aprrevabrir){ var pc=d.aprrevabrir, pp=popDe(pc), tr=($('aprRevTr_'+pc)||{}).value||aprHoje(), ins=String(($('aprRevIns_'+pc)||{}).value||'').trim(), n=0;
+    if (d.aprrevabrir){ var pc=d.aprrevabrir, pp=popDe(pc), tr=($('aprRevTr_'+pc)||{}).value||aprHoje(), ins=aprLerSel('aprRevIns_'+pc), n=0;
       document.querySelectorAll('#tabApr [data-aprrevk]').forEach(function(x){ var q=x.dataset.aprrevk.split('|'); if (q[0]!==pc||!x.checked) return; aprSalvar(aprNovo({k:q[1], nome:aprNomes()[q[1]]||q[1], pop:pc, motivo:'pop-rev', treino:tr, instrutor:ins, obs:'POP revisado para a v'+(pp.v||'')})); n++; });
       toast(n?n+' aprendizagem(ns) aberta(s)':'Nenhuma pessoa marcada'); renderApr(); return true; }
     if (d.aprexpcalc){ state.aprExp=aprExpCalc(); state.aprExpAberto=true; renderApr(); return true; }
-    if (d.aprexpok){ var E=state.aprExp; if (!E) return true; var av=String(($('aprExpAv')||{}).value||'').trim(); if (!av){ toast('Informe quem avaliou'); return true; } var cf=aprCfg(), n2=0;
+    if (d.aprexpok){ var E=state.aprExp; if (!E) return true; var av=aprLerSel('aprExpAv'); if (!av){ toast('Informe quem avaliou'); return true; } var cf=aprCfg(), n2=0;
       document.querySelectorAll('#tabApr [data-aprexp]').forEach(function(x){ if (!x.checked) return; var c3=E.L[+x.dataset.aprexp]; if (!c3) return; var pp2=popDe(c3.p)||{c:c3.p};
         var M=aprMedir(pp2,c3.k,E.ini,E.fim,{}), snap={mede:true, de:E.ini, ate:E.fim, fimJ:E.fim, acabou:true, lim:cf.lim, min:c3.min, n:M.n, inc:M.inc.map(function(y){ return {id:y.id,d:y.d,c:y.c,t:y.t,cat:y.cat,pre:y.pre,no:y.no,rel:y.rel,mot:''}; }), outras:[], nRel:M.nRel, taxa:M.taxa, sug:M.n<c3.min?'pequena':(M.taxa<=cf.lim?'apto':'nao')};
         aprSalvar(aprNovo({k:c3.k, nome:c3.nome, pop:c3.p, motivo:'experiencia', treino:null, ini:E.ini, fim:E.fim, status:'concluido', res:'apto', avaliador:av, avalEm:new Date().toISOString(), avalPor:nomeUsuario(), feedbackEm:'', justif:'Competência por experiência (ISO 9001 7.2 b): '+M.n+' atos no escopo de '+fmtData(E.ini)+' a '+fmtData(E.fim)+', taxa '+aprPct(M.taxa)+(M.taxa<=cf.lim?' ≤ ':' > ')+numBR(cf.lim,1)+'%.', snap:snap})); n2++; });
@@ -293,6 +310,11 @@
     if (t.tagName==='SUMMARY'&&t.parentNode&&t.parentNode.dataset&&t.parentNode.dataset.aprdet){ var k2=t.parentNode.dataset.aprdet; setTimeout(function(){ if (k2==='fim') state.aprVerFim=t.parentNode.open; if (k2==='exp') state.aprExpAberto=t.parentNode.open; },0); return false; }
     return false; }
   function aprMudou(t){ var d=t.dataset||{};
+    if (d.aprsel!=null){ var o=$(d.aprsel+'_o'); if (o){ o.hidden=t.value!=='__outro'; if (!o.hidden) o.focus(); } if (d.aprdr!=null) aprLerRascunhos(); return true; }
+    if (d.aprmotsel!=null){ var tx=t.parentNode.querySelector('[data-aprmot]'), c=JSON.parse(JSON.stringify(state.apr[state.aprAberto])); c.aj=c.aj||{};
+      if (t.value==='__outro'){ if (tx){ tx.hidden=false; tx.focus(); } c.aj[d.aprmotsel]={rel:false, mot:String(tx&&tx.value||'').trim()}; }
+      else { if (tx){ tx.hidden=true; tx.value=''; } c.aj[d.aprmotsel]={rel:false, mot:t.value}; }
+      aprSalvar(c); return true; }
     if (d.aprrel!=null){ var a=JSON.parse(JSON.stringify(state.apr[state.aprAberto])), id=d.aprrel, pre=d.aprpre==='1'; aprLerRascunhos(); a.aj=a.aj||{};
       if (t.checked===pre) delete a.aj[id]; else a.aj[id]={rel:t.checked, mot:(a.aj[id]&&a.aj[id].mot)||''};
       aprSalvar(a); renderApr(); return true; }

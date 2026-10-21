@@ -3,7 +3,7 @@
  * naturezas do VHL (a tabela "Natureza Principal" da IT de recepção do ato) + etapas da fase
  * (REC = Prenotação no Tri7 · QLF = Análise, Re-Análise e Revisão de exigência do Tri7 · MIN = Minuta · REV = Revisão Oficial).
  * Editável em Configuração › POPs e escopo, com motivo no histórico. Ajustes ficam em config/pops {map:{código:{…}}}. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/catalogo.js']='0.21.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/catalogo.js']='0.21.1';
   var POP_BASE=[{"c":"IT-PJ-AVB-ENT","t":"Averbação em PJ · Entrega (Reg. Civil de Pessoas Jurídicas)","sv":"RCPJ","v":"1.0.1","fase":"ENT","nats":["Associações em geral"],"ets":["Registrar pedido / Envio Cliente"],"med":1,"conf":0},
     {"c":"IT-PJ-AVB-REC","t":"Averbação em PJ · Recepção (Reg. Civil de Pessoas Jurídicas)","sv":"RCPJ","v":"1.0.0","fase":"REC","med":0},
     {"c":"IT-RC-CAS-HAB","t":"Casamento · Habilitação (Registro Civil)","sv":"RC","v":"1.0.0","fase":"HAB","med":0},
@@ -107,22 +107,34 @@
         '<td class="tleft">'+(m?'<div class="pop-l"><span class="mut">Naturezas:</span> '+popListaHTML(p.nats,'nats',C)+'</div><div class="pop-l"><span class="mut">Etapas:</span> '+popListaHTML(p.ets,'ets',C)+'</div>':'<span class="mut">Sem medição automática: a eficácia é avaliada por quem acompanhou (o painel registra e gera o relatório).</span>')+'</td>'+
         '<td>'+esc(p.v||'—')+(p.verDesde?'<div class="hint" style="margin:2px 0 0">desde '+fmtData(p.verDesde)+'</div>':'')+'</td><td>'+(podeEscrever?'<button type="button" class="btn sm" data-poped="'+esc(p.c)+'">Alterar</button>':'')+'</td></tr>'+(ed?'<tr class="cfg-ed"><td colspan="4">'+popFormHTML(p)+'</td></tr>':''); });
     return h+'</tbody></table></div></details>'; }
-  function popFormHTML(p){
-    return '<div class="cfg-form pop-f"><label>Título <input id="popT" type="text" class="mini" value="'+esc(p.t||'')+'"></label><label>Versão <input id="popV" type="text" class="mini" style="width:7em" value="'+esc(p.v||'')+'" placeholder="ex.: 1.0.2"></label>'+
+  // 0.21.1: etapas e naturezas escolhidas numa lista (o que existe no VHL/Tri7), sem digitar
+  function popEtLimpo(raw){ return String(raw||'').replace(/^\s*\d+\s*[DHdh]\s*-\s*/,'').replace(/\s*-\s*\d+\s*[DHdh]\.?\s*$/,'').replace(/^ONR\s*-\s*/i,'').trim(); }
+  function popOpcoes(cont, nomes, atuais, normF, limpar, minQ){ var o={};
+    Object.keys(cont).forEach(function(n){ if (!n||cont[n]<minQ) return; o[n]={nome:limpar?popEtLimpo(nomes[n]):nomes[n], q:cont[n], on:false}; });
+    (atuais||[]).forEach(function(x){ var n=normF(x); if (o[n]) o[n].on=true; else o[n]={nome:x, q:0, on:true}; });
+    return Object.keys(o).map(function(n){ return o[n]; }).sort(function(a,b){ return (b.on-a.on)||(b.q-a.q)||a.nome.localeCompare(b.nome,'pt-BR'); }); }
+  function popCaixaHTML(titulo, campo, L, ajuda){
+    return '<div class="pop-box"><div class="pop-bh"><b>'+titulo+'</b> <span class="mut" data-popcont="'+campo+'">'+L.filter(function(x){ return x.on; }).length+' marcada(s)</span><input type="search" class="mini" data-popbusca="'+campo+'" placeholder="filtrar…" aria-label="Filtrar '+esc(titulo)+'"></div>'+
+      (ajuda?'<p class="hint" style="margin:2px 0 6px">'+ajuda+'</p>':'')+'<div class="apr-chk pop-lista" data-poplista="'+campo+'">'+L.map(function(x){ return '<label data-popnome="'+esc(semAc(x.nome))+'"><input type="checkbox" data-pop'+campo+'="'+esc(x.nome)+'"'+(x.on?' checked':'')+'> '+esc(x.nome)+' <span class="mut">'+(x.q||'não encontrada')+'</span></label>'; }).join('')+'</div></div>'; }
+  function popFormHTML(p){ var C=popContagens();
+    var E=popOpcoes(C.et,C.nomeE,p.ets,popEtNorm,true,3), N=popOpcoes(C.nat,C.nomeN,p.nats,popNorm,false,1);
+    return '<div class="pop-f2"><label class="pop-tit">Título <input id="popT" type="text" class="mini" value="'+esc(p.t||'')+'"></label><label>Versão <input id="popV" type="text" class="mini" value="'+esc(p.v||'')+'" placeholder="ex.: 1.0.2"></label>'+
       '<label>Medição <select id="popMed" class="mini"><option value="1"'+(p.med?' selected':'')+'>Automática</option><option value="0"'+(p.med?'':' selected')+'>Sem medição automática</option></select></label>'+
-      '<label class="pop-ta">Naturezas do VHL (uma por linha)<textarea id="popNats" rows="4" class="mini">'+esc((p.nats||[]).join('\n'))+'</textarea></label>'+
-      '<label class="pop-ta">Etapas (uma por linha; do Tri7 com "(Tri7)")<textarea id="popEts" rows="4" class="mini">'+esc((p.ets||[]).join('\n'))+'</textarea></label>'+
-      '<label><span><input type="checkbox" id="popConf"'+(p.conf?' checked':'')+'> Escopo conferido</span></label>'+
-      '<label class="cfg-mot">Motivo (obrigatório) <input id="popMot" type="text" class="mini" maxlength="300" placeholder="ex.: POP revisado, nome da natureza no VHL"></label>'+
-      '<span class="cfg-bt"><button type="button" class="btn sm" data-popsalvar="'+esc(p.c)+'">Salvar</button>'+(p.novo?'<button type="button" class="btn sm" data-poparq="'+esc(p.c)+'">Tirar do catálogo</button>':'')+'<button type="button" class="btn sm" data-popcancel="1">Cancelar</button></span>'+
-      '<p class="hint" style="margin:6px 0 0">Subir a versão marca a data de hoje e lista quem executou esse escopo nos últimos 12 meses para treinar de novo.</p></div>'; }
+      '<label class="pop-ck"><span><input type="checkbox" id="popConf"'+(p.conf?' checked':'')+'> Escopo conferido</span></label>'+
+      popCaixaHTML('Etapas','et',E,'Etapas do VHL (sem o prazo no nome; "ONR - X" conta como X) e andamentos do Tri7. O número é de execuções nos últimos 12 meses.')+
+      popCaixaHTML('Naturezas','nat',N,'Naturezas do VHL. As marcadas aparecem primeiro.')+
+      '<label class="pop-mot">Motivo (obrigatório) <input id="popMot" type="text" class="mini" maxlength="300" placeholder="ex.: POP revisado, nome da natureza no VHL"></label>'+
+      '<span class="cfg-bt pop-acoes"><button type="button" class="btn sm primary" data-popsalvar="'+esc(p.c)+'">Salvar</button>'+(p.novo?'<button type="button" class="btn sm" data-poparq="'+esc(p.c)+'">Tirar do catálogo</button>':'')+'<button type="button" class="btn sm" data-popcancel="1">Cancelar</button></span>'+
+      '<p class="hint pop-nota">Subir a versão marca a data de hoje e lista quem executou esse escopo nos últimos 12 meses para treinar de novo.</p></div>'; }
+  function popFiltrar(t){ var q=semAc(t.value||''), box=document.querySelector('[data-poplista="'+t.dataset.popbusca+'"]'); if (!box) return;
+    box.querySelectorAll('label').forEach(function(l){ l.hidden=!!q&&l.dataset.popnome.indexOf(q)<0; }); }
+  function popMarcados(campo){ return [].slice.call(document.querySelectorAll('[data-pop'+campo+']:checked')).map(function(x){ return x.getAttribute('data-pop'+campo); }); }
   function popNovoHTML(){ return '<div class="cfg-form pop-f" style="margin-bottom:8px"><label>Código <input id="popNC" type="text" class="mini" placeholder="ex.: POP-RI-HIP-QLF"></label><label>Título <input id="popNT" type="text" class="mini"></label>'+
       '<label>Serventia <select id="popNS" class="mini">'+['RI','RC','RTD','RCPJ','SGQ'].map(function(s){ return '<option>'+s+'</option>'; }).join('')+'</select></label>'+
       '<label>Fase <select id="popNF" class="mini"><option value="">—</option>'+Object.keys(POP_FASE_NOME).map(function(f){ return '<option value="'+f+'">'+POP_FASE_NOME[f]+'</option>'; }).join('')+'</select></label>'+
       '<label class="cfg-mot">Motivo (obrigatório) <input id="popNM" type="text" class="mini" maxlength="300" placeholder="ex.: POP publicado no M4"></label>'+
       '<span class="cfg-bt"><button type="button" class="btn sm" data-popcriar="1">Adicionar</button><button type="button" class="btn sm" data-popcancel="1">Cancelar</button></span>'+
       '<p class="hint" style="margin:6px 0 0">Na fase do RI (Recepção, Qualificação, Minuta, Revisão) as etapas já vêm preenchidas; depois é só informar as naturezas em "Alterar".</p></div>'; }
-  function popLinhas(id){ return String(($(id)||{}).value||'').split(/\n+/).map(function(s){ return s.trim(); }).filter(Boolean); }
   function popClique(t){ var d=t.dataset||{};
     if (d.poped){ state.popEd=state.popEd===d.poped?null:d.poped; state.popNovo=false; renderCfg(); return true; }
     if (d.popcancel){ state.popEd=null; state.popNovo=false; renderCfg(); return true; }
@@ -134,7 +146,7 @@
     if (d.poparq){ var mo=String(($('popMot')||{}).value||'').trim(); if (!mo){ toast('Escreva o motivo'); return true; }
       state.popsCfg.map[d.poparq]=Object.assign({},state.popsCfg.map[d.poparq],{oc:true}); popSalvarCfg(); state.popEd=null; apurLog('Catálogo de POPs: '+d.poparq,'incluído','retirado','imediato',mo); apurSalvar(); return true; }
     if (d.popsalvar){ var p=popDe(d.popsalvar), mot2=String(($('popMot')||{}).value||'').trim(); if (!mot2){ toast('Escreva o motivo da mudança'); var mm=$('popMot'); if (mm) mm.focus(); return true; }
-      var novo={t:String(($('popT')||{}).value||'').trim(), v:String(($('popV')||{}).value||'').trim(), med:($('popMed')||{}).value==='1'?1:0, nats:popLinhas('popNats'), ets:popLinhas('popEts'), conf:($('popConf')||{}).checked?1:0};
+      var novo={t:String(($('popT')||{}).value||'').trim(), v:String(($('popV')||{}).value||'').trim(), med:($('popMed')||{}).value==='1'?1:0, nats:popMarcados('nat'), ets:popMarcados('et'), conf:($('popConf')||{}).checked?1:0};
       var mud=[]; if (novo.t!==(p.t||'')) mud.push('título'); if (novo.v!==(p.v||'')) mud.push('versão '+(p.v||'—')+' → '+(novo.v||'—')); if (novo.med!==(p.med?1:0)) mud.push(novo.med?'medição automática':'sem medição');
       if (novo.nats.join('|')!==(p.nats||[]).join('|')) mud.push('naturezas'); if (novo.ets.join('|')!==(p.ets||[]).join('|')) mud.push('etapas'); if (novo.conf!==(p.conf?1:0)) mud.push(novo.conf?'conferido':'a conferir');
       if (!mud.length){ toast('Nada mudou'); return true; }
