@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/serventias.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/serventias.js']='0.21.3';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/serventias.js']='0.21.4';
   function servDocs(tipo){ var out=[]; Object.keys(state.serv).sort().forEach(function(m){ if (state.periodo!=='todos'&&state.periodo!==m) return; state.serv[m].forEach(function(d){ if (!tipo||tipo==='__todas'||d.t===tipo) out.push(d); }); }); return out; }
   function servTipos(){ var c={}; Object.keys(state.serv).forEach(function(m){ state.serv[m].forEach(function(d){ c[d.t]=(c[d.t]||0)+1; }); });
     return Object.keys(c).sort(function(a,b){ var ia=SERV_ORD.indexOf(a), ib=SERV_ORD.indexOf(b); return (ia<0?99:ia)-(ib<0?99:ib) || c[b]-c[a]; }); }

@@ -1,8 +1,8 @@
 /* Painel SGQ · CRCO — js/inicio.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inicio.js']='0.21.3';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inicio.js']='0.21.4';
   // 0.12.0: confere logo de saída se todos os arquivos do painel vieram da mesma entrega
   var ARQUIVOS_APP=["js/nucleo.js", "js/prazos.js", "js/inconformidades.js", "js/relatorios.js", "js/kpis.js", "js/atendimento.js", "js/ficha.js", "js/configuracao.js", "js/tri7.js", "js/serventias.js", "js/dados.js", "js/graficos.js", "js/desempenho.js", "js/visual.js", "js/certidoes.js", "js/importar.js", "js/saude.js", "js/equipe.js", "js/catalogo.js", "js/aprendizagem.js", "js/construtor.js", "js/navegacao.js", "js/inicio.js"];
-  try{ checarVersoes('0.21.3'); }catch(e){ var avv=document.getElementById('avisoVersao'); if (avv){ avv.hidden=false; avv.textContent='Faltam arquivos do painel ou eles são de versões diferentes. Suba de novo todos os arquivos da entrega e recarregue a página.'; } }
+  try{ checarVersoes('0.21.4'); }catch(e){ var avv=document.getElementById('avisoVersao'); if (avv){ avv.hidden=false; avv.textContent='Faltam arquivos do painel ou eles são de versões diferentes. Suba de novo todos os arquivos da entrega e recarregue a página.'; } }
   var $=function(id){ return document.getElementById(id); };
   var TEMAS={auto:['◐ Auto','Tema: automático (segue o computador)'],claro:['☀ Claro','Tema: claro'],escuro:['☾ Escuro','Tema: escuro']};
   var temaAtual=temaAplicar(prefLer('crco-tema')||'auto');
@@ -139,8 +139,8 @@
     'amostra.min':{nome:'Amostra pequena: menos de', un:'documentos', tipo:'num', def:30, ajuda:'Abaixo disso o "no prazo" aparece como amostra pequena e sem destaque.'}
   };
   // 0.21.0: regra de eficácia da Aprendizagem (editável; vale na hora e fica no histórico)
-  CFG_SIMPLES['apr.limite']={nome:'Aprendizagem · limite de inconformidade', un:'%', tipo:'num', def:10, ajuda:'Taxa de inconformidade relacionada ao POP (÷ atos no escopo) até este valor = o painel sugere Apto. Acima = Não apto. A decisão é do superior imediato.'};
-  CFG_SIMPLES['apr.janela']={nome:'Aprendizagem · janela de referência', un:'meses', tipo:'num', def:3, ajuda:'Período contado a partir do treinamento. É referência: o superior pode concluir antes ou depois.'};
+  CFG_SIMPLES['apr.limite']={nome:'Aprendizagem · limite de inconformidade', un:'%', tipo:'num', def:10, ajuda:'Taxa de inconformidade relacionada ao POP (÷ atos no escopo) até este valor = o painel sugere Apto. Acima = Não apto. A decisão é do Gestor da Qualidade.'};
+  CFG_SIMPLES['apr.janela']={nome:'Aprendizagem · janela de referência', un:'meses', tipo:'num', def:3, ajuda:'Período contado a partir do treinamento. É referência: o Gestor da Qualidade pode concluir antes ou depois.'};
   CFG_SIMPLES['apr.minMeses']={nome:'Aprendizagem · mínimo de atos = volume de', un:'mês(es)', tipo:'num', def:1, ajuda:'O mínimo de cada POP é o que uma pessoa costuma fazer no escopo neste número de meses (mediana de quem faz 80% do volume do escopo), entre o piso e o teto.'};
   CFG_SIMPLES['apr.piso']={nome:'Aprendizagem · piso do mínimo', un:'atos', tipo:'num', def:10, ajuda:'Abaixo disso a amostra não sustenta a conclusão (1 erro em 10 atos já é 10%).'};
   CFG_SIMPLES['apr.teto']={nome:'Aprendizagem · teto do mínimo', un:'atos', tipo:'num', def:30, ajuda:'Acima disso mais atos quase não mudam a confiança, então não precisa esperar.'};
@@ -169,7 +169,7 @@
   var KPIS_PADRAO=null;
 
   // ——— versão, dados brutos, recálculo, backup e memória de cálculo (site no GitHub + Supabase)
-  var APP_VERSAO='0.21.3';
+  var APP_VERSAO='0.21.4';
   // 0.11.0: a biblioteca de planilhas (≈310 KB) só é baixada quando precisa — importar, recalcular ou baixar a memória de cálculo
   var XLSX_URL='xlsx.full.min.js?v=0.20.3', XLSX_SRI='sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT', xlsxProm=null;
   var BRUTO_COLS={prazo:['tipo de documento','codigo','natureza','ingresso','finalizacao','prazo','tempo'], etapa:['codigo','data execucao','etapa','responsavel','prazo'], demanda:['codigo','status']};
