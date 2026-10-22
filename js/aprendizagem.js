@@ -7,8 +7,10 @@
  * Quem decide é o superior imediato (PQTA 27.2), com a data do feedback (27.3). O painel sugere e gera a evidência.
  * Coleção aprendiz/{id}: registro individual {v:2, k, nome, pop, popVer, popTit, motivo, treino, instrutor, jan, obs, aj{incId:{rel,mot}},
  *   status aberto|concluido, res apto|nao, avaliador, avalEm, feedbackEm, justif, snap{…}, pai, grupo, criadoEm, por}
- *   ou treinamento em grupo {v:2, tipo:'grupo', pop, popVer, treino, instrutor, meses, ks[], obs, criadoEm, por}. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/aprendizagem.js']='0.21.2';
+ *   ou treinamento em grupo {v:2, tipo:'grupo', pop, popVer, treino, instrutor, meses, ks[], obs, criadoEm, por}.
+ * 0.21.3: ch (carga horária, h — sugerida pelo Catálogo) nos dois tipos; marcar documentos por fase; participantes não vêm marcados
+ *   (o painel pergunta); "Incluir pessoa" e "Excluir" aviso em Quem precisa ser treinado (config/pops {revDisp}); emitir o registro ao salvar. */
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/aprendizagem.js']='0.21.3';
   var APR_MOTIVOS={novo:'Colaborador novo na função', 'pop-novo':'POP novo', 'pop-rev':'POP revisado', funcao:'Mudança de função', reforco:'Reforço', experiencia:'Apto por experiência (ISO 9001 7.2 b)'};
   var APR_RES={apto:['good','Apto'], nao:['warn','Não apto']};
   function aprCfg(){ return {lim:+cfgS('apr.limite'), jan:+cfgS('apr.janela'), minMeses:+cfgS('apr.minMeses'), piso:+cfgS('apr.piso'), teto:+cfgS('apr.teto'), exp:+cfgS('apr.expMeses'), ref:+cfgS('apr.refMeses')}; }
@@ -99,7 +101,7 @@
 
   // ——— página ———
   function renderApr(){
-    var el=$('tabApr'); if (!el) return; aprLerRascunhos();
+    var el=$('tabApr'); if (!el) return; aprLerRascunhos(); if (state.aprRevFresco) state.aprRevFresco=false; else aprRevLer();
     var L=aprLista(), ab=L.filter(function(a){ return a.status!=='concluido'; }).sort(function(a,b){ return String(a.nome).localeCompare(String(b.nome),'pt-BR')||(a.pop<b.pop?-1:1); }),
         fe=L.filter(function(a){ return a.status==='concluido'; }).sort(function(a,b){ return String(b.avalEm||'')<String(a.avalEm||'')?-1:1; }), cf=aprCfg();
     var h='<div class="sec-h"><span class="note">Eficácia da capacitação em POP: você registra a pessoa, o documento e a data do treinamento; o painel acompanha os atos dela no escopo e as inconformidades nesses documentos. '+
@@ -108,6 +110,8 @@
     h+='<div class="search apr-bt">'+(podeEscrever?'<button class="btn primary sm" type="button" data-aprnovo="1">Nova aprendizagem</button><button class="btn sm" type="button" data-aprgnovo="1">Treinamento em grupo</button>':'')+'<span class="spacer"></span>'+
       '<button class="btn sm" type="button" data-aprbranco="1">Registro de treinamento em branco</button>'+(L.length?'<button class="btn sm" type="button" data-aprcompet="1">Baixar linhas da COMPET</button><button class="btn sm" type="button" data-aprcons="1">Relatório consolidado</button>':'')+'</div>'+
       (L.length?'<div class="search apr-bt"><label class="apr-inl">Histórico de capacitação de <select id="aprHistK">'+aprHistOpc()+'</select></label><button class="btn sm" type="button" data-aprhist="1">Baixar</button>'+(function(){ var n=aprTodos().filter(function(a){ return aprEvPend(a); }).length; return n?'<span class="spacer"></span><span class="pill warn">'+n+' registro(s) com evidência pendente</span>':''; })()+'</div>':'');
+    if (state.aprEmitir){ var em=state.aprEmitir; h+='<div class="panel apr-rev apr-emitir"><div class="sub-h">Cadastro concluído · registro de treinamento</div><p class="hint" style="margin:4px 0 8px">'+esc((em.pops||[]).join(', '))+' · '+(em.treino?fmtData(em.treino):'')+(em.instrutor?' · por '+esc(em.instrutor):'')+' · '+(em.pessoas||[]).length+' participante(s)'+(em.ch!=null?' · '+popChTxt(em.ch):'')+'. Já sai preenchido com data, carga horária, quem treinou, documentos e participantes; é só mandar para assinar.</p>'+
+      '<div class="ctl"><button class="btn primary sm" type="button" data-apremitir="sim">Emitir registro de treinamento</button><button class="btn sm" type="button" data-apremitir="nao">Agora não</button></div></div>'; }
     if (state.aprForm) h+=aprFormHTML(state.aprForm);
     if (state.aprGForm) h+=aprGFormHTML(state.aprGForm);
     h+=aprRevHTML();
@@ -126,8 +130,13 @@
     return '<label>Evidência do treinamento<select id="'+pref+'Ev">'+Object.keys(APR_EV).map(function(k){ return '<option value="'+k+'"'+(k===ev?' selected':'')+'>'+APR_EV[k]+'</option>'; }).join('')+'</select></label>'+
       '<label>Referência da evidência<input type="text" id="'+pref+'EvRef" value="'+esc(ref||'')+'" placeholder="nº do registro, link do Teams ou data"></label>'; }
   function aprLerEv(pref){ return {ev:($(pref+'Ev')||{}).value||'pend', evRef:String(($(pref+'EvRef')||{}).value||'').trim()}; }
+  // 0.21.3: marcar de uma vez todos os documentos de uma fase (ex.: "Recepção") — não desmarca o resto, continua editável
+  function aprFaseChipsHTML(attr){ var fases={}; popsTodos().forEach(function(p){ if (p.fase&&POP_FASE_NOME[p.fase]) fases[p.fase]=1; });
+    var ordem=['REC','QLF','MIN','REV'], ks=Object.keys(fases).sort(function(a,b){ var ia=ordem.indexOf(a), ib=ordem.indexOf(b); if (ia<0) ia=99; if (ib<0) ib=99; return (ia-ib)||a.localeCompare(b); });
+    if (!ks.length) return '';
+    return '<div class="apr-fasechips" style="margin:4px 0"><span class="mut" style="margin-right:6px">Marcar por fase:</span>'+ks.map(function(f){ return '<button type="button" class="btn sm" data-aprfasechip="'+esc(attr)+'|'+esc(f)+'">'+esc(POP_FASE_NOME[f])+'</button>'; }).join(' ')+'</div>'; }
   // lista de documentos para marcar (vários POPs/ITs de uma vez), com filtro
-  function aprPopsMarcarHTML(attr, sel, k){ var sv=null, h='<div class="pop-bh"><b>Documentos (POP / IT)</b> <span class="mut" data-aprpopsn="'+attr+'">'+(sel||[]).length+' marcado(s)</span><input type="search" class="mini" data-aprbusca="'+attr+'" placeholder="filtrar…" aria-label="Filtrar documentos"></div><div class="apr-chk pop-lista apr-pops" data-aprpopslista="'+attr+'">';
+  function aprPopsMarcarHTML(attr, sel, k){ var sv=null, h='<div class="pop-bh"><b>Documentos (POP / IT)</b> <span class="mut" data-aprpopsn="'+attr+'">'+(sel||[]).length+' marcado(s)</span><input type="search" class="mini" data-aprbusca="'+attr+'" placeholder="filtrar…" aria-label="Filtrar documentos"></div>'+aprFaseChipsHTML(attr)+'<div class="apr-chk pop-lista apr-pops" data-aprpopslista="'+attr+'">';
     popsTodos().forEach(function(p){ if (p.sv!==sv){ sv=p.sv; h+='<div class="apr-popsv">'+esc(sv)+'</div>'; } var mede=popMede(p), info='';
       if (mede){ info='mín. '+popMinimo(p).v; if (k){ var corte=aprMesesAtras(12)+'-01', dd={}; (aprEscopoIdx(p).porK[k]||[]).forEach(function(x){ if (x.d>=corte) dd[x.c]=1; }); var n=Object.keys(dd).length; if (n) info+=' · '+n+(n===1?' ato':' atos')+' em 12 meses'; } } else info='sem medição';
       h+='<label data-popnome="'+esc(semAc(p.c+' '+(p.t||'')))+'"><input type="checkbox" data-'+attr+'="'+esc(p.c)+'"'+((sel||[]).indexOf(p.c)>=0?' checked':'')+'> <b>'+esc(p.c)+'</b> '+esc((p.t||'').split(' (')[0])+' <span class="mut">'+info+'</span></label>'; });
@@ -161,13 +170,19 @@
       '<label>Motivo<select id="aprMot">'+Object.keys(APR_MOTIVOS).filter(function(m){ return m!=='experiencia'; }).map(function(m){ return '<option value="'+m+'"'+(f.motivo===m?' selected':'')+'>'+APR_MOTIVOS[m]+'</option>'; }).join('')+'</select></label>'+
       '<label>Data do treinamento<input type="date" id="aprTr" value="'+esc(f.treino||aprHoje())+'"></label>'+
       '<label>Treinado por'+aprSelPessoa('aprIns',f.instrutor,true)+'</label>'+
-      '<label>Janela de referência (meses)<input type="number" id="aprJan" min="1" max="12" value="'+(+f.jan||aprCfg().jan)+'"></label>'+aprEvHTML('aprF',f.ev,f.evRef)+'</div>'+
+      '<label>Janela de referência (meses)<input type="number" id="aprJan" min="1" max="12" value="'+(+f.jan||aprCfg().jan)+'"></label>'+aprChHTML('aprCh',f,f.id?[f.pop]:(f.pops||(f.pop?[f.pop]:[])))+aprEvHTML('aprF',f.ev,f.evRef)+'</div>'+
       (f.id?aprEscopoTxt(p):'<div class="apr-box">'+aprPopsMarcarHTML('aprpopc',f.pops||(f.pop?[f.pop]:[]),f.k)+'<p class="hint">Um registro por documento marcado (a Matriz é pessoa × POP). O mínimo de cada um aparece ao lado'+(f.k?'; e quantos atos a pessoa já fez no escopo nos últimos 12 meses. Se ela já domina, use a carga "Apto por experiência"':'')+'.</p></div>')+
       '<label class="apr-obs">Observação<textarea id="aprObs" rows="2" placeholder="Ex.: treinamento prático com acompanhamento dos 10 primeiros títulos">'+esc(f.obs||'')+'</textarea></label>'+
       '<div class="ctl" style="margin-top:8px"><button class="btn primary sm" type="button" data-aprsalvarf="1">Salvar</button><button class="btn sm" type="button" data-aprcancelar="1">Cancelar</button>'+(f.id?'':'<button class="btn sm" type="button" data-aprprintf="1">Imprimir registro de treinamento</button>')+'</div></div>'; }
   function aprLerForm(){ var f=Object.assign({},state.aprForm||{}); if (!f.id){ f.k=($('aprK')||{}).value||f.k||''; if (document.querySelector('#tabApr [data-aprpopslista="aprpopc"]')) f.pops=aprPopsMarcados('aprpopc'); }
     var e=aprLerEv('aprF'); f.ev=e.ev; f.evRef=e.evRef;
-    f.motivo=($('aprMot')||{}).value||f.motivo||'novo'; f.treino=($('aprTr')||{}).value||f.treino||aprHoje(); f.instrutor=$('aprIns')?aprLerSel('aprIns'):(f.instrutor||''); f.jan=Math.max(1,Math.min(12,+($('aprJan')||{}).value||aprCfg().jan)); f.obs=String(($('aprObs')||{}).value||'').trim(); return f; }
+    f.motivo=($('aprMot')||{}).value||f.motivo||'novo'; f.treino=($('aprTr')||{}).value||f.treino||aprHoje(); f.instrutor=$('aprIns')?aprLerSel('aprIns'):(f.instrutor||''); f.jan=Math.max(1,Math.min(12,+($('aprJan')||{}).value||aprCfg().jan)); f.obs=String(($('aprObs')||{}).value||'').trim(); aprLerCh('aprCh',f); return f; }
+  // 0.21.3: carga horária do treinamento — sugere a soma das cargas padrão do Catálogo; o que você digitar vale
+  function aprChHTML(id, f, pops){ var sug=popChSoma(pops), v=f.chMan?f.ch:sug;
+    return '<label>Carga horária (h)<input type="number" id="'+id+'" min="0" step="0.5" value="'+(v!=null&&v!==''?esc(v):'')+'" placeholder="'+(sug==null?'sem padrão no Catálogo':'')+'"><span class="hint" id="'+id+'_s" style="margin:2px 0 0">'+(sug!=null?'sugerido pelo Catálogo: '+popChTxt(sug):'cadastre a carga padrão em Configuração › POPs e escopo')+'</span></label>'; }
+  function aprLerCh(id, f){ var e=$(id); if (!e) return; f.ch=e.value===''?null:+e.value; }
+  function aprChAtualizar(id, form, pops){ var e=$(id), s=$(id+'_s'), sug=popChSoma(pops); if (!e) return;
+    if (!(form&&form.chMan)) e.value=sug!=null?sug:''; if (s) s.textContent=sug!=null?'sugerido pelo Catálogo: '+popChTxt(sug):'cadastre a carga padrão em Configuração › POPs e escopo'; }
 
   // cartão de um registro
   function aprCardHTML(a){ var R=aprAval(a), aberto=state.aprAberto===a.id, fim=a.status==='concluido', p=popDe(a.pop);
@@ -218,20 +233,20 @@
     (f.pops||[]).forEach(function(c){ var p=popDe(c); if (!p||!popMede(p)) return; var I=aprEscopoIdx(p); Object.keys(I.porK).forEach(function(k){ if (I.porK[k].some(function(x){ return x.d>=corte; })) o[k]=1; }); });
     (f.extra||[]).forEach(function(k){ o[k]=1; });
     return Object.keys(o).sort(function(a,b){ return String(P[a]).localeCompare(String(P[b]),'pt-BR'); }); }
-  function aprGFormHTML(f){ var P=aprNomes(), ks=aprGPessoas(f), vistos=f.vistos||[], sel=f.ks?f.ks.concat(ks.filter(function(k){ return vistos.indexOf(k)<0; })):ks;
-    state.aprGForm.vistos=ks;
+  function aprGFormHTML(f){ var P=aprNomes(), ks=aprGPessoas(f), sel=f.ks||[], perguntar=ks.length>0&&!f.confirmado;
     return '<div class="panel apr-f"><div class="sub-h">Treinamento em grupo · antes × depois</div><p class="hint">Para um treinamento com várias pessoas de uma vez (ex.: POP revisado apresentado à equipe). O painel compara a taxa de inconformidade no escopo de cada documento nos meses antes e depois da data.</p><div class="apr-g">'+
       '<label>Data do treinamento<input type="date" id="aprGTr" value="'+esc(f.treino||aprHoje())+'"></label>'+
-      '<label>Treinado por'+aprSelPessoa('aprGIns',f.instrutor,true)+'</label><label>Meses antes e depois<input type="number" id="aprGM" min="1" max="12" value="'+(+f.meses||aprCfg().jan)+'"></label>'+aprEvHTML('aprG',f.ev,f.evRef)+'</div>'+
+      '<label>Treinado por'+aprSelPessoa('aprGIns',f.instrutor,true)+'</label><label>Meses antes e depois<input type="number" id="aprGM" min="1" max="12" value="'+(+f.meses||aprCfg().jan)+'"></label>'+aprChHTML('aprGCh',f,f.pops||[])+aprEvHTML('aprG',f.ev,f.evRef)+'</div>'+
       '<div class="apr-box">'+aprPopsMarcarHTML('aprgpopc',f.pops||[],null)+'</div>'+
-      '<div class="sub-h" style="margin-top:8px">Participantes'+(ks.length?' (quem executou o escopo nos últimos 12 meses, mais os que você incluir)':'')+'</div>'+
+      '<div class="sub-h" style="margin-top:8px">Participantes'+(ks.length?' (quem executou o escopo nos últimos 12 meses)':'')+'</div>'+
+      (perguntar?'<div class="apr-rv" style="margin:4px 0 8px"><span class="hint">'+ks.length+' pessoa(s) executaram este escopo nos últimos 12 meses. Adicionar todas como participantes?</span><div class="ctl" style="margin-top:4px"><button type="button" class="btn sm primary" data-aprgconf="sim">Sim, adicionar todas</button><button type="button" class="btn sm" data-aprgconf="nao">Não, vou marcar manualmente</button></div></div>':'')+
       (ks.length?'<div class="apr-chk">'+ks.map(function(k){ return '<label><input type="checkbox" data-aprgk="'+esc(k)+'"'+(sel.indexOf(k)>=0?' checked':'')+'> '+esc(P[k])+((f.extra||[]).indexOf(k)>=0?' <span class="mut">incluída</span>':'')+'</label>'; }).join('')+'</div>':'<p class="hint">Marque os documentos ou inclua as pessoas abaixo.</p>')+
       '<div class="ctl" style="margin-top:6px"><label class="apr-inl">Incluir pessoa <select id="aprGAdd">'+aprPessoasOpc('')+'</select></label><button class="btn sm" type="button" data-aprgadd="1">Incluir</button></div>'+
       '<label class="apr-inl" style="margin-top:8px"><input type="checkbox" id="aprGInd"'+(f.ind?' checked':'')+'> Abrir também a aprendizagem individual de cada participante em cada documento</label>'+
       '<label class="apr-obs">Observação<input type="text" id="aprGObs" value="'+esc(f.obs||'')+'" placeholder="ex.: apresentação da v1.0.2 na reunião de setor"></label>'+
       '<div class="ctl" style="margin-top:8px"><button class="btn primary sm" type="button" data-aprgsalvar="1">Salvar</button><button class="btn sm" type="button" data-aprcancelar="1">Cancelar</button><button class="btn sm" type="button" data-aprprintg="1">Imprimir registro de treinamento</button></div></div>'; }
   function aprLerGForm(){ var f=Object.assign({},state.aprGForm||{}); f.treino=($('aprGTr')||{}).value||f.treino||aprHoje(); f.instrutor=$('aprGIns')?aprLerSel('aprGIns'):(f.instrutor||''); f.meses=Math.max(1,Math.min(12,+($('aprGM')||{}).value||aprCfg().jan)); f.obs=String(($('aprGObs')||{}).value||'').trim(); f.ind=!!($('aprGInd')||{}).checked;
-    if (document.querySelector('#tabApr [data-aprpopslista="aprgpopc"]')) f.pops=aprPopsMarcados('aprgpopc'); var e=aprLerEv('aprG'); f.ev=e.ev; f.evRef=e.evRef;
+    if (document.querySelector('#tabApr [data-aprpopslista="aprgpopc"]')) f.pops=aprPopsMarcados('aprgpopc'); var e=aprLerEv('aprG'); f.ev=e.ev; f.evRef=e.evRef; aprLerCh('aprGCh',f);
     var cx=document.querySelectorAll('#tabApr [data-aprgk]'); if (cx.length) f.ks=[].slice.call(cx).filter(function(x){ return x.checked; }).map(function(x){ return x.dataset.aprgk; }); return f; }
   // z de duas proporções (antes × depois)
   function aprZ(x1,n1,x2,n2){ if (!n1||!n2) return null; var p=(x1+x2)/(n1+n2); if (p<=0||p>=1) return null; var se=Math.sqrt(p*(1-p)*(1/n1+1/n2)); return se?(x2/n2-x1/n1)/se:null; }
@@ -265,17 +280,26 @@
 
   // ——— quem precisa ser treinado (POP com versão nova) ———
   function aprRevLista(){ var hoje=aprHoje(), out=[], P=aprNomes();
-    popsTodos().forEach(function(p){ if (!p.verDesde||!popMede(p)) return; if (aprAddMes(p.verDesde,12)<hoje) return;
+    popsTodos().forEach(function(p){ if (!p.verDesde||!popMede(p)) return; if (aprAddMes(p.verDesde,12)<hoje) return; if (p.revDisp&&p.revDisp===(p.v||'')) return;
       var corte=aprAddMes(p.verDesde,-12), I=aprEscopoIdx(p), tem={};
       aprLista().forEach(function(a){ if (a.pop===p.c&&(a.popVer===p.v||(a.treino&&a.treino>=p.verDesde))) tem[a.k]=1; });
       var cont={}; Object.keys(I.porK).forEach(function(k){ if (tem[k]) return; var d={}; I.porK[k].forEach(function(x){ if (x.d>=corte) d[x.c]=1; }); var n=Object.keys(d).length; if (n) cont[k]=n; });
       var ks=Object.keys(cont).sort(function(a,b){ return cont[b]-cont[a]; });
       if (ks.length) out.push({p:p, ks:ks, n:cont}); });
     return out; }
-  function aprRevHTML(){ var L=aprRevLista(); if (!L.length) return ''; var P=aprNomes();
-    return '<div class="panel apr-rev"><div class="sub-h">Quem precisa ser treinado · POP com versão nova</div>'+L.map(function(r){ var id=r.p.c;
-      return '<div class="apr-rv"><b>'+esc(id)+'</b> v'+esc(r.p.v||'')+' desde '+fmtData(r.p.verDesde)+' · '+r.ks.length+' pessoa(s) executaram o escopo nos 12 meses anteriores (vem marcado quem fez 3 ou mais atos)<div class="apr-chk" style="margin:6px 0">'+r.ks.map(function(k){ var n=r.n[k]||0; return '<label><input type="checkbox" data-aprrevk="'+esc(id)+'|'+esc(k)+'"'+(n>=3?' checked':'')+'> '+esc(P[k])+' <span class="mut">'+n+' atos</span></label>'; }).join('')+'</div>'+
-        (podeEscrever?'<div class="ctl"><label class="apr-inl">Data do treinamento <input type="date" id="aprRevTr_'+esc(id)+'" value="'+aprHoje()+'"></label><label class="apr-inl">Treinado por '+aprSelPessoa('aprRevIns_'+id,'',true)+'</label><span class="apr-inl apr-evinl">'+aprEvHTML('aprRv_'+id,'pend','')+'</span><button class="btn sm primary" type="button" data-aprrevabrir="'+esc(id)+'">Abrir aprendizagem dos marcados</button></div>':'')+'</div>'; }).join('')+'</div>'; }
+  // 0.21.3: o que já foi preenchido na caixa (marcações, incluídos, data, quem treinou, evidência) sobrevive ao redesenho
+  function aprRevLer(){ var R=state.aprRev=state.aprRev||{};
+    var porId={}; document.querySelectorAll('#tabApr [data-aprrevk]').forEach(function(x){ var q=x.dataset.aprrevk.split('|'); (porId[q[0]]=porId[q[0]]||[]); if (x.checked) porId[q[0]].push(q[1]); });
+    Object.keys(porId).forEach(function(id){ var o=R[id]=R[id]||{}; o.sel=porId[id];
+      var tr=$('aprRevTr_'+id); if (tr) o.tr=tr.value; var chR=$('aprRevCh_'+id); if (chR) o.ch=chR.value===''?null:+chR.value; if ($('aprRevIns_'+id)) o.ins=aprLerSel('aprRevIns_'+id); if ($('aprRv_'+id+'Ev')){ var e=aprLerEv('aprRv_'+id); o.ev=e.ev; o.evRef=e.evRef; } }); }
+  function aprRevHTML(){ var L=aprRevLista(); if (!L.length) return ''; var P=aprNomes(); state.aprRev=state.aprRev||{};
+    return '<div class="panel apr-rev"><div class="sub-h">Quem precisa ser treinado · POP com versão nova</div>'+L.map(function(r){ var id=r.p.c, o=state.aprRev[id]||{}, extra=(o.extra||[]).filter(function(k){ return r.ks.indexOf(k)<0; }),
+        muitos=r.ks.filter(function(k){ return (r.n[k]||0)>=3; }), sel=o.sel||[], todos=r.ks.concat(extra);
+      var banner=(!o.conf&&muitos.length)?'<div class="apr-rv-banner" style="margin:4px 0"><span class="hint">'+muitos.length+' pessoa(s) fizeram 3 ou mais atos nesse escopo. Marcar essas automaticamente?</span><div class="ctl" style="margin-top:4px"><button type="button" class="btn sm primary" data-aprrevconf="'+esc(id)+'|sim">Sim, marcar essas</button><button type="button" class="btn sm" data-aprrevconf="'+esc(id)+'|nao">Não, vou marcar manualmente</button></div></div>':'';
+      return '<div class="apr-rv"><div class="apr-rv-hd"><span><b>'+esc(id)+'</b> v'+esc(r.p.v||'')+' desde '+fmtData(r.p.verDesde)+' · '+r.ks.length+' pessoa(s) executaram o escopo nos 12 meses anteriores</span><span class="spacer"></span>'+(podeEscrever?'<button class="btn sm" type="button" data-aprrevdisp="'+esc(id)+'" title="Tira este aviso da tela (ex.: POP que não precisa de treinamento ou é só para você). Volta só se o documento ganhar outra versão." aria-label="Excluir aviso de '+esc(id)+'">Excluir</button>':'')+'</div>'+banner+
+        '<div class="apr-chk" style="margin:6px 0">'+todos.map(function(k){ var ex=extra.indexOf(k)>=0, n=r.n[k]||0; return '<label><input type="checkbox" data-aprrevk="'+esc(id)+'|'+esc(k)+'"'+(sel.indexOf(k)>=0?' checked':'')+'> '+esc(P[k]||k)+' <span class="mut">'+(ex?'incluída':n+' atos')+'</span></label>'; }).join('')+'</div>'+
+        (podeEscrever?'<div class="ctl" style="margin-bottom:6px"><label class="apr-inl">Incluir pessoa <select id="aprRevAdd_'+esc(id)+'">'+aprPessoasOpc('')+'</select></label><button class="btn sm" type="button" data-aprrevadd="'+esc(id)+'">Incluir</button></div>'+
+          '<div class="ctl"><label class="apr-inl">Data do treinamento <input type="date" id="aprRevTr_'+esc(id)+'" value="'+esc(o.tr||aprHoje())+'"></label><label class="apr-inl">Treinado por '+aprSelPessoa('aprRevIns_'+id,o.ins||'',true)+'</label><label class="apr-inl">Carga horária (h) <input type="number" class="mini" style="width:70px" min="0" step="0.5" id="aprRevCh_'+esc(id)+'" value="'+(o.ch!==undefined?(o.ch==null?'':esc(o.ch)):(popCh(r.p)!=null?popCh(r.p):''))+'" placeholder="—"></label><span class="apr-inl apr-evinl">'+aprEvHTML('aprRv_'+id,o.ev||'pend',o.evRef||'')+'</span><button class="btn sm primary" type="button" data-aprrevabrir="'+esc(id)+'">Abrir aprendizagem dos marcados</button></div>':'')+'</div>'; }).join('')+'</div>'; }
 
   // ——— carga inicial: Apto por experiência ———
   function aprExpCalc(){ var cf=aprCfg(), ini=aprMesesAtras(cf.exp)+'-01', fimM=mesHoje(), fim=new Date(Date.parse(fimM+'-01')-864e5).toISOString().slice(0,10), P=aprNomes(), out=[];
@@ -297,17 +321,24 @@
 
   // ——— cliques e mudanças ———
   function aprClique(t){ var d=t.dataset||{};
+    if (d.aprfasechip){ var qf=d.aprfasechip.split('|'), attrF=qf[0], faseF=qf[1], codsF=popsTodos().filter(function(p){ return p.fase===faseF; }).map(function(p){ return p.c; });
+      if (attrF==='aprpopc'){ var ff=Object.assign({},state.aprForm); ff.pops=(ff.pops||[]).slice(); codsF.forEach(function(c){ if (ff.pops.indexOf(c)<0) ff.pops.push(c); }); state.aprForm=ff; }
+      else if (attrF==='aprgpopc'){ var gg=Object.assign({},state.aprGForm); gg.pops=(gg.pops||[]).slice(); codsF.forEach(function(c){ if (gg.pops.indexOf(c)<0) gg.pops.push(c); }); state.aprGForm=gg; }
+      renderApr(); return true; }
     if (d.aprnovo){ state.aprForm={motivo:'novo', treino:aprHoje()}; state.aprGForm=null; renderApr(); return true; }
     if (d.aprgnovo){ state.aprGForm={treino:aprHoje()}; state.aprForm=null; renderApr(); return true; }
     if (d.aprcancelar){ state.aprForm=null; state.aprGForm=null; renderApr(); return true; }
     if (d.apreditar){ state.aprForm=JSON.parse(JSON.stringify(state.apr[d.apreditar])); renderApr(); return true; }
     if (d.aprsalvarf){ var f=aprLerForm(); if (!f.k){ toast('Escolha a pessoa'); return true; }
-      if (f.id){ var a=Object.assign({},state.apr[f.id],{motivo:f.motivo,treino:f.treino,instrutor:f.instrutor,jan:f.jan,obs:f.obs,ev:f.ev,evRef:f.evRef}); aprSalvar(a).then(function(){ toast('Registro atualizado'); }); state.aprForm=null; state.aprAberto=a.id; renderApr(); return true; }
+      if (f.id){ var a=Object.assign({},state.apr[f.id],{motivo:f.motivo,treino:f.treino,instrutor:f.instrutor,jan:f.jan,obs:f.obs,ev:f.ev,evRef:f.evRef,ch:f.ch}); aprSalvar(a).then(function(){ toast('Registro atualizado'); }); state.aprForm=null; state.aprAberto=a.id; renderApr(); return true; }
       if (!(f.pops||[]).length){ toast('Marque ao menos um documento'); return true; }
-      var novos=0, pulou=[], ult=null; f.pops.forEach(function(c){ if (aprLista().some(function(x){ return x.k===f.k&&x.pop===c&&x.status!=='concluido'; })){ pulou.push(c); return; }
-        ult=aprNovo({k:f.k, nome:aprNomes()[f.k]||f.k, pop:c, motivo:f.motivo, treino:f.treino, instrutor:f.instrutor, jan:f.jan, obs:f.obs, ev:f.ev, evRef:f.evRef, pai:f.pai||null}); aprSalvar(ult); novos++; });
-      toast((novos?novos+' aprendizagem(ns) aberta(s)':'Nada aberto')+(pulou.length?' · já em aprendizagem: '+pulou.join(', '):'')); state.aprForm=null; state.aprAberto=novos===1&&ult?ult.id:null; renderApr(); return true; }
-    if (d.aprprintf){ var f2=aprLerForm(); if (!(f2.pops||[]).length){ toast('Marque os documentos'); return true; } aprBaixarRegistro({treino:f2.treino, instrutor:f2.instrutor, pops:f2.pops, pessoas:f2.k?[aprNomes()[f2.k]]:[], cod:f2.evRef}); return true; }
+      var novos=0, pulou=[], ult=null, feitos=[]; f.pops.forEach(function(c){ if (aprLista().some(function(x){ return x.k===f.k&&x.pop===c&&x.status!=='concluido'; })){ pulou.push(c); return; }
+        ult=aprNovo({k:f.k, nome:aprNomes()[f.k]||f.k, pop:c, motivo:f.motivo, treino:f.treino, instrutor:f.instrutor, jan:f.jan, obs:f.obs, ev:f.ev, evRef:f.evRef, ch:f.ch, pai:f.pai||null}); aprSalvar(ult); novos++; feitos.push(c); });
+      toast((novos?novos+' aprendizagem(ns) aberta(s)':'Nada aberto')+(pulou.length?' · já em aprendizagem: '+pulou.join(', '):'')); state.aprForm=null; state.aprAberto=novos===1&&ult?ult.id:null;
+      if (novos&&f.motivo!=='experiencia') state.aprEmitir={treino:f.treino, instrutor:f.instrutor, pops:feitos, pessoas:[aprNomes()[f.k]||f.k], cod:f.evRef, ch:f.ch};
+      renderApr(); return true; }
+    if (d.aprprintf){ var f2=aprLerForm(); if (!(f2.pops||[]).length){ toast('Marque os documentos'); return true; } aprBaixarRegistro({treino:f2.treino, instrutor:f2.instrutor, pops:f2.pops, pessoas:f2.k?[aprNomes()[f2.k]]:[], cod:f2.evRef, ch:f2.ch}); return true; }
+    if (d.apremitir){ var em=state.aprEmitir; state.aprEmitir=null; if (d.apremitir==='sim'&&em) aprBaixarRegistro(em); renderApr(); return true; }
     if (d.aprarquivar){ if (!confirm('Arquivar este registro? Ele sai da lista (fica guardado no banco).')) return true; var id0=d.aprarquivar; if (dbPronto&&podeEscrever) db.doc('aprendiz/'+id0).delete(); var c=Object.assign({},state.apr); delete c[id0]; state.apr=c; state.aprForm=null; renderApr(); return true; }
     if (d.aprexcluir){ var ex=state.apr[d.aprexcluir]; if (!ex) return true; var filhos=aprLista().filter(function(x){ return x.pai===ex.id||x.grupo===ex.id; }).length;
       if (!confirm('Excluir '+(ex.tipo==='grupo'?'o treinamento em grupo de '+ex.pop:'a aprendizagem de '+ex.nome+' em '+ex.pop)+'?'+(filhos?' Os '+filhos+' registro(s) ligados a ele continuam.':'')+' Ele sai da lista e fica guardado no banco (arquivado).')) return true;
@@ -335,16 +366,25 @@
     if (d.aprgrel){ aprBaixarGrupo(state.apr[d.aprgrel]); return true; }
     if (d.aprcons){ aprBaixarCons(); return true; }
     if (d.aprcompet){ aprBaixarCompet(); return true; }
+    if (d.aprgconf){ var gc=aprLerGForm(); gc.confirmado=true; if (d.aprgconf==='sim') gc.ks=aprGPessoas(gc).slice(); state.aprGForm=gc; renderApr(); return true; }
     if (d.aprgadd){ var gf=aprLerGForm(), ka=($('aprGAdd')||{}).value; if (!ka){ toast('Escolha a pessoa'); return true; } gf.extra=(gf.extra||[]).filter(function(x){ return x!==ka; }).concat([ka]); gf.ks=(gf.ks||[]).filter(function(x){ return x!==ka; }).concat([ka]); state.aprGForm=gf; renderApr(); return true; }
-    if (d.aprprintg){ var g0=aprLerGForm(); if (!(g0.pops||[]).length){ toast('Marque os documentos'); return true; } aprBaixarRegistro({treino:g0.treino, instrutor:g0.instrutor, pops:g0.pops, pessoas:(g0.ks||[]).map(function(k){ return aprNomes()[k]||k; }), cod:g0.evRef}); return true; }
+    if (d.aprprintg){ var g0=aprLerGForm(); if (!(g0.pops||[]).length){ toast('Marque os documentos'); return true; } aprBaixarRegistro({treino:g0.treino, instrutor:g0.instrutor, pops:g0.pops, pessoas:(g0.ks||[]).map(function(k){ return aprNomes()[k]||k; }), cod:g0.evRef, ch:g0.ch}); return true; }
     if (d.aprgsalvar){ var g=aprLerGForm(); if (!(g.pops||[]).length){ toast('Marque ao menos um documento'); return true; } if (!(g.ks||[]).length){ toast('Marque ao menos um participante'); return true; }
-      var reg={v:2, tipo:'grupo', id:aprId(), pops:g.pops, pop:g.pops[0], popVers:g.pops.map(function(c){ return (popDe(c)||{}).v||''; }), treino:g.treino, instrutor:g.instrutor, meses:g.meses, ks:g.ks, extra:g.extra||[], ev:g.ev, evRef:g.evRef, obs:g.obs, criadoEm:new Date().toISOString(), por:nomeUsuario()};
+      var reg={v:2, tipo:'grupo', id:aprId(), pops:g.pops, pop:g.pops[0], popVers:g.pops.map(function(c){ return (popDe(c)||{}).v||''; }), treino:g.treino, instrutor:g.instrutor, meses:g.meses, ks:g.ks, extra:g.extra||[], ev:g.ev, evRef:g.evRef, obs:g.obs, ch:g.ch, criadoEm:new Date().toISOString(), por:nomeUsuario()};
       aprSalvar(reg); var nInd=0;
-      if (g.ind){ g.pops.forEach(function(c){ var gp=popDe(c)||{}; g.ks.forEach(function(k){ if (aprLista().some(function(a){ return a.k===k&&a.pop===c&&a.status==='aberto'; })) return; aprSalvar(aprNovo({k:k, nome:aprNomes()[k]||k, pop:c, motivo:gp.verDesde&&g.treino>=gp.verDesde?'pop-rev':'novo', treino:g.treino, instrutor:g.instrutor, jan:g.meses, ev:g.ev, evRef:g.evRef, obs:'Treinamento em grupo'+(g.obs?' · '+g.obs:''), grupo:reg.id})); nInd++; }); }); }
-      toast('Treinamento em grupo salvo'+(nInd?' · '+nInd+' aprendizagem(ns) individual(is)':'')); state.aprGForm=null; state.aprAberto=reg.id; renderApr(); return true; }
-    if (d.aprrevabrir){ var pc=d.aprrevabrir, pp=popDe(pc), tr=($('aprRevTr_'+pc)||{}).value||aprHoje(), ins=aprLerSel('aprRevIns_'+pc), evr=aprLerEv('aprRv_'+pc), n=0;
-      document.querySelectorAll('#tabApr [data-aprrevk]').forEach(function(x){ var q=x.dataset.aprrevk.split('|'); if (q[0]!==pc||!x.checked) return; aprSalvar(aprNovo({k:q[1], nome:aprNomes()[q[1]]||q[1], pop:pc, motivo:'pop-rev', treino:tr, instrutor:ins, ev:evr.ev, evRef:evr.evRef, obs:'POP revisado para a v'+(pp.v||'')})); n++; });
-      toast(n?n+' aprendizagem(ns) aberta(s)':'Nenhuma pessoa marcada'); renderApr(); return true; }
+      if (g.ind){ g.pops.forEach(function(c){ var gp=popDe(c)||{}; g.ks.forEach(function(k){ if (aprLista().some(function(a){ return a.k===k&&a.pop===c&&a.status==='aberto'; })) return; aprSalvar(aprNovo({k:k, nome:aprNomes()[k]||k, pop:c, motivo:gp.verDesde&&g.treino>=gp.verDesde?'pop-rev':'novo', treino:g.treino, instrutor:g.instrutor, jan:g.meses, ev:g.ev, evRef:g.evRef, ch:g.ch, obs:'Treinamento em grupo'+(g.obs?' · '+g.obs:''), grupo:reg.id})); nInd++; }); }); }
+      toast('Treinamento em grupo salvo'+(nInd?' · '+nInd+' aprendizagem(ns) individual(is)':'')); state.aprGForm=null; state.aprAberto=reg.id;
+      state.aprEmitir={treino:g.treino, instrutor:g.instrutor, pops:g.pops, pessoas:g.ks.map(function(k){ return aprNomes()[k]||k; }), cod:g.evRef, ch:g.ch}; renderApr(); return true; }
+    if (d.aprrevconf){ var qc=d.aprrevconf.split('|'); aprRevLer(); var oc=state.aprRev[qc[0]]=state.aprRev[qc[0]]||{}; oc.conf=qc[1];
+      if (qc[1]==='sim'){ var rr=aprRevLista().filter(function(x){ return x.p.c===qc[0]; })[0]; if (rr){ oc.sel=(oc.sel||[]).slice(); rr.ks.forEach(function(k){ if ((rr.n[k]||0)>=3&&oc.sel.indexOf(k)<0) oc.sel.push(k); }); } }
+      state.aprRevFresco=true; renderApr(); return true; }
+    if (d.aprrevadd){ var ia=d.aprrevadd, ka2=($('aprRevAdd_'+ia)||{}).value; if (!ka2){ toast('Escolha a pessoa'); return true; } aprRevLer(); var oa=state.aprRev[ia]=state.aprRev[ia]||{};
+      oa.extra=(oa.extra||[]).filter(function(x){ return x!==ka2; }).concat([ka2]); oa.sel=(oa.sel||[]).filter(function(x){ return x!==ka2; }).concat([ka2]); state.aprRevFresco=true; renderApr(); return true; }
+    if (d.aprrevdisp){ var pcd=d.aprrevdisp, ppd=popDe(pcd); if (!ppd) return true;
+      state.popsCfg.map[pcd]=Object.assign({},state.popsCfg.map[pcd],{revDisp:ppd.v||''}); popSalvarCfg(); aprRevLer(); if (state.aprRev) delete state.aprRev[pcd]; state.aprRevFresco=true; toast('Aviso de '+pcd+' excluído · só volta se o documento ganhar outra versão'); renderApr(); return true; }
+    if (d.aprrevabrir){ var pc=d.aprrevabrir, pp=popDe(pc), tr=($('aprRevTr_'+pc)||{}).value||aprHoje(), ins=aprLerSel('aprRevIns_'+pc), evr=aprLerEv('aprRv_'+pc), chE=$('aprRevCh_'+pc), chv=chE&&chE.value!==''?+chE.value:null, n=0, nomesR=[];
+      document.querySelectorAll('#tabApr [data-aprrevk]').forEach(function(x){ var q=x.dataset.aprrevk.split('|'); if (q[0]!==pc||!x.checked) return; aprSalvar(aprNovo({k:q[1], nome:aprNomes()[q[1]]||q[1], pop:pc, motivo:'pop-rev', treino:tr, instrutor:ins, ev:evr.ev, evRef:evr.evRef, ch:chv, obs:'POP revisado para a v'+(pp.v||'')})); n++; nomesR.push(aprNomes()[q[1]]||q[1]); });
+      toast(n?n+' aprendizagem(ns) aberta(s)':'Nenhuma pessoa marcada'); if (n){ aprRevLer(); if (state.aprRev) delete state.aprRev[pc]; state.aprRevFresco=true; state.aprEmitir={treino:tr, instrutor:ins, pops:[pc], pessoas:nomesR, cod:evr.evRef, ch:chv}; } renderApr(); return true; }
     if (d.aprexpcalc){ state.aprExp=aprExpCalc(); state.aprExpAberto=true; renderApr(); return true; }
     if (d.aprexpok){ var E=state.aprExp; if (!E) return true; var av=aprLerSel('aprExpAv'); if (!av){ toast('Informe quem avaliou'); return true; } var cf=aprCfg(), n2=0;
       document.querySelectorAll('#tabApr [data-aprexp]').forEach(function(x){ if (!x.checked) return; var c3=E.L[+x.dataset.aprexp]; if (!c3) return; var pp2=popDe(c3.p)||{c:c3.p};
@@ -366,8 +406,10 @@
     if (d.aprmot!=null){ var b=JSON.parse(JSON.stringify(state.apr[state.aprAberto])); b.aj=b.aj||{}; b.aj[d.aprmot]={rel:false, mot:String(t.value||'').trim()}; aprSalvar(b); return true; }
     if (d.aprdr!=null){ aprLerRascunhos(); return true; }
     if (t.id==='aprK'){ state.aprForm=aprLerForm(); renderApr(); return true; }
+    if (t.id==='aprCh'&&state.aprForm){ state.aprForm.chMan=true; state.aprForm.ch=t.value===''?null:+t.value; return true; }
+    if (t.id==='aprGCh'&&state.aprGForm){ state.aprGForm.chMan=true; state.aprGForm.ch=t.value===''?null:+t.value; return true; }
     if (d.aprgpopc!=null){ state.aprGForm=aprLerGForm(); renderApr(); return true; }
-    if (d.aprpopc!=null){ var cn=document.querySelector('[data-aprpopsn="aprpopc"]'); if (cn) cn.textContent=aprPopsMarcados('aprpopc').length+' marcado(s)'; return true; }
+    if (d.aprpopc!=null){ var cn=document.querySelector('[data-aprpopsn="aprpopc"]'), mk=aprPopsMarcados('aprpopc'); if (cn) cn.textContent=mk.length+' marcado(s)'; if (state.aprForm) state.aprForm.pops=mk; aprChAtualizar('aprCh',state.aprForm,mk); return true; }
     return false; }
 
   // ——— relatórios (HTML para imprimir ou salvar em PDF, como o relatório por pessoa) ———
@@ -401,15 +443,15 @@
     aprSalvarArq('Eficacia grupo - '+pops.join(' ')+' - '+g.treino+'.html', aprDoc('Eficácia · grupo', h)); }
   // uma "sessão" de treinamento: o grupo, ou os registros individuais com a mesma data e quem treinou
   function aprSessao(a){ if (!a) return {branco:true}; var P=aprNomes(), g=a.tipo==='grupo'?a:(a.grupo&&state.apr[a.grupo]);
-    if (g&&g.tipo==='grupo') return {treino:g.treino, instrutor:g.instrutor, pops:aprGPops(g), pessoas:(g.ks||[]).map(function(k){ return P[k]||k; }), cod:g.evRef};
-    var L=aprLista().filter(function(x){ return x.motivo!=='experiencia'&&x.treino===a.treino&&String(x.instrutor||'')===String(a.instrutor||''); }), pops=[], pes=[];
-    L.forEach(function(x){ if (pops.indexOf(x.pop)<0) pops.push(x.pop); if (pes.indexOf(x.nome)<0) pes.push(x.nome); });
-    return {treino:a.treino, instrutor:a.instrutor, pops:pops, pessoas:pes, cod:a.evRef}; }
+    if (g&&g.tipo==='grupo') return {treino:g.treino, instrutor:g.instrutor, pops:aprGPops(g), pessoas:(g.ks||[]).map(function(k){ return P[k]||k; }), cod:g.evRef, ch:g.ch!=null?g.ch:popChSoma(aprGPops(g))};
+    var L=aprLista().filter(function(x){ return x.motivo!=='experiencia'&&x.treino===a.treino&&String(x.instrutor||'')===String(a.instrutor||''); }), pops=[], pes=[], ch=null;
+    L.forEach(function(x){ if (pops.indexOf(x.pop)<0) pops.push(x.pop); if (pes.indexOf(x.nome)<0) pes.push(x.nome); if (x.ch!=null&&(ch==null||+x.ch>ch)) ch=+x.ch; });
+    return {treino:a.treino, instrutor:a.instrutor, pops:pops, pessoas:pes, cod:a.evRef, ch:ch!=null?ch:popChSoma(pops)}; }
   // Registro de treinamento para imprimir e colher assinaturas (preenchido ou em branco)
   function aprBaixarRegistro(o){ var cf=aprCfg(), br=!!o.branco, pops=(o.pops||[]).map(function(c){ return popDe(c)||{c:c}; }), pes=(o.pessoas||[]).slice().sort(function(a,b){ return a.localeCompare(b,'pt-BR'); });
     var vazio=function(n,cols){ var h=''; for (var i=0;i<n;i++) h+='<tr>'+cols.map(function(){ return '<td>&nbsp;</td>'; }).join('')+'</tr>'; return h; };
     var h='<div class="rt-cab"><div><b>Cartório de Registros de Cidade Ocidental · CRCO</b><br><span>Sistema de Gestão da Qualidade</span></div><div class="rt-cod">Código: '+(o.cod?esc(o.cod):'______________')+'</div></div><h1>Registro de treinamento</h1>'+
-      '<table class="rt-id"><tbody><tr><th>Data</th><td>'+(o.treino?fmtData(o.treino).replace(/\/(\d\d)$/,'/20$1'):'____/____/________')+'</td><th>Carga horária</th><td>__________</td></tr>'+
+      '<table class="rt-id"><tbody><tr><th>Data</th><td>'+(o.treino?fmtData(o.treino).replace(/\/(\d\d)$/,'/20$1'):'____/____/________')+'</td><th>Carga horária</th><td>'+(!br&&o.ch!=null&&o.ch!==''?esc(popChTxt(+o.ch)):'__________')+'</td></tr>'+
       '<tr><th>Modalidade</th><td colspan="3">☐ Presencial &nbsp;&nbsp; ☐ Teams / remoto &nbsp;&nbsp; ☐ Prático (acompanhamento no posto) &nbsp;&nbsp; ☐ Outro: ____________</td></tr>'+
       '<tr><th>Local</th><td colspan="3">&nbsp;</td></tr><tr><th>Treinado por</th><td colspan="3">'+(o.instrutor?esc(o.instrutor):'&nbsp;')+'</td></tr></tbody></table>'+
       '<h2>Documentos treinados</h2><table><thead><tr><th style="width:24%">Código</th><th>Título</th><th style="width:12%">Versão</th></tr></thead><tbody>'+pops.map(function(p){ return '<tr><td>'+esc(p.c)+'</td><td>'+esc(p.t||'')+'</td><td>'+esc(p.v||'')+'</td></tr>'; }).join('')+vazio(br?4:Math.max(0,2-pops.length),[1,2,3])+'</tbody></table>'+

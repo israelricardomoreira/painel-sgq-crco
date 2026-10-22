@@ -3,7 +3,7 @@
  * naturezas do VHL (a tabela "Natureza Principal" da IT de recepção do ato) + etapas da fase
  * (REC = Prenotação no Tri7 · QLF = Análise, Re-Análise e Revisão de exigência do Tri7 · MIN = Minuta · REV = Revisão Oficial).
  * Editável em Configuração › POPs e escopo, com motivo no histórico. Ajustes ficam em config/pops {map:{código:{…}}}. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/catalogo.js']='0.21.2';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/catalogo.js']='0.21.3';
   var POP_BASE=[{"c":"IT-PJ-AVB-ENT","t":"Averbação em PJ · Entrega (Reg. Civil de Pessoas Jurídicas)","sv":"RCPJ","v":"1.0.1","fase":"ENT","nats":["Associações em geral"],"ets":["Registrar pedido / Envio Cliente"],"med":1,"conf":0},
     {"c":"IT-PJ-AVB-REC","t":"Averbação em PJ · Recepção (Reg. Civil de Pessoas Jurídicas)","sv":"RCPJ","v":"1.0.0","fase":"REC","med":0},
     {"c":"IT-RC-CAS-HAB","t":"Casamento · Habilitação (Registro Civil)","sv":"RC","v":"1.0.0","fase":"HAB","med":0},
@@ -79,6 +79,10 @@
     return out.sort(function(a,b){ var o=['RI','RC','RTD','RCPJ','SGQ']; return (o.indexOf(a.sv)-o.indexOf(b.sv)) || (a.c<b.c?-1:1); }); }
   function popDe(c){ var L=popsTodos(); for (var i=0;i<L.length;i++) if (L[i].c===c) return L[i]; return null; }
   function popMede(p){ return !!(p&&p.med&&(p.nats||[]).length&&(p.ets||[]).length); }
+  // 0.21.3: carga horária padrão do POP (h), cadastrada no Catálogo e sugerida na Aprendizagem
+  function popCh(p){ var v=+((p&&p.ch)||0); return v>0?v:null; }
+  function popChTxt(v){ return v==null?'':(numBR(v,v%1?1:0)+'h'); }
+  function popChSoma(cods){ var s=0, achou=false; (cods||[]).forEach(function(c){ var v=popCh(popDe(c)); if (v!=null){ s+=v; achou=true; } }); return achou?s:null; }
   function popEscopo(p){ var k=p.c+'|'+state.popsVer; state._popEsc=state._popEsc||{}; if (state._popEsc[k]) return state._popEsc[k];
     var n={}, e={}; (p.nats||[]).forEach(function(x){ n[popNorm(x)]=1; }); (p.ets||[]).forEach(function(x){ e[popEtNorm(x)]=1; });
     return (state._popEsc[k]={nats:n, ets:e}); }
@@ -105,7 +109,7 @@
       var m=popMede(p), ed=state.popEd===p.c;
       h+='<tr><td class="tleft"><b>'+esc(p.c)+'</b>'+(p.fase&&POP_FASE_NOME[p.fase]?' <span class="pill mute">'+esc(POP_FASE_NOME[p.fase])+'</span>':'')+(m&&!p.conf?' <span class="pill warn">a conferir</span>':'')+'<div class="hint" style="margin:2px 0 0">'+esc(p.t||'')+'</div></td>'+
         '<td class="tleft">'+(m?'<div class="pop-l"><span class="mut">Naturezas:</span> '+popListaHTML(p.nats,'nats',C)+'</div><div class="pop-l"><span class="mut">Etapas:</span> '+popListaHTML(p.ets,'ets',C)+'</div>':'<span class="mut">Sem medição automática: a eficácia é avaliada por quem acompanhou (o painel registra e gera o relatório).</span>')+'</td>'+
-        '<td>'+esc(p.v||'—')+(p.verDesde?'<div class="hint" style="margin:2px 0 0">desde '+fmtData(p.verDesde)+'</div>':'')+'</td><td>'+(podeEscrever?'<button type="button" class="btn sm" data-poped="'+esc(p.c)+'">Alterar</button>':'')+'</td></tr>'+(ed?'<tr class="cfg-ed"><td colspan="4">'+popFormHTML(p)+'</td></tr>':''); });
+        '<td>'+esc(p.v||'—')+(p.verDesde?'<div class="hint" style="margin:2px 0 0">desde '+fmtData(p.verDesde)+'</div>':'')+(popCh(p)!=null?'<div class="hint" style="margin:2px 0 0">carga: '+popChTxt(popCh(p))+'</div>':'')+'</td><td>'+(podeEscrever?'<button type="button" class="btn sm" data-poped="'+esc(p.c)+'">Alterar</button>':'')+'</td></tr>'+(ed?'<tr class="cfg-ed"><td colspan="4">'+popFormHTML(p)+'</td></tr>':''); });
     return h+'</tbody></table></div></details>'; }
   // 0.21.1: etapas e naturezas escolhidas numa lista (o que existe no VHL/Tri7), sem digitar
   function popEtLimpo(raw){ return String(raw||'').replace(/^\s*\d+\s*[DHdh]\s*-\s*/,'').replace(/\s*-\s*\d+\s*[DHdh]\.?\s*$/,'').replace(/^ONR\s*-\s*/i,'').trim(); }
@@ -119,13 +123,14 @@
   function popFormHTML(p){ var C=popContagens();
     var E=popOpcoes(C.et,C.nomeE,p.ets,popEtNorm,true,3), N=popOpcoes(C.nat,C.nomeN,p.nats,popNorm,false,1);
     return '<div class="pop-f2"><label class="pop-tit">Título <input id="popT" type="text" class="mini" value="'+esc(p.t||'')+'"></label><label>Versão <input id="popV" type="text" class="mini" value="'+esc(p.v||'')+'" placeholder="ex.: 1.0.2"></label>'+
+      '<label>Carga horária padrão (h) <input id="popCh" type="number" class="mini" min="0" step="0.5" value="'+esc(p.ch||'')+'" placeholder="ex.: 1"></label>'+
       '<label>Medição <select id="popMed" class="mini"><option value="1"'+(p.med?' selected':'')+'>Automática</option><option value="0"'+(p.med?'':' selected')+'>Sem medição automática</option></select></label>'+
       '<label class="pop-ck"><span><input type="checkbox" id="popConf"'+(p.conf?' checked':'')+'> Escopo conferido</span></label>'+
       popCaixaHTML('Etapas','et',E,'Etapas do VHL (sem o prazo no nome; "ONR - X" conta como X) e andamentos do Tri7. O número é de execuções nos últimos 12 meses.')+
       popCaixaHTML('Naturezas','nat',N,'Naturezas do VHL. As marcadas aparecem primeiro.')+
       '<label class="pop-mot">Motivo (obrigatório) <input id="popMot" type="text" class="mini" maxlength="300" placeholder="ex.: POP revisado, nome da natureza no VHL"></label>'+
       '<span class="cfg-bt pop-acoes"><button type="button" class="btn sm primary" data-popsalvar="'+esc(p.c)+'">Salvar</button>'+(p.novo?'<button type="button" class="btn sm" data-poparq="'+esc(p.c)+'">Tirar do catálogo</button>':'')+'<button type="button" class="btn sm" data-popcancel="1">Cancelar</button></span>'+
-      '<p class="hint pop-nota">Subir a versão marca a data de hoje e lista quem executou esse escopo nos últimos 12 meses para treinar de novo.</p></div>'; }
+      '<p class="hint pop-nota">Subir a versão marca a data de hoje e lista quem executou esse escopo nos últimos 12 meses para treinar de novo. A carga horária padrão é sugerida ao cadastrar o treinamento na Aprendizagem (você pode confirmar ou trocar).</p></div>'; }
   function popFiltrar(t){ var q=semAc(t.value||''), box=document.querySelector('[data-poplista="'+t.dataset.popbusca+'"]'); if (!box) return;
     box.querySelectorAll('label').forEach(function(l){ l.hidden=!!q&&l.dataset.popnome.indexOf(q)<0; }); }
   function popMarcados(campo){ return [].slice.call(document.querySelectorAll('[data-pop'+campo+']:checked')).map(function(x){ return x.getAttribute('data-pop'+campo); }); }
@@ -146,8 +151,9 @@
     if (d.poparq){ var mo=String(($('popMot')||{}).value||'').trim(); if (!mo){ toast('Escreva o motivo'); return true; }
       state.popsCfg.map[d.poparq]=Object.assign({},state.popsCfg.map[d.poparq],{oc:true}); popSalvarCfg(); state.popEd=null; apurLog('Catálogo de POPs: '+d.poparq,'incluído','retirado','imediato',mo); apurSalvar(); return true; }
     if (d.popsalvar){ var p=popDe(d.popsalvar), mot2=String(($('popMot')||{}).value||'').trim(); if (!mot2){ toast('Escreva o motivo da mudança'); var mm=$('popMot'); if (mm) mm.focus(); return true; }
-      var novo={t:String(($('popT')||{}).value||'').trim(), v:String(($('popV')||{}).value||'').trim(), med:($('popMed')||{}).value==='1'?1:0, nats:popMarcados('nat'), ets:popMarcados('et'), conf:($('popConf')||{}).checked?1:0};
+      var novo={t:String(($('popT')||{}).value||'').trim(), v:String(($('popV')||{}).value||'').trim(), ch:+($('popCh')||{}).value||0, med:($('popMed')||{}).value==='1'?1:0, nats:popMarcados('nat'), ets:popMarcados('et'), conf:($('popConf')||{}).checked?1:0};
       var mud=[]; if (novo.t!==(p.t||'')) mud.push('título'); if (novo.v!==(p.v||'')) mud.push('versão '+(p.v||'—')+' → '+(novo.v||'—')); if (novo.med!==(p.med?1:0)) mud.push(novo.med?'medição automática':'sem medição');
+      if (novo.ch!==(+p.ch||0)) mud.push('carga horária padrão '+(popChTxt(popCh(p))||'—')+' → '+(popChTxt(popCh({ch:novo.ch}))||'—'));
       if (novo.nats.join('|')!==(p.nats||[]).join('|')) mud.push('naturezas'); if (novo.ets.join('|')!==(p.ets||[]).join('|')) mud.push('etapas'); if (novo.conf!==(p.conf?1:0)) mud.push(novo.conf?'conferido':'a conferir');
       if (!mud.length){ toast('Nada mudou'); return true; }
       if (novo.v!==(p.v||'')) novo.verDesde=new Date().toISOString().slice(0,10);
