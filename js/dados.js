@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/dados.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/dados.js']='0.21.4';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/dados.js']='0.22.0';
  // 0.x = em validação; vira 1.0.0 depois da apresentação ao Oficial
   // 0.11.0: proteção de versão — index.html, motor.js e nuvem.js levam a versão; se algum arquivo ficou de outra entrega, avisa no topo
   function checarVersoes(ver){ ver=ver||APP_VERSAO; var el=document.getElementById('avisoVersao'); if (!el) return; var meta=document.querySelector('meta[name="painel-versao"]'), dif=[];
@@ -134,8 +134,8 @@
     toast('Memória de cálculo baixada');
   }
   // ——— 0.14.0: histórico de gravações (versão anterior de cada registro) ———
-  var HV_NOME={meses:'RI · atos',logs:'RI · linha do tempo',brutos:'dados brutos do VHL',serv:'outras serventias',andam:'Tri7 · andamentos',cert:'certidões',inconf:'inconformidades',senhas:'senhas',kpi09:'folha (KPI-09)',kpis:'lançamento de KPI',justificativas:'justificativa',avaliacoes:'avaliação de exigências',inc_cat:'categoria de erro',config:'configuração',feedback:'feedback',aprendiz:'aprendizagem',paineis:'Meus painéis'};
-  var HV_IMPORT={meses:1,logs:1,brutos:1,serv:1,andam:1,cert:1,inconf:1,senhas:1,kpi09:1};
+  var HV_NOME={meses:'RI · atos',logs:'RI · linha do tempo',brutos:'dados brutos do VHL',serv:'outras serventias',andam:'Tri7 · andamentos',cert:'certidões',inconf:'inconformidades',senhas:'senhas',trab:'tempo de trabalho',kpi09:'folha (KPI-09)',kpis:'lançamento de KPI',justificativas:'justificativa',avaliacoes:'avaliação de exigências',inc_cat:'categoria de erro',config:'configuração',feedback:'feedback',aprendiz:'aprendizagem',paineis:'Meus painéis'};
+  var HV_IMPORT={meses:1,logs:1,brutos:1,serv:1,andam:1,cert:1,inconf:1,senhas:1,trab:1,kpi09:1};
   function hvRotulo(v){ var n=HV_NOME[v.colecao]||v.colecao, id=String(v.doc_id); var m=id.match(/(\d{4}-\d{2})$/); return n+(m?' · '+nomeMes(m[1]):(v.colecao==='config'?' · '+id:v.colecao==='brutos'?' · '+id:'')); }
   // agrupa as versões por gravação: mesma pessoa, mesmo tipo (importação ou ajuste manual) e menos de 90 s entre uma e outra
   function hvGrupos(L){ var G=[], ab={}; L.forEach(function(v){ var t=Date.parse(v.substituida_em), cl=HV_IMPORT[v.colecao]?'imp':'man', k=cl+'|'+v.email, g=ab[k];

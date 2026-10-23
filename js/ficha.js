@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/ficha.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/ficha.js']='0.21.4';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/ficha.js']='0.22.0';
   // ——— ficha do protocolo (log completo de como o painel calculou)
   function protLink(c){ return '<button type="button" class="lnk" data-prot="'+esc(c)+'" title="Ver ficha do protocolo">'+esc(c)+'</button>'; }
   function logDe(c, mesPref){

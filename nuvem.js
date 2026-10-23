@@ -11,7 +11,7 @@
   var sb = null, perfil = null, usuario = null;
   var cache = {}, ouvintes = {};
   // 0.14.0: coleções guardadas por mês (id AAAA-MM) que abrem só com os últimos N meses
-  var COL_MES=['meses','logs','serv','andam','cert','inconf','senhas'];
+  var COL_MES=['meses','logs','serv','andam','cert','inconf','senhas','trab'];
   var janela={corte:(function(n){ var d=new Date(), a=d.getFullYear(), m=d.getMonth()+1-(n-1); while (m<1){ m+=12; a--; } return a+'-'+(m<10?'0':'')+m; })(Math.max(1,+(CFG.mesesAbertura||12))), temAnteriores:null, completo:false};
   var resolverPronto, pronto = new Promise(function(r){ resolverPronto = r; });
 
@@ -124,7 +124,7 @@
 
   window.claude={ use:function(nome){ return pronto.then(function(){ return nome==='db'?dbApi:nome==='user'?userApi:nome==='downloads'?dlApi:null; }); } };
   // funções extras: backup, restauração e dados brutos
-  window.NUVEM_VERSAO='0.21.4'; // 0.11.0: conferida pelo app.js para avisar arquivos de versões diferentes
+  window.NUVEM_VERSAO='0.22.0'; // 0.11.0: conferida pelo app.js para avisar arquivos de versões diferentes
   window.nuvem={
     papel:function(){ return perfil&&perfil.papel; },
     nome:function(){ return (perfil&&perfil.nome)||(usuario&&usuario.email)||''; },

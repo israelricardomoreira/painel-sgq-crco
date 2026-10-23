@@ -12,7 +12,7 @@
  *   (o painel pergunta); "Incluir pessoa" e "Excluir" aviso em Quem precisa ser treinado (config/pops {revDisp}); emitir o registro ao salvar.
  * 0.21.4: antes de emitir, completar o registro (reg {mod, loc, cod, cont} + pessoa que treinou + ch, guardado nos registros da sessão);
  *   registro para assinatura digital (sem Função, sem linhas sobrando); avaliação pelo GQ; relatório de aptidão (feedback). */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/aprendizagem.js']='0.21.4';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/aprendizagem.js']='0.22.0';
   var APR_MOTIVOS={novo:'Colaborador novo na função', 'pop-novo':'POP novo', 'pop-rev':'POP revisado', funcao:'Mudança de função', reforco:'Reforço', experiencia:'Apto por experiência (ISO 9001 7.2 b)'};
   var APR_RES={apto:['good','Apto'], nao:['warn','Não apto']};
   function aprCfg(){ return {lim:+cfgS('apr.limite'), jan:+cfgS('apr.janela'), minMeses:+cfgS('apr.minMeses'), piso:+cfgS('apr.piso'), teto:+cfgS('apr.teto'), exp:+cfgS('apr.expMeses'), ref:+cfgS('apr.refMeses')}; }

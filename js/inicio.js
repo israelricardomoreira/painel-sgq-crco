@@ -1,15 +1,15 @@
 /* Painel SGQ · CRCO — js/inicio.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inicio.js']='0.21.4';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inicio.js']='0.22.0';
   // 0.12.0: confere logo de saída se todos os arquivos do painel vieram da mesma entrega
-  var ARQUIVOS_APP=["js/nucleo.js", "js/prazos.js", "js/inconformidades.js", "js/relatorios.js", "js/kpis.js", "js/atendimento.js", "js/ficha.js", "js/configuracao.js", "js/tri7.js", "js/serventias.js", "js/dados.js", "js/graficos.js", "js/desempenho.js", "js/visual.js", "js/certidoes.js", "js/importar.js", "js/saude.js", "js/equipe.js", "js/catalogo.js", "js/aprendizagem.js", "js/construtor.js", "js/navegacao.js", "js/inicio.js"];
-  try{ checarVersoes('0.21.4'); }catch(e){ var avv=document.getElementById('avisoVersao'); if (avv){ avv.hidden=false; avv.textContent='Faltam arquivos do painel ou eles são de versões diferentes. Suba de novo todos os arquivos da entrega e recarregue a página.'; } }
+  var ARQUIVOS_APP=["js/nucleo.js", "js/prazos.js", "js/inconformidades.js", "js/relatorios.js", "js/kpis.js", "js/atendimento.js", "js/ficha.js", "js/configuracao.js", "js/tri7.js", "js/serventias.js", "js/dados.js", "js/graficos.js", "js/desempenho.js", "js/trabalho.js", "js/visual.js", "js/certidoes.js", "js/importar.js", "js/saude.js", "js/equipe.js", "js/catalogo.js", "js/aprendizagem.js", "js/construtor.js", "js/navegacao.js", "js/inicio.js"];
+  try{ checarVersoes('0.22.0'); }catch(e){ var avv=document.getElementById('avisoVersao'); if (avv){ avv.hidden=false; avv.textContent='Faltam arquivos do painel ou eles são de versões diferentes. Suba de novo todos os arquivos da entrega e recarregue a página.'; } }
   var $=function(id){ return document.getElementById(id); };
   var TEMAS={auto:['◐ Auto','Tema: automático (segue o computador)'],claro:['☀ Claro','Tema: claro'],escuro:['☾ Escuro','Tema: escuro']};
   var temaAtual=temaAplicar(prefLer('crco-tema')||'auto');
   if (prefLer('crco-menu')==='recolhido') menuRecolher(true);
   temaAplicar(temaAtual);
   var state={ docs:{}, extras:[], arquivos:{prazo:[],etapa:[],demanda:[],inconf:[],tri7:[],andam:[]}, nomes:{prazo:[],etapa:[],demanda:[],inconf:[],tri7:[],andam:[]}, andam:{}, andIdx:null, usr:{}, usrAuto:{}, resAnd:null, serv:{}, impFeito:{}, prazosServ:{}, sv:'RI', svSub:{}, srvNat:null, kpiCat:null, lancEdit:false,
-    resultado:null, periodo:'todos', aba:'geral', natSel:null, sortNat:{k:'total',d:-1}, filtroFora:false, busca:'', natBusca:'', natTodas:false, just:{}, aval:{}, filtroEx:'pend', avDraft:{}, buscaEx:'', inconf:{}, incCat:{}, eqOcl:{}, eqMin:10, apr:{}, pn:{}, pnSel:null, pnEd:null, pnFC:{}, incSetor:'ri' /* 0.13.0: o setor segue a Serventia do topo (RI = só RI; Todas = todas) */, incFiltroCat:null, incFiltroPessoa:null, cert:{}, cfg:{expIni:8, expFim:17, intim:null}, relSel:'__geral', feedback:{}, kp:{}, k9:{}, lancMes:null, lancTodos:false, atPessoa:null, logs:{}, logCache:{}, protSel:null, protTxt:'', senhas:{}, atMes:'todos', atMet:'esp', atTodosDias:false };
+    resultado:null, periodo:'todos', aba:'geral', natSel:null, sortNat:{k:'total',d:-1}, filtroFora:false, busca:'', natBusca:'', natTodas:false, just:{}, aval:{}, filtroEx:'pend', avDraft:{}, buscaEx:'', inconf:{}, incCat:{}, eqOcl:{}, eqMin:10, apr:{}, pn:{}, pnSel:null, pnEd:null, pnFC:{}, incSetor:'ri' /* 0.13.0: o setor segue a Serventia do topo (RI = só RI; Todas = todas) */, incFiltroCat:null, incFiltroPessoa:null, cert:{}, cfg:{expIni:8, expFim:17, intim:null}, relSel:'__geral', feedback:{}, kp:{}, k9:{}, lancMes:null, lancTodos:false, atPessoa:null, logs:{}, logCache:{}, protSel:null, protTxt:'', senhas:{}, trab:{}, trabVer:0, desVis:null, atMes:'todos', atMet:'esp', atTodosDias:false };
   var db=null, dbPronto=false, podeEscrever=true;
 
   var MOTIVOS={C:'Cancelado (status)',P:'Cancelamento de Protocolo',O:'ONR – recibo de cancelamento',D:'ONR – nota de devolução, sem registro',A:'Re-análise sem registro (caducou)',F:'Ofício de Cancelamento',X:'Devolução do depósito prévio',T:'Cancelado no Tri7 (desistência ou impossibilidade)'};
@@ -169,7 +169,7 @@
   var KPIS_PADRAO=null;
 
   // ——— versão, dados brutos, recálculo, backup e memória de cálculo (site no GitHub + Supabase)
-  var APP_VERSAO='0.21.4';
+  var APP_VERSAO='0.22.0';
   // 0.11.0: a biblioteca de planilhas (≈310 KB) só é baixada quando precisa — importar, recalcular ou baixar a memória de cálculo
   var XLSX_URL='xlsx.full.min.js?v=0.20.3', XLSX_SRI='sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT', xlsxProm=null;
   var BRUTO_COLS={prazo:['tipo de documento','codigo','natureza','ingresso','finalizacao','prazo','tempo'], etapa:['codigo','data execucao','etapa','responsavel','prazo'], demanda:['codigo','status']};
@@ -224,6 +224,7 @@
     ['cert','Certidões',function(m){ return state.cert[m]?state.cert[m].recs.length+' certidões':null; },[['cert']],true],
     ['andam','Andamentos do Tri7',function(m){ return state.andam[m]?state.andam[m].length+' andamentos':null; },[['andam']],true],
     ['senhas','Senhas',function(m){ return state.senhas[m]?state.senhas[m].L.length+' senhas':null; },[['senhas']],true],
+    ['trab','Tempo de trabalho (Desempenho Usuário)',function(m){ return state.trab[m]?Object.keys(state.trab[m].p).length+' pessoas':null; },[['trab']],true],
     ['k9','KPI-09 (Rel. Eventos)',function(m){ return state.k9[m]?state.k9[m].headcount+' colaboradores':null; },[['kpi09']],true],
     ['kp','Lançamentos de KPIs que você digitou',function(m){ return state.kp[m]?'valores e análises':null; },[['kpis']],false]];
 
@@ -261,6 +262,13 @@
     if (t.dataset && t.dataset.pv!=null) return pgVisDef(state.aba, t.dataset.pv==='1');
     var gel=t.closest&&t.closest('[data-go]'); if (gel){ if (toqueSoDica(gel)) return; return goExec(gel); }
     if (t.id==='btnVis'){ if (state.aba==='vis') return irAba(state.abaAntVis||'geral'); if (PG_VIS[state.aba]) return pgVisDef(state.aba,!state.pgVis[state.aba]); state.abaAntVis=state.aba; return irAba('vis'); } // 1.10.4: um só botão — nas páginas com visual próprio ele liga/desliga o visual da página
+    if (t.dataset && t.dataset.desvis){ state.desVis=t.dataset.desvis; return renderDes(); } // 0.22.0
+    var tre=t.closest&&t.closest('tr[data-tret]'); if (tre){ state.trEtSel=state.trEtSel===tre.dataset.tret?null:tre.dataset.tret; return renderDes(); }
+    if (t.dataset && t.dataset.trsetor){ state.trSetor=t.dataset.trsetor; return renderDes(); }
+    if (t.dataset && t.dataset.tretall){ state.trEtTodas=!state.trEtTodas; return renderDes(); }
+    var trp=t.closest&&t.closest('tr[data-trpes]'); if (trp){ state.trPes=state.trPes===trp.dataset.trpes?null:trp.dataset.trpes; return renderDes(); }
+    if (t.dataset && t.dataset.trimpok){ state.trImp=null; return trImpResumo(); }
+    if (t.dataset && t.dataset.trir){ state.desVis='trab'; return irAba('des'); }
     var dsl=t.closest&&t.closest('tr[data-dessel]'); if (dsl){ state.desSel=state.desSel===dsl.dataset.dessel?null:dsl.dataset.dessel; renderDes(); var dd=document.querySelector('#tabDes .sub-h:last-of-type'); return; }
     var sn=t.closest&&t.closest('tr[data-srvnat]'); if (sn && !t.closest('input')){ state.srvNat=state.srvNat===sn.dataset.srvnat?null:sn.dataset.srvnat; return renderAtr(); }
     if (t.id==='kpiEdBtn'){ state.lancEdit=true; return renderLanc(true); }
@@ -459,6 +467,7 @@
     db.doc('config/apuracao').get().then(function(s){ if (s.exists){ var c=s.data()||{}; state.apur={itens:c.itens||{}, simples:c.simples||{}, hist:c.hist||[]}; state.apurVer++; agendarRender(); } }).catch(function(){});
     db.doc('config/geral').get().then(function(s){ if(s.exists){ var c=s.data(); state.extras=(c.feriadosExtras||[]).slice(); if (c.expIni!=null) state.cfg.expIni=c.expIni; if (c.expFim!=null) state.cfg.expFim=c.expFim; if (c.intim) state.cfg.intim=c.intim.slice(); renderFeriados(); agendarRender(); } }).catch(function(){});
     db.collection('logs').onSnapshot(function(snap){ snap.docs.forEach(function(d){ var x=d.data(); if (x&&x.rows!=null){ state.logs[d.id]=x; delete state.logCache[d.id]; } }); if (state.protSel) fichaProtocolo(state.protSel); }, function(){});
+    db.collection('trab').onSnapshot(function(snap){ snap.docs.forEach(function(d){ var x=d.data(); if (x&&x.p) state.trab[x.mes||d.id]=trDecodificar(x); }); state.trabVer=(state.trabVer||0)+1; state._trB=null; agendarRender(); }, function(){});
     db.collection('senhas').onSnapshot(function(snap){ snap.docs.forEach(function(d){ var x=d.data(); if (x&&x.rows) state.senhas[d.id]=senhasDecod(x); }); agendarRender(); }, function(){});
     db.collection('kpis').onSnapshot(function(snap){ snap.docs.forEach(function(d){ var x=d.data(); if (x) state.kp[d.id]={mes:d.id,v:x.v||{},lanc:x.lanc||{},hist:x.hist||null}; }); if (state.aba==='lanc') agendarRender(); setTimeout(histMigrar,2500); }, function(){});
     db.collection('kpi09').onSnapshot(function(snap){ snap.docs.forEach(function(d){ var x=d.data(); if (x&&x.pessoas) state.k9[d.id]=x; }); if (state.aba==='lanc') agendarRender(); }, function(){});

@@ -1,7 +1,7 @@
 /* Painel SGQ · CRCO — js/construtor.js (0.19.0: Meus painéis — construtor de cartões no estilo das ferramentas de BI)
  * Cada cartão é uma "pergunta": fonte → filtros → medida (ou taxa A ÷ B) → agrupar por (até 2) → formato.
  * Os painéis ficam no banco (coleção paineis): versões novas do painel não apagam nada, e entram no backup. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/construtor.js']='0.21.4';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/construtor.js']='0.22.0';
   var PN_DOW=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
   function pnDow(iso){ if (!iso) return null; var p=String(iso).slice(0,10).split('-').map(Number); return PN_DOW[new Date(Date.UTC(p[0],p[1]-1,p[2])).getUTCDay()]; }
   function pnMesIso(iso){ return iso?String(iso).slice(0,7):null; }
@@ -36,6 +36,11 @@
       campos:[['mes','Mês','cat',function(s){ return pnMesIso(s.dia); }],['fila','Fila','cat',function(s){ return s.fila; }],['pessoa','Atendente','cat',function(s){ return pnPessoa(s.at); }],['dow','Dia da semana','cat',function(s){ return PN_DOW[s.dw]; }],
         ['hora','Hora da emissão','cat',function(s){ return s.g==null?null:String(Math.floor(s.g/3600)).padStart(2,'0')+'h'; }],['atendida','Atendida','bool',function(s){ return pnSimNao(s.c!=null); }],['passou15','Esperou mais de 15 min','bool',function(s){ return s.e==null?null:pnSimNao(s.e>900); }],
         ['espera','Espera','num',function(s){ return s.e==null?null:s.e/60; },'min'],['atend','Tempo de atendimento','num',function(s){ return s.t==null||s.t>3600?null:s.t/60; },'min']]},
+    trab:{nome:'Tempo de trabalho (cronômetro do VHL)', lista:'pnTrab', dica:'Desempenho Usuário: uma linha por pessoa × mês × etapa × natureza. Use "Soma de horas" e "Soma de atos"; minutos por ato é a média da linha.',
+      linhas:function(){ return typeof trBase==='function'?trBase().L:[]; },
+      campos:[['mes','Mês','cat',function(l){ return l.m; }],['pessoa','Pessoa','cat',function(l){ return pnPessoa(l.nome); }],['funcao','Função','cat',function(l){ return l.fn; }],['etapa','Etapa do VHL','cat',function(l){ return l.et; }],['natureza','Natureza','cat',function(l){ return l.nat; }],
+        ['setor','Setor','cat',function(l){ return l.sv; }],['tipo','Tipo de documento','cat',function(l){ return l.tipo; }],['cron','Com cronômetro','bool',function(l){ return pnSimNao(l.seg>0); }],
+        ['atos','Atos','num',function(l){ return l.q; },''],['horas','Horas de trabalho','num',function(l){ return l.seg*l.q/3600; },'h'],['minAto','Minutos por ato','num',function(l){ return l.seg>0?l.seg/60:null; },'min']]},
     andam:{nome:'Andamentos do Tri7', lista:'pnAnd', dica:'Relatório de andamentos, no mês do andamento.',
       linhas:function(){ var o=[]; Object.keys(state.andam).forEach(function(m){ state.andam[m].forEach(function(e){ if (e.t==='P') o.push(e); }); }); return o; },
       campos:[['mes','Mês','cat',function(e){ return Motor.isoMin(e.m).slice(0,7); }],['status','Andamento','cat',function(e){ return Motor.AND_NOME[e.s]||e.s; }],['pessoa','Pessoa','cat',function(e){ return pnPessoa(nomeLogin(e.u)); }],
@@ -56,7 +61,7 @@
     if (!g1) return 'numero'; if (c.b&&c.bModo==='eixo') return 'dispersao'; if (g1==='mes'&&!g2) return 'linha'; if (g1==='mes'&&g2) return pnSomavel(c)?'empilhadas':'linha'; if (g2) return 'calor'; return 'barras'; }
   function pnSomavel(c){ var t=(c.m||{}).t; return !c.b && (t==='qtd'||t==='soma'||t==='distintos'); }
   // ——— cálculo
-  function pnCache(){ var k=[Object.keys(state.docs).length,Object.keys(state.serv).length,Object.keys(state.inconf).length,Object.keys(state.cert).length,Object.keys(state.senhas).length,state.andVer||0,state.fnVer||0,state.apurVer||0,(state.extras||[]).length].join('|');
+  function pnCache(){ var k=[Object.keys(state.docs).length,Object.keys(state.serv).length,Object.keys(state.inconf).length,Object.keys(state.cert).length,Object.keys(state.senhas).length,state.andVer||0,state.fnVer||0,state.apurVer||0,(state.extras||[]).length,state.trabVer||0].join('|');
     if (state._pnC&&state._pnC.k===k) return state._pnC; state._pnC={k:k, L:{}}; return state._pnC; }
   // a mesma pessoa escrita com acento ou maiúsculas diferentes (inconformidades × VHL × Tri7) vira um nome só: o do VHL/Tri7
   function pnPessoa(n){ if (!n) return null; var C=pnCache(); if (!C.nomes){ C.nomes={}; pnLinhas('execs').forEach(function(x){ if (x.nome) C.nomes[semAc(x.nome).replace(/\s+/g,' ')]=x.nome; }); } return C.nomes[semAc(n).replace(/\s+/g,' ')]||n; }
@@ -120,6 +125,7 @@
   function pnLista(c, rows, tit){ var F=PN_FONTES[c.f]; pnListasReg(); return goLista(tit, F.lista, rows); }
   function pnListasReg(){ if (typeof LISTA_COLS==='undefined' || LISTA_COLS.pnExec) return;
     LISTA_COLS.pnExec=[['Código',function(x){ return protLink(x.c); }],['Pessoa',function(x){ return esc(x.nome); },'tl'],['Função',function(x){ return esc(x.fn); },'tl'],['Natureza',function(x){ return esc(x.nat); },'tl'],['Data',function(x){ return fmtData(x.d); }],['Tempo na etapa',function(x){ return x.pz==null?'—':x.pz+' d.u.'; }],['Sistema',function(x){ return x.src; }]];
+    LISTA_COLS.pnTrab=[['Mês',function(l){ return nomeMes(l.m); }],['Pessoa',function(l){ return esc(l.nome); },'tl'],['Etapa',function(l){ return esc(l.et); },'tl'],['Natureza',function(l){ return esc(l.nat); },'tl'],['Atos',function(l){ return l.q; }],['Min por ato',function(l){ return l.seg>0?numBR(l.seg/60,1):'—'; }],['Horas',function(l){ return numBR(l.seg*l.q/3600,1); }]];
     LISTA_COLS.pnAnd=[['Protocolo',function(e){ return protLink(e.n); }],['Andamento',function(e){ return esc(Motor.AND_NOME[e.s]||e.s); }],['Pessoa',function(e){ return esc(nomeLogin(e.u)); },'tl'],['Quando',function(e){ return esc(minFmt(e.m)); }]]; }
   // ——— desenho de um cartão
   function pnRolavel(h){ return h.replace(/<div class="tbl-wrap"/g,'<div class="tbl-wrap" tabindex="0" role="region" aria-label="Tabela do cartão (role para ver tudo)"'); }

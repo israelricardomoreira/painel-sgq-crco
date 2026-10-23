@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/desempenho.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/desempenho.js']='0.21.4';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/desempenho.js']='0.22.0';
   // ═════════ desempenho: linha normal de cada pessoa, comparação com a equipe e tendência macro ═════════
   function mesDeDia(d){ return new Date(d*864e5).toISOString().slice(0,7); }
   // cada execução de etapa (VHL · Produção por Etapa): pessoa, etapa, natureza, mês da execução e dias úteis que o documento ficou na etapa
@@ -54,10 +54,17 @@
       p.lVol=lam==null||lam<MIN_N?{txt:'—',cls:'mut'}:((vAg-lam)/Math.sqrt(lam)<=-2&&vAg<lam*0.7)?{txt:'abaixo do normal',cls:'acima'}:((vAg-lam)/Math.sqrt(lam)>=2&&vAg>lam*1.3)?{txt:'acima do normal',cls:'bom'}:{txt:'normal',cls:''};
       return p; }).filter(function(p){ return p.agAll>0; }).sort(function(a,b){ return b.agAll-a.agAll; });
   }
+  // 0.22.0: duas visões — tempo de trabalho (cronômetro do VHL) e dias na etapa (linha normal por execução)
   function renderDes(){
     var el=$('tabDes'); if (!el) return;
-    if (svModo()==='cert'){ el.innerHTML='<div class="empty"><b>Certidões não têm etapas no VHL</b>Veja quem fez e o tempo na página Certidões.</div>'; return; }
-    var X=desExecs(); if (!X.length){ el.innerHTML='<div class="empty"><b>Sem execuções de etapa</b>Importe a Produção por Etapa (PAINEL-02) e a Prazo e Tempo Médio dos meses.</div>'; return; }
+    var temTrab=Object.keys(state.trab||{}).length>0, vis=state.desVis||(temTrab?'trab':'dias');
+    var seg='<div class="search" style="margin-bottom:10px"><div class="seg" role="group" aria-label="Visão do desempenho"><button type="button" class="segb" data-desvis="trab" aria-pressed="'+(vis==='trab')+'">Tempo de trabalho</button><button type="button" class="segb" data-desvis="dias" aria-pressed="'+(vis==='dias')+'">Dias na etapa · linha normal</button></div></div>';
+    if (vis==='trab'){ el.innerHTML=seg; trRender(el); return; }
+    renderDes0(el, seg);
+  }
+  function renderDes0(el, seg){
+    if (svModo()==='cert'){ el.innerHTML=seg+'<div class="empty"><b>Certidões não têm etapas no VHL</b>Veja quem fez e o tempo na página Certidões.</div>'; return; }
+    var X=desExecs(); if (!X.length){ el.innerHTML=seg+'<div class="empty"><b>Sem execuções de etapa</b>Importe a Produção por Etapa (PAINEL-02) e a Prazo e Tempo Médio dos meses.</div>'; return; }
     var J=desJanelas(X), P=desPessoas(X,J);
     var h='<div class="sec-h"><h2>Desempenho · '+esc(nomeMes(J.agora))+(J.parcial?' <span class="pill warn">'+esc(nomeMes(J.parcial))+' parece incompleto e ficou de fora; escolha no Período para ver</span>':'')+'</h2><span class="note">Cada execução de etapa no VHL é comparada com o que a equipe leva <b>na mesma etapa e na mesma natureza</b> (sem contar a própria pessoa). Assim quem pega atos mais difíceis não é prejudicado. A <b>linha normal</b> de cada pessoa é o desvio dela nos '+J.antes.length+' meses anteriores ('+(J.antes.length?nomeMes(J.antes[0])+' a '+nomeMes(J.antes[J.antes.length-1]):'sem histórico')+'). Só aponta diferença quando ela é real (95% de confiança) e de pelo menos '+numBR(DES_MIN_DIF,1)+' d.u. por execução.</span></div>';
     h+=desMacroHTML(X,J);
@@ -70,7 +77,7 @@
         return '<tr class="click'+(state.desSel===p.k?' sel':'')+'" data-dessel="'+esc(p.k)+'"><td>'+esc(p.nome)+'</td><td class="num">'+p.agAll+'</td>'+(p.porDiaAtivo?'<td class="num">'+p.dAg+' <span class="mut">de '+p.duAg+'</span></td><td class="num" title="'+esc(p.vAg+' documentos em '+p.dAg+' dias ativos')+'"><b>'+numBR(p.volAg,1)+'</b></td>':'<td class="num">'+numBR(p.volAg,1)+'</td>')+'<td class="'+p.lVol.cls+'">'+p.lVol.txt+(p.volAn!=null?' <span class="mut">('+numBR(p.volAn,1)+')</span>':'')+'</td><td class="num">'+fDif(ag)+'</td><td class="'+p.lEq.cls+'">'+p.lEq.txt+'</td><td class="num">'+fDif(nl)+'</td><td class="'+p.lRi.cls+'">'+p.lRi.txt+'</td></tr>'; }).join('')+'</tbody></table></div>'+
       '<p class="hint">Desvio = dias úteis da pessoa na etapa − média da equipe na mesma etapa e natureza. Negativo é mais rápido. '+(prodDiaria()?'Dia ativo = dia útil com ao menos 1 execução no VHL; "Volume × normal dela" compara os documentos por dia ativo do mês com a média dela por dia ativo nos meses anteriores, então férias não viram queda de volume. ':'(Carregando as execuções para a média por dia ativo…) ')+'Clique numa pessoa para ver a carta de controle dela.</p>';
     var sel=P.filter(function(p){ return p.k===state.desSel; })[0]; if (sel) h+=desPessoaHTML(sel,X,J);
-    el.innerHTML=h;
+    el.innerHTML=seg+h;
   }
   function desCarta(p, J, irMes){
     var ms=J.ms.filter(function(m){ return m<=J.agora; }).slice(-12), base=p.an, eb=zMedia(base), cen=eb?eb.m:null, sd=eb?eb.sd:null;

@@ -1,11 +1,11 @@
 /* Painel SGQ · CRCO — js/graficos.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/graficos.js']='0.21.4';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/graficos.js']='0.22.0';
   function mesesGraficos(){
     var s={}; [state.docs,state.cert,state.senhas,state.k9,state.inconf,state.serv].forEach(function(o){ Object.keys(o||{}).forEach(function(m){ if (/^\d{4}-\d{2}$/.test(m)) s[m]=1; }); });
     Object.keys(HIST_SEMENTE).forEach(function(m){ s[m]=1; }); Object.keys(state.kp).forEach(function(m){ if (state.kp[m]&&state.kp[m].hist) s[m]=1; });
     return Object.keys(s).sort().slice(-12);
   }
-  function fmtG(v,un){ if (v==null||isNaN(v)) return '—'; return un==='%'?numBR(v,1)+'%':un==='min'?numBR(v,2)+' min':un==='d.u.'?numBR(v,1)+' d.u.':un==='pp'?numBR(v,1)+' p.p.':numBR(v,v%1?1:0); }
+  function fmtG(v,un){ if (v==null||isNaN(v)) return '—'; return un==='%'?numBR(v,1)+'%':un==='min'?numBR(v,2)+' min':un==='d.u.'?numBR(v,1)+' d.u.':un==='pp'?numBR(v,1)+' p.p.':un==='h'?numBR(v,v>=100?0:1)+' h':numBR(v,v%1?1:0); }
   // gráfico de linha simples (1 série) com linha de meta opcional; dica ao tocar/passar o mouse em cada mês
   function graficoLinha(ms, vals, o){
     var W=320, H=156, pl=34, pr=14, pt=22, pb=24, n=ms.length, val=vals.filter(function(v){return v!=null&&!isNaN(v);});
