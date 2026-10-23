@@ -1,7 +1,7 @@
 /* Painel SGQ · CRCO — js/construtor.js (0.19.0: Meus painéis — construtor de cartões no estilo das ferramentas de BI)
  * Cada cartão é uma "pergunta": fonte → filtros → medida (ou taxa A ÷ B) → agrupar por (até 2) → formato.
  * Os painéis ficam no banco (coleção paineis): versões novas do painel não apagam nada, e entram no backup. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/construtor.js']='0.22.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/construtor.js']='0.22.1';
   var PN_DOW=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
   function pnDow(iso){ if (!iso) return null; var p=String(iso).slice(0,10).split('-').map(Number); return PN_DOW[new Date(Date.UTC(p[0],p[1]-1,p[2])).getUTCDay()]; }
   function pnMesIso(iso){ return iso?String(iso).slice(0,7):null; }

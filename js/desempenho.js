@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/desempenho.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/desempenho.js']='0.22.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/desempenho.js']='0.22.1';
   // ═════════ desempenho: linha normal de cada pessoa, comparação com a equipe e tendência macro ═════════
   function mesDeDia(d){ return new Date(d*864e5).toISOString().slice(0,7); }
   // cada execução de etapa (VHL · Produção por Etapa): pessoa, etapa, natureza, mês da execução e dias úteis que o documento ficou na etapa
@@ -54,7 +54,7 @@
       p.lVol=lam==null||lam<MIN_N?{txt:'—',cls:'mut'}:((vAg-lam)/Math.sqrt(lam)<=-2&&vAg<lam*0.7)?{txt:'abaixo do normal',cls:'acima'}:((vAg-lam)/Math.sqrt(lam)>=2&&vAg>lam*1.3)?{txt:'acima do normal',cls:'bom'}:{txt:'normal',cls:''};
       return p; }).filter(function(p){ return p.agAll>0; }).sort(function(a,b){ return b.agAll-a.agAll; });
   }
-  // 0.22.0: duas visões — tempo de trabalho (cronômetro do VHL) e dias na etapa (linha normal por execução)
+  // 0.22.1: duas visões — tempo de trabalho (cronômetro do VHL) e dias na etapa (linha normal por execução)
   function renderDes(){
     var el=$('tabDes'); if (!el) return;
     var temTrab=Object.keys(state.trab||{}).length>0, vis=state.desVis||(temTrab?'trab':'dias');

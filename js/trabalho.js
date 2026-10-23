@@ -1,10 +1,10 @@
-/* Painel SGQ · CRCO — js/trabalho.js (0.22.0: tempo de trabalho cronometrado no VHL · relatório "Desempenho Usuário")
+/* Painel SGQ · CRCO — js/trabalho.js (0.22.1: tempo de trabalho cronometrado no VHL · relatório "Desempenho Usuário")
  * Cada planilha = 1 pessoa × 1 mês: Tipo de Documento, Etapa, Natureza, Tempo (média por ato, cronômetro do VHL) e Quantidade.
  * A pessoa e o período vêm do nome do arquivo que o VHL gera ("Desempenho Usuário - Nome - AAAA-MM-DD - AAAA-MM-DD-…").
  * Daqui sai: tempo-padrão de cada ato (mediana da equipe), ocupação (horas com trabalho registrado ÷ horas disponíveis),
  * ritmo (tempo dela ÷ tempo-padrão da equipe nas mesmas etapas e naturezas), carga × capacidade dos setores e o trabalho que entrou.
  * As faixas "normais" saem dos próprios dados (quartis da equipe), nada é fixado à mão. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/trabalho.js']='0.22.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/trabalho.js']='0.22.1';
   var TR_CAB=['Tipo de Documento','Etapa','Natureza','Tempo','Quantidade'];
   var TR_MIN_CEL=10;      // atos cronometrados para uma célula (etapa × natureza) ter tempo-padrão
   var TR_COB_OK=0.8;      // parte dos atos da pessoa em etapas que o cronômetro cobre, para entrar na faixa e na leitura
@@ -82,16 +82,17 @@
   var TR_CERT_MAP=[[/inteiro teor/i,/inteiro teor/i],[/[oô]nus/i,/[oô]nus/i],[/negativa/i,/negativa/i],[/descritiva|situa/i,/descritiva/i],[/c[oó]pia/i,/c[oó]pia/i]];
   function trBase(){
     var X=eqExecs(), A=state._eqA||{map:{},setor:{}}, fer=Motor.feriadoSet(state.extras||[]), EB=typeof etapasBrutas==='function'?etapasBrutas():null; // execuções brutas do VHL (inclui certidões digitais), carregadas sob demanda
-    var k0=[state.trabVer||0, X.length, EB?EB.length:-1, Object.keys(state.cert).length, Object.keys(state.senhas).length, (state.extras||[]).length, state.fnVer||0, Object.keys(state.docs).length, state.aprVer||Object.keys(state.apr||{}).length].join('|');
+    var k0=[state.trabVer||0, X.length, EB?EB.length:-1, Object.keys(state.cert).length, Object.keys(state.senhas).length, (state.extras||[]).length, state.fnVer||0, Object.keys(state.eqOcl||{}).join(','), Object.keys(state.docs).length, state.aprVer||Object.keys(state.apr||{}).length].join('|');
     if (state._trB&&state._trB.k===k0) return state._trB.v;
     var ms=Object.keys(state.trab).sort(), L=[], nomeK={};
     ms.forEach(function(m){ var P=state.trab[m].p; Object.keys(P).forEach(function(n){ var k=chavePessoa(n); nomeK[k]=nomeK[k]||n;
-      P[n].L.forEach(function(l){ L.push({k:k, nome:n, m:m, tipo:l.tipo, et:l.et, nat:l.nat, seg:l.seg, q:l.q, fn:eqFnDe(l.et,A), sv:eqSetorDoc(l.tipo)}); }); }); });
+      var oc=typeof eqOculto==='function'&&eqOculto(semAc(n)); // 0.22.1: oculto em Equipe e funções não entra em faixa, tempo-padrão nem comparação (as horas continuam na carga)
+      P[n].L.forEach(function(l){ L.push({k:k, nome:n, m:m, tipo:l.tipo, et:l.et, nat:l.nat, seg:l.seg, q:l.q, fn:eqFnDe(l.et,A), sv:eqSetorDoc(l.tipo), oc:oc}); }); }); });
     // etapas que o cronômetro cobre: metade ou mais dos atos com tempo
     var ET={}; L.forEach(function(l){ var e=ET[l.et]=ET[l.et]||{q:0,qc:0}; e.q+=l.q; if (l.seg>0) e.qc+=l.q; });
     Object.keys(ET).forEach(function(e){ ET[e].cron=ET[e].qc>=TR_MIN_CEL&&ET[e].qc/ET[e].q>=0.5; });
     // células etapa × natureza: tempo-padrão = mediana da equipe ponderada pelos atos (só linhas cronometradas)
-    var C={}; L.forEach(function(l){ if (!(l.seg>0)) return; var c=C[l.et+'|'+l.nat]=C[l.et+'|'+l.nat]||{et:l.et,nat:l.nat,fn:l.fn,E:[],q:0,ks:{}}; c.E.push({v:l.seg,w:l.q,k:l.k}); c.q+=l.q; c.ks[l.k]=1; });
+    var C={}; L.forEach(function(l){ if (!(l.seg>0)||l.oc) return; var c=C[l.et+'|'+l.nat]=C[l.et+'|'+l.nat]||{et:l.et,nat:l.nat,fn:l.fn,E:[],q:0,ks:{}}; c.E.push({v:l.seg,w:l.q,k:l.k}); c.q+=l.q; c.ks[l.k]=1; });
     Object.keys(C).forEach(function(id){ var c=C[id]; c.np=Object.keys(c.ks).length; c.pad=c.q>=TR_MIN_CEL?trWq(c.E,.5):null; c.p25=trWq(c.E,.25); c.p75=trWq(c.E,.75); c.ex={}; });
     function padSem(c,k){ if (c.ex[k]!==undefined) return c.ex[k]; var E=c.E.filter(function(e){ return e.k!==k; }), q=E.reduce(function(s,e){ return s+e.w; },0); return c.ex[k]=(q>=TR_MIN_CEL&&c.np>=2)?trWq(E,.5):null; }
     // dias ativos: dia útil com alguma execução (VHL ou Tri7) ou senha atendida
@@ -187,7 +188,7 @@
       '</tbody></table></div><p class="hint">Função principal = a etapa em que a pessoa passou mais horas no mês. Cada pessoa só é comparada com quem tem a mesma função principal, porque o cronômetro cobre partes diferentes do trabalho em cada função (quem imprime ficha ou arquiva faz muito trabalho físico que o cronômetro não pega). Função com uma pessoa só fica sem faixa. Para não apontar variação pequena, "abaixo da faixa" começa 5 p.p. abaixo da linha normal.</p></details>'; }
   // ——— por etapa (função): tempo-padrão, carga, trabalho × espera
   function trEtapasHTML(B, MS){
-    var FN={}; B.L.forEach(function(l){ if (MS.indexOf(l.m)<0) return; var f=FN[l.fn]=FN[l.fn]||{fn:l.fn, q:0, qc:0, s:0, E:[], ets:{}, nats:{}}; f.q+=l.q; f.ets[l.et]=1; if (l.seg>0){ f.qc+=l.q; f.s+=l.seg*l.q; f.E.push({v:l.seg,w:l.q}); var n=f.nats[l.nat]=f.nats[l.nat]||{q:0,s:0,E:[]}; n.q+=l.q; n.s+=l.seg*l.q; n.E.push({v:l.seg,w:l.q}); } });
+    var FN={}; B.L.forEach(function(l){ if (MS.indexOf(l.m)<0) return; var f=FN[l.fn]=FN[l.fn]||{fn:l.fn, q:0, qc:0, s:0, E:[], ets:{}, nats:{}}; f.q+=l.q; f.ets[l.et]=1; if (l.seg>0){ f.qc+=l.q; f.s+=l.seg*l.q; if (!l.oc) f.E.push({v:l.seg,w:l.q}); var n=f.nats[l.nat]=f.nats[l.nat]||{q:0,s:0,E:[]}; n.q+=l.q; n.s+=l.seg*l.q; if (!l.oc) n.E.push({v:l.seg,w:l.q}); } });
     // dias na etapa (VHL), mesmos meses
     var PZ={}; eqExecs().forEach(function(x){ if (x.src!=='VHL'||x.pz==null||MS.indexOf(x.m)<0) return; var p=PZ[x.fn]=PZ[x.fn]||{s:0,n:0,nat:{}}; p.s+=x.pz; p.n++; var pn=p.nat[x.nat]=p.nat[x.nat]||{s:0,n:0}; pn.s+=x.pz; pn.n++; });
     var L=Object.keys(FN).map(function(k){ var f=FN[k]; f.pad=trWq(f.E,.5); f.p25=trWq(f.E,.25); f.p75=trWq(f.E,.75); f.cob=f.q?f.qc/f.q:0; var p=PZ[k]; f.dias=p&&p.n?p.s/p.n:null; return f; }).filter(function(f){ return f.qc>=TR_MIN_CEL; }).sort(function(a,b){ return b.s-a.s; });
@@ -201,7 +202,7 @@
       top.map(function(f){ var pct=f.dias>0?(f.pad/3600)/(f.dias*jor):null;
         return '<tr class="click'+(sel===f?' sel':'')+'" data-tret="'+esc(f.fn)+'"><td>'+esc(f.fn)+'</td><td class="num">'+f.q.toLocaleString('pt-BR')+'</td><td class="num">'+trFmtPct(f.cob)+'</td><td class="num"><b>'+trFmtMin(f.pad)+'</b></td><td class="num">'+trFmtMin(f.p25)+' a '+trFmtMin(f.p75)+'</td><td class="num">'+trFmtH(f.s)+'</td><td class="num">'+(f.dias==null?'—':numBR(f.dias,1))+'</td><td class="num">'+(pct==null?'—':numBR(pct*100,pct<0.01?1:0)+'%')+'</td></tr>'; }).join('')+'</tbody></table></div>'+
       (L.length>12?'<p class="hint"><button type="button" class="lnk" data-tretall="1">'+(state.trEtTodas?'Mostrar só as 12 com mais horas':'Mostrar todas as '+L.length+' etapas')+'</button></p>':'')+
-      '<p class="hint">Clique numa etapa para ver o tempo-padrão por natureza. "Trabalho no tempo da etapa" baixo quer dizer que o documento passa a maior parte do tempo esperando a vez, não sendo trabalhado.</p>';
+      '<p class="hint">Clique numa etapa para ver o tempo-padrão por natureza. Pessoas ocultas em Equipe e funções contam nas horas, mas não no tempo-padrão. "Trabalho no tempo da etapa" baixo quer dizer que o documento passa a maior parte do tempo esperando a vez, não sendo trabalhado.</p>';
     if (sel){ var pz=PZ[sel.fn]||{nat:{}}, NL=Object.keys(sel.nats).map(function(n){ var x=sel.nats[n], p=pz.nat[n]; return {nat:n, q:x.q, s:x.s, pad:trWq(x.E,.5), p25:trWq(x.E,.25), p75:trWq(x.E,.75), dias:p&&p.n?p.s/p.n:null}; }).sort(function(a,b){ return b.s-a.s; }).slice(0,25);
       h+='<div class="panel" style="margin:6px 0 14px"><div class="sub-h">'+esc(sel.fn)+' · por natureza</div><div class="tbl-wrap"><table class="tleft"><thead><tr><th>Natureza</th><th class="num">Atos cronometrados</th><th class="num">Tempo-padrão</th><th class="num">Faixa normal</th><th class="num">Horas</th><th class="num">Dias na etapa</th></tr></thead><tbody>'+
         NL.map(function(n){ return '<tr><td>'+esc(n.nat)+'</td><td class="num">'+n.q.toLocaleString('pt-BR')+'</td><td class="num"><b>'+(n.q>=TR_MIN_CEL?trFmtMin(n.pad):'<span class="mut" title="Menos de '+TR_MIN_CEL+' atos">'+trFmtMin(n.pad)+'</span>')+'</b></td><td class="num">'+trFmtMin(n.p25)+' a '+trFmtMin(n.p75)+'</td><td class="num">'+trFmtH(n.s)+'</td><td class="num">'+(n.dias==null?'—':numBR(n.dias,1))+'</td></tr>'; }).join('')+'</tbody></table></div><p class="hint">Etapas do VHL juntadas nesta função: '+Object.keys(sel.ets).map(esc).join(', ')+'.</p></div>'; }
