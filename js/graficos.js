@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/graficos.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/graficos.js']='0.22.1';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/graficos.js']='0.23.0';
   function mesesGraficos(){
     var s={}; [state.docs,state.cert,state.senhas,state.k9,state.inconf,state.serv].forEach(function(o){ Object.keys(o||{}).forEach(function(m){ if (/^\d{4}-\d{2}$/.test(m)) s[m]=1; }); });
     Object.keys(HIST_SEMENTE).forEach(function(m){ s[m]=1; }); Object.keys(state.kp).forEach(function(m){ if (state.kp[m]&&state.kp[m].hist) s[m]=1; });
@@ -59,7 +59,7 @@
     return ' data-go="'+id+'" data-goh="'+esc(goDica(a))+'"'; }
   function goDica(a){ var n=a.itens?a.itens.length:0;
     return a.t==='nat'?'abrir a natureza em Por natureza':a.t==='mes'?'ver '+nomeMes(a.m)+(a.aba&&TITULOS[a.aba]?' em '+TITULOS[a.aba]:''):a.t==='lista'?'listar '+(n===1?'o item':'os '+n.toLocaleString('pt-BR')+' itens'):
-      a.t==='pessoa'?'abrir o relatório de '+String(a.nome).split(' ')[0]:a.t==='prot'?'abrir a ficha':a.t==='des'?'ver o desempenho da pessoa':a.t==='sv'?'ver só '+a.sv:'abrir'; }
+      a.t==='pessoa'?'abrir o relatório de '+String(a.nome).split(' ')[0]:a.t==='prot'?'abrir a ficha':a.t==='des'?'ver o desempenho da pessoa':a.t==='vg'?'ver a conta':a.t==='trp'?'ver mês a mês':a.t==='sv'?'ver só '+a.sv:'abrir'; }
   function goMes(m,aba){ return {t:'mes',m:m,aba:aba}; }
   function goLista(titulo,tipo,itens){ return itens&&itens.length?{t:'lista',titulo:titulo,tipo:tipo,itens:itens}:null; }
   function goPessoa(nome){ return nome?{t:'pessoa',nome:nome}:null; }
@@ -81,6 +81,8 @@
     var a=GO[el.dataset.go]; if (!a){ toast('Gráfico desatualizado: toque de novo'); return; }
     $('tip').hidden=true;
     if (a.t==='lista') return goListaAbrir(a, el);
+    if (a.t==='trp'){ state.trPes=state.trPes===a.k?null:a.k; state.desVis='trab'; renderDes(); setTimeout(function(){ var pp=document.querySelector('#tabDes .panel .sub-h'); if (pp&&state.trPes&&pp.scrollIntoView) pp.scrollIntoView({behavior:'smooth',block:'start'}); },40); return; }
+    if (a.t==='vg'){ state.vgSel=a.k; state.vgCmp=null; state.desVis='vg'; if (state.aba==='des') renderDes(); else irAba('des', true); setTimeout(function(){ var vc=$('vgConta'); if (vc&&vc.scrollIntoView) vc.scrollIntoView({behavior:'smooth',block:'start'}); },40); return; }
     goGuardar();
     if (a.t==='prot'){ $('protIn').value=a.c; return fichaProtocolo(a.c); }
     if (a.t==='mes'){ state.periodo=a.m; state.lancMes=a.m; render(); return irAba(a.aba||state.aba, true); }

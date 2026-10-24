@@ -124,7 +124,7 @@
 
   window.claude={ use:function(nome){ return pronto.then(function(){ return nome==='db'?dbApi:nome==='user'?userApi:nome==='downloads'?dlApi:null; }); } };
   // funções extras: backup, restauração e dados brutos
-  window.NUVEM_VERSAO='0.22.1'; // 0.11.0: conferida pelo app.js para avisar arquivos de versões diferentes
+  window.NUVEM_VERSAO='0.23.0'; // 0.11.0: conferida pelo app.js para avisar arquivos de versões diferentes
   window.nuvem={
     papel:function(){ return perfil&&perfil.papel; },
     nome:function(){ return (perfil&&perfil.nome)||(usuario&&usuario.email)||''; },

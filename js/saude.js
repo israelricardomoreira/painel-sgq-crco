@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/saude.js (0.14.0: página Saúde dos dados — cobertura de cada fonte mês a mês e aviso de mês incompleto antes de lançar) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/saude.js']='0.22.1';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/saude.js']='0.23.0';
   // Antes deste mês, Tri7 parcial, certidões sem natureza e atos sem histórico são limitação conhecida (decisão de não reimportar jan–set/2026)
   var SAUDE_MARCO='2026-10';
   var SD_NIVEL={ok:['good','ok'], at:['warn','atenção'], falta:['crit','falta'], lim:['mute','limitação conhecida'], na:['mute','—']};
