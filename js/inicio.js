@@ -1,8 +1,8 @@
 /* Painel SGQ · CRCO — js/inicio.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inicio.js']='0.23.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inicio.js']='0.24.0';
   // 0.12.0: confere logo de saída se todos os arquivos do painel vieram da mesma entrega
-  var ARQUIVOS_APP=["js/nucleo.js", "js/prazos.js", "js/inconformidades.js", "js/relatorios.js", "js/kpis.js", "js/atendimento.js", "js/ficha.js", "js/configuracao.js", "js/tri7.js", "js/serventias.js", "js/dados.js", "js/graficos.js", "js/desempenho.js", "js/trabalho.js", "js/visao.js", "js/visual.js", "js/certidoes.js", "js/importar.js", "js/saude.js", "js/equipe.js", "js/catalogo.js", "js/aprendizagem.js", "js/construtor.js", "js/navegacao.js", "js/inicio.js"];
-  try{ checarVersoes('0.23.0'); }catch(e){ var avv=document.getElementById('avisoVersao'); if (avv){ avv.hidden=false; avv.textContent='Faltam arquivos do painel ou eles são de versões diferentes. Suba de novo todos os arquivos da entrega e recarregue a página.'; } }
+  var ARQUIVOS_APP=["js/nucleo.js", "js/prazos.js", "js/inconformidades.js", "js/relatorios.js", "js/kpis.js", "js/atendimento.js", "js/ficha.js", "js/configuracao.js", "js/tri7.js", "js/serventias.js", "js/dados.js", "js/graficos.js", "js/desempenho.js", "js/trabalho.js", "js/visao.js", "js/pessoas.js", "js/visual.js", "js/certidoes.js", "js/importar.js", "js/saude.js", "js/equipe.js", "js/catalogo.js", "js/aprendizagem.js", "js/construtor.js", "js/navegacao.js", "js/inicio.js"];
+  try{ checarVersoes('0.24.0'); }catch(e){ var avv=document.getElementById('avisoVersao'); if (avv){ avv.hidden=false; avv.textContent='Faltam arquivos do painel ou eles são de versões diferentes. Suba de novo todos os arquivos da entrega e recarregue a página.'; } }
   var $=function(id){ return document.getElementById(id); };
   var TEMAS={auto:['◐ Auto','Tema: automático (segue o computador)'],claro:['☀ Claro','Tema: claro'],escuro:['☾ Escuro','Tema: escuro']};
   var temaAtual=temaAplicar(prefLer('crco-tema')||'auto');
@@ -169,7 +169,7 @@
   var KPIS_PADRAO=null;
 
   // ——— versão, dados brutos, recálculo, backup e memória de cálculo (site no GitHub + Supabase)
-  var APP_VERSAO='0.23.0';
+  var APP_VERSAO='0.24.0';
   // 0.11.0: a biblioteca de planilhas (≈310 KB) só é baixada quando precisa — importar, recalcular ou baixar a memória de cálculo
   var XLSX_URL='xlsx.full.min.js?v=0.20.3', XLSX_SRI='sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT', xlsxProm=null;
   var BRUTO_COLS={prazo:['tipo de documento','codigo','natureza','ingresso','finalizacao','prazo','tempo'], etapa:['codigo','data execucao','etapa','responsavel','prazo'], demanda:['codigo','status']};
@@ -252,6 +252,7 @@
     if (t.closest && t.closest('#tabCfg') && t.dataset && popClique(t)) return;
     if (t.closest && t.closest('[data-poplista]')){ var pl=t.closest('[data-poplista]'), pc=document.querySelector('[data-popcont="'+pl.dataset.poplista+'"]'); if (pc) pc.textContent=pl.querySelectorAll('input:checked').length+' marcada(s)'; }
     if (t.closest && t.closest('#tabPn') && t.dataset && pnClique(t)) return;
+    if (t.closest && t.closest('#tabPes') && pesClique(t)) return; // 0.24.0
     if (t.dataset && t.dataset.eqsetor!=null){ state.eqSetor=t.dataset.eqsetor||''; state.eqFn=null; state.eqNat=null; state.eqAud=null; return renderEqp(); }
     if (t.dataset && t.dataset.cfgir){ state.cfgEd=t.dataset.cfgir==='cal'?null:t.dataset.cfgir; irAba('cfg'); if (t.dataset.cfgir==='cal'){ var c=$('cfgCal'); if (c&&c.scrollIntoView) c.scrollIntoView({block:'start'}); } return; }
     if (t.id==='btnSalvar') return salvar();
@@ -260,10 +261,12 @@
     if (t.dataset && t.dataset.golfechar){ var gx2=$('goLista'); if (gx2) gx2.remove(); return; }
     if (t.dataset && t.dataset.golcopiar){ var GA=state.goListaAtual; if (GA) copiarTexto(GA.itens.map(function(x){ return goCodigo(GA.tipo,x); }).filter(function(x){ return x!=null; }).join('\n'), t); return; }
     if (t.dataset && t.dataset.pv!=null) return pgVisDef(state.aba, t.dataset.pv==='1');
+    if (t.dataset && t.dataset.kpif){ var fb=t.nextElementSibling; if (fb){ fb.hidden=!fb.hidden; t.setAttribute('aria-expanded',String(!fb.hidden)); t.classList.toggle('on',!fb.hidden); } return; } // 0.24.0: "?" mostra a conta
+    if (t.closest && t.closest('.kpi-f')) return;
     var gel=t.closest&&t.closest('[data-go]'); if (gel){ if (toqueSoDica(gel)) return; return goExec(gel); }
     if (t.id==='btnVis'){ if (state.aba==='vis') return irAba(state.abaAntVis||'geral'); if (PG_VIS[state.aba]) return pgVisDef(state.aba,!state.pgVis[state.aba]); state.abaAntVis=state.aba; return irAba('vis'); } // 1.10.4: um só botão — nas páginas com visual próprio ele liga/desliga o visual da página
     if (t.dataset && t.dataset.desvis){ state.desVis=t.dataset.desvis; return renderDes(); }
-    if (t.dataset && t.dataset.desaba) return desAbaIr(t.dataset.desaba); // 0.23.0
+    if (t.dataset && t.dataset.desaba) return desAbaIr(t.dataset.desaba); // 0.24.0
     if (t.dataset && t.dataset.vgfn){ state.vgFn=t.dataset.vgfn; state.vgSel=null; state.vgCmp=null; return renderDes(); }
     var vgs=t.closest&&t.closest('tr[data-vgsel]'); if (vgs){ state.vgSel=vgs.dataset.vgsel; state.vgCmp=null; renderDes(); var vc=$('vgConta'); if (vc&&vc.scrollIntoView) vc.scrollIntoView({block:'start'}); return; }
     if (t.dataset && t.dataset.vgsel1){ state.vgSel=t.dataset.vgsel1; state.vgCmp=null; renderDes(); var vc1=$('vgConta'); if (vc1&&vc1.scrollIntoView) vc1.scrollIntoView({block:'start'}); return; }
@@ -379,11 +382,12 @@
   });
   var PG_VIS={k1:1,at:1,cer:1,nao:1,nat:1};
   state.pgVis=pgVisLer(); // 1.10.4: a chave de dentro da página saiu; o estado aparece no botão do topo
-  var TITULOS={des:'Desempenho',vis:'Gráficos',geral:'Painel geral',nat:'Prazos · por natureza',eta:'Prazos · por etapa',fp:'Prazos · fora do prazo',ex:'Prazos · exigências',nao:'Prazos · cancelados e especiais',k1:'Inconformidades',imp:'Importar dados',cer:'Certidões',at:'Atendimento',rel:'Desempenho · por pessoa',tri:'Desempenho · quem fez no Tri7',lanc:'Lançar KPIs no ANOREG+',met:'Como é calculado',cfg:'Configuração do painel',sau:'Saúde dos dados',eqp:'Desempenho · funções',apr:'Aprendizagem · eficácia da capacitação',pn:'Meus painéis'};
+  var TITULOS={pes:'Nomes das pessoas',des:'Desempenho',vis:'Gráficos',geral:'Painel geral',nat:'Prazos · por natureza',eta:'Prazos · por etapa',fp:'Prazos · fora do prazo',ex:'Prazos · exigências',nao:'Prazos · cancelados e especiais',k1:'Inconformidades',imp:'Importar dados',cer:'Certidões',at:'Atendimento',rel:'Desempenho · por pessoa',tri:'Desempenho · quem fez no Tri7',lanc:'Lançar KPIs no ANOREG+',met:'Como é calculado',cfg:'Configuração do painel',sau:'Saúde dos dados',eqp:'Desempenho · funções',apr:'Aprendizagem · eficácia da capacitação',pn:'Meus painéis'};
   document.addEventListener('change',function(e){
     var t=e.target; if (avRascunho(t)) return;
     if (t.closest && t.closest('#tabApr') && aprMudou(t)) return;
     if (t.closest && t.closest('#tabPn') && pnEdMudou(t)) return;
+    if (t.closest && t.closest('#tabPes') && pesMudou(t)) return;
     if (t.id==='vgCmpSel'){ state.vgCmp=t.value||null; renderDes(); var vc=$('vgConta'); if (vc&&vc.scrollIntoView) vc.scrollIntoView({block:'start'}); return; }
     if (t.dataset && (t.dataset.fnraw!=null||t.dataset.fnoc!=null||t.dataset.fnsetor!=null||t.id==='fnBusca') && fnMudou(t)) return;
     if (t.id==='eqSem'){ state.eqSem=t.value||''; return renderEqp(); }
@@ -454,7 +458,9 @@
     db=r[0]; var user=r[1];
     if (!db){ avisar('Banco de dados indisponível nesta visualização — os resultados não ficam salvos.'); return; }
     dbPronto=true; renderBackupInfo(); if ($('appVersao')) $('appVersao').textContent=APP_VERSAO;
-    if (user && user.can){ Promise.resolve(user.can('data.write')).then(function(v){ if(v===false){ podeEscrever=false; $('tabImp').hidden=true; $('grpDados').hidden=true; if ($('tabEqpBtn')) $('tabEqpBtn').hidden=true; if ($('tabAprBtn')) $('tabAprBtn').hidden=true; if (state.aba==='imp') irAba('geral'); avisar('Você está vendo em modo leitura.'); render(); } }); }
+    if (user && user.can){ Promise.resolve(user.can('data.write')).then(function(v){ if(v===false){ podeEscrever=false; $('tabImp').hidden=true; $('grpDados').hidden=true; if ($('tabEqpBtn')) $('tabEqpBtn').hidden=true; if ($('tabAprBtn')) $('tabAprBtn').hidden=true; if ($('tabPesBtn')) $('tabPesBtn').hidden=true; if (state.aba==='imp') irAba('geral'); avisar('Você está vendo em modo leitura.'); render(); } }); }
+    // 0.24.0: o cadastro de nomes vem antes de qualquer dado (a troca de nomes acontece na leitura)
+    db.doc('config/pessoas').get().then(function(s){ state.pesCfg=s.exists?(s.data()||{}):{}; pesAplicarCfg(state.pesCfg); }).catch(function(){});
     db.collection('meses').onSnapshot(function(snap){
       var docs={}; snap.docs.forEach(function(d){ var raw=d.data(); if(raw&&raw.atos) docs[raw.mes||d.id]={raw:raw,atos:Motor.decodificar(raw)}; });
       state.docs=docs; agendarRender();
@@ -466,7 +472,7 @@
     db.collection('inconf').onSnapshot(function(snap){ var m={}, sujos=[];
       snap.docs.forEach(function(d){ var x=d.data(); if (!(x&&x.recs)) return; var mud=0;
         var recs=x.recs.map(function(r){ var o=Motor.mascarar(r.o), j=Motor.mascarar(r.j); if (o!==r.o||j!==r.j){ mud++; return Object.assign({},r,{o:o,j:j}); } return r; });
-        m[x.mes||d.id]=recs; if (mud) sujos.push({id:d.id, doc:Object.assign({},x,{recs:recs}), n:mud}); });
+        m[x.mes||d.id]=pesInc(recs); if (mud) sujos.push({id:d.id, doc:Object.assign({},x,{recs:recs}), n:mud}); });
       state.inconf=m; agendarRender();
       if (podeEscrever && sujos.length){ var p=Promise.resolve(), tot=0; sujos.forEach(function(z){ if (incLimpos[z.id]) return; incLimpos[z.id]=1; tot+=z.n; p=p.then(function(){ return db.doc('inconf/'+z.id).set(z.doc); }); });
         if (tot) p.then(function(){ toast('LGPD: mascarei CPF/RG em '+tot+' observação(ões) de inconformidade já salvas'); }).catch(function(){ toast('Não consegui regravar as inconformidades mascaradas'); }); }
@@ -492,6 +498,7 @@
     db.collection('serv').onSnapshot(function(snap){ snap.docs.forEach(function(d){ var x=d.data(); if (x&&x.rows) state.serv[x.mes||d.id]=Motor.decodificarServ(x); }); agendarRender(); if (state.protSel) fichaProtocolo(state.protSel); }, function(){});
     db.collection('andam').onSnapshot(function(snap){ snap.docs.forEach(function(d){ var x=d.data(); if (x&&x.rows) state.andam[x.mes||d.id]=Motor.decodificarAndam(x); }); state.andIdx=null; atualizarAuto(); agendarRender(); if (state.protSel) fichaProtocolo(state.protSel); }, function(){});
     db.collection('cert').onSnapshot(function(snap){ var m={}; snap.docs.forEach(function(d){ var x=d.data(); if (x&&x.recs) m[x.mes||d.id]={raw:x,recs:Motor.decodificarCert(x)}; }); state.cert=m; agendarRender(); }, function(){});
+    try{ var abaVolta=sessionStorage.getItem('crco-aba'); if (abaVolta){ sessionStorage.removeItem('crco-aba'); setTimeout(function(){ irAba(abaVolta); },400); } }catch(e){} // 0.24.0: volta à página depois de recarregar
   });
   }
   document.addEventListener('input',function(e){ var t=e.target; if (t.dataset && t.dataset.popbusca!=null) popFiltrar(t); if (t.dataset && t.dataset.aprbusca!=null) aprFiltrar(t); }); // 0.21.1: filtro das listas do catálogo

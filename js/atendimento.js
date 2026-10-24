@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/atendimento.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/atendimento.js']='0.23.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/atendimento.js']='0.24.0';
   function hms(s){ if (s==null||s==='') return null; if (typeof s==='number') return Math.round(s*86400); var p=String(s).trim().split(':').map(Number); if (p.length<2||p.some(isNaN)) return null; return p[0]*3600+p[1]*60+(p[2]||0); }
   function fmtMS(seg){ if (seg==null||isNaN(seg)) return '—'; seg=Math.round(seg); var h=Math.floor(seg/3600), m=Math.floor(seg%3600/60), s=seg%60; return (h?h+'h':'')+(h||m?(h?String(m).padStart(2,'0'):m)+'min':'')+(h?'':String(s).padStart(m?2:1,'0')+'s'); }
   function hhmm(seg){ return seg==null?'—':String(Math.floor(seg/3600)).padStart(2,'0')+':'+String(Math.floor(seg%3600/60)).padStart(2,'0'); }
@@ -105,14 +105,15 @@
     if (state.pgVis.at){ el.innerHTML=visAtend(L); return; }
     var h='<div class="sec-h"><h2>Atendimento · tempo de espera</h2><span class="note">Fonte: VHL · Consulta de senhas. Espera = da emissão da senha à chamada no guichê. KPI-13 = média da espera das senhas chamadas em todas as filas'+(k13Of()?'':' — aqui só as filas de '+esc(selNome())+', por isso o número não é o KPI-13')+'.</span></div>'+
       '<div class="search"><span class="chip ok">'+(per==='todos'?'Todos os meses ('+ms.length+')':compLabel(per))+'</span>'+      '<span class="hint" style="margin:0">'+R.n.toLocaleString('pt-BR')+' senhas · '+nd+' dias com atendimento</span></div>';
+    var AT=L.filter(function(s){ return s.c!=null&&s.e!=null; }), oMed={go:goLista('Senhas chamadas','senhas',AT), f:kConta('soma da espera (emissão → chamada) ÷ senhas chamadas',numBR((R.med||0)*R.na/60,0)+' min ÷ '+R.na,R.med!=null?numBR(R.med/60)+' min':null,"+FS+",'Senhas não chamadas (desistências) ficam fora.')};
     h+='<div class="kpis" style="margin:4px 0 16px">'+
-      (k13Of()?kpi('KPI-13 · espera média',fmtMS(R.med),'meta ≤ 15 min · '+numBR(R.med/60)+' min','hero'):kpi('Espera média · '+esc(selNome()),fmtMS(R.med),numBR(R.med/60)+' min · só as filas desta serventia · o KPI-13 usa todas as filas','hero'))+
-      kpi('Mediana',fmtMS(R.mediana),'metade espera menos que isso')+
-      kpi('90% esperam até',fmtMS(R.p90),'percentil 90')+
-      kpi('Acima de 10 min',pctK(R.na?R.a10/R.na*100:null),R.a10+' senhas · gatilho do PCA',R.a10?'canc':'')+
-      kpi('Acima de 15 min',pctK(R.na?R.a15/R.na*100:null),R.a15+' senhas · além da meta',R.a15?'canc':'')+
-      kpi('Espera máxima',fmtMS(R.mx),'pior caso do período')+
-      kpi('Desistências',pctK(R.n?R.des/R.n*100:null),R.des+' senhas finalizadas sem chamada')+'</div>';
+      (k13Of()?kpi('KPI-13 · espera média',fmtMS(R.med),'meta ≤ 15 min · '+numBR(R.med/60)+' min','hero',oMed):kpi('Espera média · '+esc(selNome()),fmtMS(R.med),numBR(R.med/60)+' min · só as filas desta serventia · o KPI-13 usa todas as filas','hero',oMed))+
+      kpi('Mediana',fmtMS(R.mediana),'metade espera menos que isso','',{go:oMed.go, f:kConta('espera do meio quando as '+R.na+' senhas chamadas são postas em ordem',null,null,"+FS+")})+
+      kpi('90% esperam até',fmtMS(R.p90),'percentil 90','',{go:oMed.go, f:kConta('espera em que 90% das '+R.na+' senhas chamadas já foram chamadas',null,null,"+FS+")})+
+      kpi('Acima de 10 min',pctK(R.na?R.a10/R.na*100:null),R.a10+' senhas · gatilho do PCA',R.a10?'canc':'',{go:goLista('Senhas com espera de 10 min ou mais','senhas',AT.filter(function(s){ return s.e>=600; })), f:kConta('senhas chamadas com espera ≥ 10 min ÷ senhas chamadas',R.a10+' ÷ '+R.na,R.na?pctK(R.a10/R.na*100):null,"+FS+")})+
+      kpi('Acima de 15 min',pctK(R.na?R.a15/R.na*100:null),R.a15+' senhas · além da meta',R.a15?'canc':'',{go:goLista('Senhas com espera acima de 15 min','senhas',AT.filter(function(s){ return s.e>900; })), f:kConta('senhas chamadas com espera > 15 min ÷ senhas chamadas',R.a15+' ÷ '+R.na,R.na?pctK(R.a15/R.na*100):null,"+FS+")})+
+      kpi('Espera máxima',fmtMS(R.mx),'pior caso do período','',{go:goLista('Senha com a maior espera','senhas',AT.filter(function(s){ return s.e===R.mx; }))})+
+      kpi('Desistências',pctK(R.n?R.des/R.n*100:null),R.des+' senhas finalizadas sem chamada','',{go:goLista('Desistências · senhas sem chamada','senhas',L.filter(function(s){ return s.c==null; })), f:kConta('senhas finalizadas sem chamada ÷ senhas emitidas',R.des+' ÷ '+R.n,R.n?pctK(R.des/R.n*100):null,"+FS+")})+'</div>';
     // mês a mês
     if (ms.length>1 && per==='todos'){
       h+='<div class="sub-h">Mês a mês</div><div class="tbl-wrap"><table><thead><tr><th>Mês</th><th class="n">Senhas</th><th class="n">'+(k13Of()?'KPI-13 (média)':'Espera média')+'</th><th class="n">Mediana</th><th class="n">P90</th><th class="n">≥ 10 min</th><th class="n">Máxima</th><th class="n">Desistências</th><th class="n">Dias com gatilho</th></tr></thead><tbody>'+

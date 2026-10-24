@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/tri7.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/tri7.js']='0.23.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/tri7.js']='0.24.0';
   function ehCanc(st){ return st==='CD'||st==='CP'||st==='CC'; } // 0.10.5: a partir desta competência, reingresso só com retorno comprovado (Re-análise depois de Nota de Exigência)
   function exAjuste(a, ix){
     if (a.nexV===undefined){ a.nexV=a.nex||0; a.npgV=a.npg||0; a.nriV=a.nri||0; a.catV=a.cat; a.motivoV=a.motivo; }
@@ -147,14 +147,15 @@
     cer.forEach(function(c){ var k=porNome[semAc(c.u)]; if (!k){ k='nome:'+c.u; P[k]=P[k]||{u:k,nome:c.u,PN:0,PA:0,RA:0,RE:0,REx:0,NE:0,CI:0,AP:0,SG:0,RC:0,CE:0,tEx:[],tRv:[]}; } P[k].CE=(P[k].CE||0)+1; });
     var tot={PN:0,PA:0,RA:0,REx:0,NE:0,CI:0,AP:0,SG:0}; Object.keys(P).forEach(function(k){ Object.keys(tot).forEach(function(s){ tot[s]+=P[k][s]||0; }); });
     // divergências VHL × Tri7 nas exigências dos atos do período
+    var EP=andPeriodo().filter(function(e){ return e.t==='P'; }), evS=function(){ var S=[].slice.call(arguments); return EP.filter(function(e){ return S.indexOf(e.s)>=0; }); }, FA='Relatório de andamentos do Tri7'; pnListasReg();
     var R=todosAtos().filter(function(a){ return a.cat==='R'; }), cob=R.filter(function(a){ return a.exT; }), div=cob.filter(function(a){ return a.exDiv; });
     var h='<p class="hint" style="margin:0 0 10px">O Tri7 completa o VHL: o VHL diz quem analisou, as etapas e os prazos; o Tri7 diz quem deu entrada, quando a exigência foi de fato enviada ao cliente, quando as custas foram informadas e quem gerou os selos. As exigências de todo o painel já usam os dois juntos (veja <b>Como é calculado</b>).</p><div class="kpis">'+
-      kpi('Entradas (prenotações)',String(tot.PN+tot.PA),tot.PA?tot.PA+' automáticas (ONR)':'balcão e e-protocolo')+
-      kpi('Exigências enviadas',String(tot.NE),'notas de exigência')+
-      kpi('Custas informadas',String(tot.CI+tot.AP),'esperas de pagamento')+
-      kpi('Re-análises',String(tot.RA),'título voltou')+
-      kpi('Registros (selos gerados)',String(tot.SG),'protocolos de RI')+
-      kpi('Exigências VHL × Tri7',cob.length?pct((cob.length-div.length)/cob.length*100):'—',cob.length?div.length+' de '+cob.length+' atos registrados com contagem corrigida pelo Tri7':'sem atos cobertos no período')+'</div>';
+      kpi('Entradas (prenotações)',String(tot.PN+tot.PA),tot.PA?tot.PA+' automáticas (ONR)':'balcão e e-protocolo','',{go:goLista('Tri7 · prenotações','pnAnd',evS('PN','PA')), f:kConta('andamentos 0011 Prenotado + 0504 Prenotado automaticamente no período',tot.PN+' + '+tot.PA,String(tot.PN+tot.PA),FA)})+
+      kpi('Exigências enviadas',String(tot.NE),'notas de exigência','',{go:goLista('Tri7 · notas de exigência','pnAnd',evS('NE')), f:kConta('andamentos 0326 Nota de Exigência no período',null,null,FA,'Conta andamentos: a mesma nota reemitida conta de novo aqui (nas Exigências do painel, conta 1 vez).')})+
+      kpi('Custas informadas',String(tot.CI+tot.AP),'esperas de pagamento','',{go:goLista('Tri7 · custas informadas','pnAnd',evS('CI','AP')), f:kConta('andamentos Custas Informadas (SAEC/ONR) no período',tot.CI+' + '+tot.AP,String(tot.CI+tot.AP),FA)})+
+      kpi('Re-análises',String(tot.RA),'título voltou','',{go:goLista('Tri7 · re-análises','pnAnd',evS('RA')), f:kConta('andamentos 0357 Re-análise no período',null,null,FA)})+
+      kpi('Registros (selos gerados)',String(tot.SG),'protocolos de RI','',{go:goLista('Tri7 · selos gerados','pnAnd',evS('SG')), f:kConta('andamentos 0019 Selos Gerados no período',null,null,FA)})+
+      kpi('Contagem igual VHL × Tri7',cob.length?pct((cob.length-div.length)/cob.length*100):'—',cob.length?div.length+' de '+cob.length+' atos registrados com contagem corrigida pelo Tri7':'sem atos cobertos no período','',{go:goLista('Exigências · contagem corrigida pelo Tri7','atos',div), f:kConta('registrados com a mesma contagem de exigências no VHL e no Tri7 ÷ registrados que têm andamento no Tri7',(cob.length-div.length)+' ÷ '+cob.length,cob.length?pct((cob.length-div.length)/cob.length*100):null,'Produção por Etapa do VHL × Relatório de andamentos do Tri7','Não é o mesmo número de Exigências → Cobertos pelo Tri7: lá é quantos registrados têm andamento no Tri7 ('+cob.length+' de '+R.length+'). A lista mostra os '+div.length+' corrigidos.')})+'</div>';
     var ks=Object.keys(P).map(function(k){ var x=P[k]; x.total=x.PN+x.PA+x.RA+x.REx+x.NE+x.CI+x.AP+x.SG+(x.CE||0); return x; }).filter(function(x){ return x.total && x.u!=='TRI7' && !/^tri7$/i.test(x.nome||''); }).sort(function(a,b){ return b.total-a.total; });
     function cel(v,mx){ return '<td class="num">'+(v?'<span class="barra" style="--w:'+Math.round(v/mx*100)+'%">'+v.toLocaleString('pt-BR')+'</span>':'<span class="mut">·</span>')+'</td>'; }
     var cols=[['PN','Entradas','Prenotado + Prenotado automaticamente',function(x){return x.PN+x.PA;}],['RA','Re-análise','Recebeu o título de volta',function(x){return x.RA;}],['REx','Exigência redigida','Revisão de Exigência que virou Nota de Exigência',function(x){return x.REx;}],['NE','Nota emitida','Nota de Exigência: emitida por quem revisou',function(x){return x.NE;}],['CI','Custas informadas','Custas Informadas (SAEC/ONR)',function(x){return x.CI+x.AP;}],['SG','Registro (selos)','Selos Gerados em protocolo de RI',function(x){return x.SG;}],['CE','Certidões','Certidões emitidas (selos)',function(x){return x.CE||0;}]];

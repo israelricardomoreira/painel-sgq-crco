@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/relatorios.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/relatorios.js']='0.23.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/relatorios.js']='0.24.0';
   function nomePeriodo(){ if (state.periodo!=='todos') return nomeMes(state.periodo); var m=Object.keys(state.docs).sort(); return m.length?nomeMes(m[0])+' a '+nomeMes(m[m.length-1]):'todos os meses'; }
   function mesesPeriodo(){ return Object.keys(state.docs).sort().filter(function(m){ return state.periodo==='todos'||state.periodo===m; }); }
   // produção detalhada por pessoa (chave = nome sem acento, para casar VHL e Tri7)
@@ -20,7 +20,7 @@
     if (!state.etBCarr && window.nuvem && dbPronto){ state.etBCarr=true;
       window.nuvem.lerColecao('brutos').then(function(rows){ var E=[], info={};
         rows.forEach(function(x){ if (x.id.indexOf('prazo-')===0) brutoDecod(x.dados).forEach(function(o){ info[String(o['codigo'])]={t:String(o['tipo de documento']||'').trim(), nat:String(o['natureza']||'').trim()}; }); });
-        rows.forEach(function(x){ if (x.id.indexOf('etapa-')!==0) return; brutoDecod(x.dados).forEach(function(o){ var c=String(o['codigo']==null?'':o['codigo']).trim(), d=Motor.paraDia(o['data execucao'],window.XLSX?XLSX.SSF:null), rp=String(o['responsavel']||'').trim(); if (!c||d==null||!rp) return; var i=info[c]||{}; E.push({c:c,d:d,rp:rp,t:i.t||null,nat:i.nat||''}); }); });
+        rows.forEach(function(x){ if (x.id.indexOf('etapa-')!==0) return; brutoDecod(x.dados).forEach(function(o){ var c=String(o['codigo']==null?'':o['codigo']).trim(), d=Motor.paraDia(o['data execucao'],window.XLSX?XLSX.SSF:null), rp=pesNome(String(o['responsavel']||'').trim(),'vhl'); if (!c||d==null||!rp) return; var i=info[c]||{}; E.push({c:c,d:d,rp:rp,t:i.t||null,nat:i.nat||''}); }); });
         state.etB=E; state._pd=null; render(); if (state.aba==='rel') renderRel(); })
       .catch(function(){ state.etBCarr=false; toast('Não consegui ler as execuções para a média diária'); }); }
     return null;
@@ -30,11 +30,11 @@
     if (modo==='ri') return t==='ri'; if (modo==='cert') return t==='certidao - ri'; return docOk({t:x.t, nat:x.nat}); }
   function prodDiaria(){
     var E=etapasBrutas(); if (!E) return null;
-    var chave=[svModo(),svAtual(),subAtual(),E.length,(state.extras||[]).length].join('|'); if (state._pd&&state._pd.k===chave) return state._pd.v;
-    var fer=Motor.feriadoSet(state.extras), P={};
+    var chave=[svModo(),svAtual(),subAtual(),E.length,(state.extras||[]).length,Object.keys(state.senhas).length,Object.keys(state.cert).length,state.andVer||0].join('|'); if (state._pd&&state._pd.k===chave) return state._pd.v;
+    var P={};
     E.forEach(function(x){ if (!execOk(x)) return; var m=Motor.isoDeDia(x.d).slice(0,7), k=semAc(x.rp), p=P[k]=P[k]||{nome:x.rp,m:{}}, q=p.m[m]=p.m[m]||{docs:{},dias:{}};
-      q.docs[x.c]=1; var w=((x.d%7)+7+4)%7; if (w!==0&&w!==6&&!fer[x.d]) q.dias[x.d]=1; });
-    Object.keys(P).forEach(function(k){ Object.keys(P[k].m).forEach(function(m){ var q=P[k].m[m]; q.nd=Object.keys(q.docs).length; q.na=Object.keys(q.dias).length; delete q.docs; delete q.dias; }); });
+      q.docs[x.c]=1; });
+    Object.keys(P).forEach(function(k){ var ck=chavePessoa(P[k].nome); Object.keys(P[k].m).forEach(function(m){ var q=P[k].m[m]; q.nd=Object.keys(q.docs).length; q.na=Math.max(1,diasAtivosN(ck,m)); delete q.docs; delete q.dias; }); }); // 0.24.0: dia ativo = DIA_ATIVO_DEF
     state._pd={k:chave,v:P}; return P;
   }
   function mesesProd(){ var o={}; [state.docs,state.serv].forEach(function(x){ Object.keys(x||{}).forEach(function(m){ if (state.periodo==='todos'||state.periodo===m) o[m]=1; }); }); return Object.keys(o).sort(); }
@@ -56,9 +56,9 @@
     var T={}; if (Object.keys(state.andam).length){ var TP=tri7PorPessoa(); Object.keys(TP).forEach(function(l){ if (!l||l==='TRI7') return; var n=nomeLogin(l), k=semAc(n), x=TP[l]; if (T[k]){ ['PN','PA','RA','REx','NE','CI','AP','SG'].forEach(function(c){ T[k][c]+=x[c]; }); T[k].tEx=T[k].tEx.concat(x.tEx); T[k].tRv=T[k].tRv.concat(x.tRv); } else { T[k]=Object.assign({},x,{nome:n}); } }); }
     var pessoas={}; [P,I,C,S,T].forEach(function(o){ Object.keys(o).forEach(function(k){ if (!pessoas[k]) pessoas[k]=(P[k]||o[k]).nome; }); });
     // médias da equipe: taxa e dias por etapa
-    var tn=0, td=0; Object.keys(P).forEach(function(k){ if (P[k].docs>=MIN_PROD){ td+=P[k].docs; tn+=((I[k]||{}).recs||[]).filter(function(r){ return !!state.docs[r.d.slice(0,7)]; }).length; } });
+    var tn=0, td=0; Object.keys(P).forEach(function(k){ if (P[k].docs>=MIN_PROD){ td+=P[k].docs; tn+=((I[k]||{}).recs||[]).filter(incConta).length; } });
     var eqE={}, eqZ={}; Object.keys(P).forEach(function(k){ Object.keys(P[k].et).forEach(function(e){ eqE[e]=(eqE[e]||0)+P[k].et[e]; eqZ[e]=(eqZ[e]||0)+(P[k].pz[e]||0); }); });
-    var itR=Object.keys(P).filter(function(k){ return P[k].docs>=MIN_PROD; }).map(function(k){ return {key:k, n:P[k].docs, k:((I[k]||{}).recs||[]).filter(function(r){ return !!state.docs[r.d.slice(0,7)]; }).length}; });
+    var itR=Object.keys(P).filter(function(k){ return P[k].docs>=MIN_PROD; }).map(function(k){ return {key:k, n:P[k].docs, k:((I[k]||{}).recs||[]).filter(incConta).length}; });
     funilTaxa(itR); var LT={}; itR.forEach(function(x){ LT[x.key]=x.lt; });
     var eqT={tEx:est([].concat.apply([],Object.keys(T).map(function(k){return T[k].tEx;}))), tRv:est([].concat.apply([],Object.keys(T).map(function(k){return T[k].tRv;})))};
     return {LT:LT,P:P,I:I,C:C,S:S,T:T,eqT:eqT,pessoas:pessoas,meses:meses,taxaEq:td?tn/td*100:null,eqE:eqE,eqZ:eqZ};
@@ -75,7 +75,7 @@
   }
   function corpoPessoa(k, D, paraImprimir){
     var p=D.P[k]||{nome:D.pessoas[k],docs:0,et:{},pz:{},mes:{}}, nome=D.pessoas[k];
-    var inc=((D.I[k]||{}).recs)||[], incProd=inc.filter(function(r){ return !!state.docs[r.d.slice(0,7)]; }), ext=inc.filter(function(r){return grupoDe(r)==='E';}).length;
+    var inc=((D.I[k]||{}).recs)||[], incProd=inc.filter(incConta), ext=inc.filter(function(r){return grupoDe(r)==='E';}).length;
     var taxa=p.docs>=MIN_PROD?incProd.length/p.docs*100:null, cer=((D.C[k]||{}).recs)||[];
     var cerCalc=cer.filter(function(c){return !c.intim;}), cerOk=cerCalc.filter(function(c){return c.ok;}).length;
     var totEt=Object.keys(p.et).reduce(function(s,e){return s+p.et[e];},0);
@@ -84,7 +84,7 @@
     var eqMd=(function(){ var P=prodDiaria(); if (!P) return null; var v=[]; Object.keys(P).forEach(function(j){ if (eqOculto(j)) return; var r=mediaDiaria(j,msP); if (r&&r.Y>=5) v.push(r.W); }); return v.length?mediana(v):null; })();
     h+='<h2>Resumo</h2>'+(md&&md.X?'<div class="dest"><div class="t1"><span>Média por dia com atividade</span><b>'+numBR(md.W,1)+'</b><small>documentos por dia'+(eqMd!=null?' · equipe (mediana) '+numBR(eqMd,1):'')+'</small></div><div><span>Dias com atividade no VHL</span><b>'+md.Y+'</b><small>de '+md.Z+' dias úteis · mede atividade no sistema, não presença</small></div></div>':'')+'<div class="diaria">'+fraseDiaria(md,msP.length)+'</div>'+tilesRel([
       (md&&md.X?['Documentos trabalhados',md.X.toLocaleString('pt-BR'),'no VHL · '+esc(selNome())]:['Documentos trabalhados',p.docs||'—','no VHL']),['Execuções de etapa',totEt||'—',Object.keys(p.et).length+' tipos de etapa'],
-      ['Taxa de inconformidade',taxa==null?'—':pct(taxa),'média da equipe '+pct(D.taxaEq)+(function(){ var lt=taxa!=null?D.LT[k]:null; return lt?' · '+lt.txt+' (esperado ≈ '+Math.round(lt.esp)+', normal até '+lt.hi+')':''; })()],['Inconformidades',inc.length,(inc.length-ext)+' internas · '+ext+' externas']])+
+      ['Taxa de inconformidade',taxa==null?'—':pct(taxa),(taxa==null?'':incProd.length+' internas ÷ '+p.docs+' documentos · ')+'média da equipe '+pct(D.taxaEq)+(function(){ var lt=taxa!=null?D.LT[k]:null; return lt?' · '+lt.txt+' (esperado ≈ '+Math.round(lt.esp)+', normal até '+lt.hi+')':''; })()],['Inconformidades',inc.length,(inc.length-ext)+' internas · '+ext+' externas']])+
       (cer.length?'<div style="height:8px"></div>'+tilesRel([['Certidões emitidas',cer.length,'Tri7'],['No prazo',cerCalc.length?pct(cerOk/cerCalc.length*100):'—',cerCalc.length?cerOk+' de '+cerCalc.length:'fluxo de intimação'],['Mediana',fmtH(mediana(cer.map(function(c){return c.hu;}))),'horas úteis'],['Fora do prazo',cerCalc.length-cerOk,'']]):'')+
       (function(){ var t=D.T&&D.T[k]; if (!t) return ''; var a=[], ex=est(t.tEx), rv=est(t.tRv);
         if (t.PN+t.PA) a.push(['Entradas (prenotou)',t.PN+t.PA,'Tri7']); if (t.RA) a.push(['Re-análises recebidas',t.RA,'título voltou']);
@@ -95,10 +95,10 @@
       (taxa==null&&inc.length?'<p class="nota">Taxa não calculada: menos de '+MIN_PROD+' documentos da pessoa no VHL no período.</p>':'');
     // mês a mês
     if (msP.length>1 || D.meses.length>1){ var PDk=(prodDiaria()||{})[k];
-      h+='<h2>Mês a mês</h2><table><thead><tr><th>Mês</th><th class="n">Documentos</th><th class="n">Dias ativos</th><th class="n">Dias úteis</th><th class="n">Por dia ativo</th><th class="n">Equipe (mediana)</th><th class="n">Inconformidades</th><th class="n">Taxa</th>'+(cer.length?'<th class="n">Certidões</th>':'')+'</tr></thead><tbody>'+
-      msP.map(function(m){ var q=PDk&&PDk.m[m], d=q?q.nd:(p.mes[m]||0), n=inc.filter(function(r){return r.d.slice(0,7)===m;}).length, c=cer.filter(function(x){return x.mes===m;}).length, eq=equipeDiaria(m);
+      h+='<h2>Mês a mês</h2><table><thead><tr><th>Mês</th><th class="n">Documentos</th><th class="n">Dias ativos</th><th class="n">Dias úteis</th><th class="n">Por dia ativo</th><th class="n">Equipe (mediana)</th><th class="n">Internas</th><th class="n">Taxa</th>'+(cer.length?'<th class="n">Certidões</th>':'')+'</tr></thead><tbody>'+
+      msP.map(function(m){ var q=PDk&&PDk.m[m], d=q?q.nd:(p.mes[m]||0), n=inc.filter(function(r){return r.d.slice(0,7)===m&&grupoDe(r)==='I';}).length, c=cer.filter(function(x){return x.mes===m;}).length, eq=equipeDiaria(m);
         return '<tr><td>'+nomeMes(m)+'</td><td class="n">'+(d||'—')+'</td><td class="n">'+(q?q.na:'—')+'</td><td class="n">'+duMes(m)+'</td><td class="n"><b>'+(q&&q.na?numBR(q.nd/q.na,1):'—')+'</b></td><td class="n">'+(eq==null?'—':numBR(eq,1))+'</td><td class="n">'+n+'</td><td class="n">'+(d>=10?pct(n/d*100):'—')+'</td>'+(cer.length?'<td class="n">'+c+'</td>':'')+'</tr>'; }).join('')+'</tbody></table>'+
-      '<p class="nota">Dia ativo = dia útil em que a pessoa teve ao menos uma execução na Produção por Etapa do VHL. Por dia ativo = documentos ÷ dias ativos (quem tirou férias tem a média só dos dias trabalhados). Equipe = mediana das pessoas com 5+ dias ativos no mês.</p>'; }
+      '<p class="nota">Dia ativo = '+DIA_ATIVO_DEF+'. Por dia ativo = documentos ÷ dias ativos (quem tirou férias tem a média só dos dias trabalhados). Equipe = mediana das pessoas com 5+ dias ativos no mês.</p>'; }
     h+=relGraficos(k, D, p, inc);
     h+=aprRelHTML(k); // 0.18.0
     h+=eqRelHTML(k); // 0.15.0: funções, comparação com os colegas, mês a mês, qualidade por função e "só você faz"
@@ -147,14 +147,14 @@
   function corpoGeral(D){
     var k1=kpi1Mes(todosAtos(), incTodos()), recs=[]; Object.keys(D.I).forEach(function(k){ recs=recs.concat(D.I[k].recs); });
     var cr=certCalc(certRecs()).filter(function(c){return !c.intim;}), cok=cr.filter(function(c){return c.ok;}).length;
-    var linhas=Object.keys(D.pessoas).map(function(k){ var p=D.P[k]||{docs:0,et:{}}, inc=((D.I[k]||{}).recs)||[], ip=inc.filter(function(r){ return !!state.docs[r.d.slice(0,7)]; }).length, ext=inc.filter(function(r){return grupoDe(r)==='E';}).length, c=((D.C[k]||{}).recs)||[];
+    var linhas=Object.keys(D.pessoas).map(function(k){ var p=D.P[k]||{docs:0,et:{}}, inc=((D.I[k]||{}).recs)||[], ip=inc.filter(incConta).length, ext=inc.filter(function(r){return grupoDe(r)==='E';}).length, c=((D.C[k]||{}).recs)||[];
       var t=(D.T||{})[k]||{}, md=mediaDiaria(k); return {md:md,lt:D.LT[k],nome:D.pessoas[k],docs:p.docs,ex:Object.keys(p.et).reduce(function(s,e){return s+p.et[e];},0),inc:inc.length,ext:ext,taxa:p.docs>=MIN_PROD?ip/p.docs*100:null,cert:c.length,ent:(t.PN||0)+(t.PA||0),rex:t.REx||0,sg:t.SG||0}; })
       .sort(function(a,b){ return b.docs-a.docs; });
     var h=cabecalhoRel('Relatório geral — qualidade e produção da equipe','Período: '+nomePeriodo()+(atrAtual()==='RI'?' · inconformidades do RI':''));
-    h+='<h2>Indicadores</h2>'+tilesRel([['KPI-01',pct(k1.k),k1.c+' de '+k1.n+' atos RI'],['KPI-01 complementar',pct(k1.ke),'erro externo'],['Taxa da equipe',pct(D.taxaEq),'inconformidades ÷ documentos'],['Certidões no prazo',cr.length?pctK(cok/cr.length*100):'—',cr.length?cok+' de '+cr.length:'']]);
+    h+='<h2>Indicadores</h2>'+tilesRel([['KPI-01',pct(k1.k),k1.c+' de '+k1.n+' atos RI'],['KPI-01 complementar',pct(k1.ke),'erro externo'],['Taxa da equipe',pct(D.taxaEq),'internas ÷ documentos trabalhados'],['Certidões no prazo',cr.length?pctK(cok/cr.length*100):'—',cr.length?cok+' de '+cr.length:'']]);
     h+='<h2>Por pessoa</h2><table><thead><tr><th>Pessoa</th><th class="n">Documentos</th><th class="n">Dias ativos</th><th class="n">Por dia ativo</th><th class="n">Execuções</th><th class="n">Inconf.</th><th class="n">Taxa</th><th>Leitura</th><th class="n">Externas</th><th class="n">Certidões</th><th class="n">Entradas</th><th class="n">Exig. redigidas</th><th class="n">Registros</th></tr></thead><tbody>'+
       linhas.map(function(x){ var lt=x.taxa!=null?x.lt:null; return '<tr><td>'+esc(x.nome)+'</td><td class="n">'+(x.docs||'—')+'</td><td class="n">'+(x.md&&x.md.Y?x.md.Y+' <span style="color:#6f695f">de '+x.md.Z+'</span>':'—')+'</td><td class="n"><b>'+(x.md&&x.md.W!=null?numBR(x.md.W,1):'—')+'</b></td><td class="n">'+(x.ex||'—')+'</td><td class="n">'+x.inc+'</td><td class="n">'+(x.taxa==null?'—':pct(x.taxa))+'</td><td class="'+(lt&&lt.sig==='acima'?'acima':lt&&lt.sig==='abaixo'?'bom':'')+'">'+(lt?lt.txt:'—')+'</td><td class="n">'+(x.ext||'')+'</td><td class="n">'+(x.cert||'')+'</td><td class="n">'+(x.ent||'')+'</td><td class="n">'+(x.rex||'')+'</td><td class="n">'+(x.sg||'')+'</td></tr>'; }).join('')+'</tbody></table>'+
-      '<p class="nota">'+(prodDiaria()?'Dias ativos = dias úteis com ao menos uma execução no VHL (de quantos dias úteis teve o período); por dia ativo = documentos dessa serventia ÷ dias ativos. ':'Média por dia ativo ainda carregando. ')+'Entradas, exigências redigidas (que viraram nota) e registros (selos gerados) vêm do Tri7. Taxa = inconformidades ÷ documentos trabalhados no VHL, só com '+MIN_PROD+'+ documentos no período. Leitura: "acima" ou "abaixo do esperado" só quando a pessoa foge, com 95% de confiança, da faixa normal para o volume dela (já contando a variação natural entre funções).</p>';
+      '<p class="nota">'+(prodDiaria()?'Dias ativos = '+DIA_ATIVO_DEF+' (de quantos dias úteis teve o período); por dia ativo = documentos dessa serventia ÷ dias ativos. ':'Média por dia ativo ainda carregando. ')+'Entradas, exigências redigidas (que viraram nota) e registros (selos gerados) vêm do Tri7. Taxa = inconformidades ÷ documentos trabalhados no VHL, só com '+MIN_PROD+'+ documentos no período. Leitura: "acima" ou "abaixo do esperado" só quando a pessoa foge, com 95% de confiança, da faixa normal para o volume dela (já contando a variação natural entre funções).</p>';
     var ld=linhas.filter(function(x){ return x.md&&x.md.Y>=5; }).sort(function(a,b){ return b.md.W-a.md.W; });
     if (ld.length) h+='<h2>Produção média por dia ativo</h2><div class="rg">'+gBarrasH(ld.map(function(x){ return {nome:x.nome, v:Math.round(x.md.W*10)/10, extra:x.md.X+' documentos em '+x.md.Y+' dias ativos (de '+x.md.Z+' dias úteis)', go:goPessoa(x.nome)}; }))+'</div><p class="nota">Só pessoas com 5 ou mais dias ativos no período.</p>';
     h+='<h2>Erros mais frequentes</h2>'+(recs.length?tabErros(recs):'<p class="nota">Nenhuma inconformidade no período.</p>');

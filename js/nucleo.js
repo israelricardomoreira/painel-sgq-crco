@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/nucleo.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/nucleo.js']='0.23.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/nucleo.js']='0.24.0';
   // ——— tema (automático / claro / escuro) e barra lateral recolhida: preferências deste navegador
   function prefLer(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
   function prefGravar(k,v){ try{ if (v==null) localStorage.removeItem(k); else localStorage.setItem(k,v); }catch(e){} }
@@ -79,7 +79,7 @@
     var mx=Math.max.apply(null,c), im=c.indexOf(mx);
     return c.map(function(x,i){ var lab=i===0?'até '+rot(cortes[0]):i===cortes.length?'acima de '+rot(cortes[i-1]):rot(cortes[i-1])+' a '+rot(cortes[i]);
       return '<div class="etapa-row" data-tip="'+esc('<b>'+lab+'</b><br>'+x+' casos ('+pct(x/n*100)+')')+'"><div class="nm">'+lab+(i===im?' <small>· mais comum</small>':'')+'</div><div class="track"><div class="fill" style="width:'+(x/mx*100).toFixed(1)+'%'+(i===im?'':';opacity:.55')+'"></div></div><div class="vv">'+pct(x/n*100)+'</div></div>'; }).join(''); }
-  function render(){ if (renderPend){ clearTimeout(renderPend); renderPend=null; } aplicarGrupos(); state.sujo={}; render0(); if (state.aba==='des') renderDes(); if (state.aba==='vis') renderVis(); }
+  function render(){ if (renderPend){ clearTimeout(renderPend); renderPend=null; } aplicarGrupos(); state.sujo={}; render0(); if (state.aba==='des') renderDes(); if (state.aba==='vis') renderVis(); if (state.aba==='pes'&&typeof renderPes==='function'&&!FOCO('#tabPes input')) renderPes(); }
   // vários snapshots chegam juntos na carga: junta tudo num desenho só
   function agendarRender(){ if (renderPend) return; renderPend=setTimeout(function(){ renderPend=null; render(); }, 40); }
   function pag(aba, fn){ if (state.aba===aba) fn(); else state.sujo[aba]=fn; }

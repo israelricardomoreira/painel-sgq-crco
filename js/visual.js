@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/visual.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/visual.js']='0.23.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/visual.js']='0.24.0';
   // ═════════ modo visual: o painel em gráficos (segue Serventia e Período do topo) ═════════
   function renderVis(){
     var el=$('tabVis'); if (!el) return; var modo=svModo(), ms=mesesGraficos(), cards=[];
@@ -230,14 +230,14 @@
   }
 
   function nxJuntar(sel, L){
-    var ri=nxRI(), m=nxMetricas(L), e=m.e, nome=sel.length>1?sel.length+' naturezas juntas':sel[0], cards=[];
+    var ri=nxRI(), m=nxMetricas(L), e=m.e, nome=sel.length>1?sel.length+' naturezas juntas':sel[0], cards=[], TL=ri?'atos':'docs';
     var ms=Object.keys(state.docs).concat(Object.keys(state.serv)).filter(function(x,i,a){ return a.indexOf(x)===i; }).sort().slice(-12), porM={}; L.forEach(function(x){ (porM[x.mes]=porM[x.mes]||[]).push(x); });
     var h='<div class="sub-h" style="margin-top:16px">'+esc(nome)+(sel.length>1?' <span class="mut" style="text-transform:none;letter-spacing:0">('+sel.map(esc).join(' + ')+')</span>':'')+'</div><div class="kpis" style="margin-bottom:12px">'+
-      kpi(ri?'Protocolos':'Documentos',m.n.toLocaleString('pt-BR'),ri?m.R+' registrados':'finalizados no período','hero')+
-      kpi(ri?'Mediana bruta':'Mediana',e.n?numBR(e.mediana,1)+' <small style="font-size:14px">d.u.</small>':'—',e.n?'média '+numBR(e.media,1)+(e.moda!=null?' · mais comum '+e.moda+' ('+pct(e.modaPct)+')':'')+' · 90% em até '+numBR(e.p90,1)+(e.n<MIN_N?' · poucos casos':''):'')+
-      (ri?kpi('Mediana líquida',m.eL.n?numBR(m.eL.mediana,1)+' <small style="font-size:14px">d.u.</small>':'—',m.eL.n?'média '+numBR(m.eL.media,1)+' · só o tempo com o cartório (sem suspensões)':''):'')+
-      kpi('No prazo',m.pz[1]?pct(pp(m.pz)):'—',m.pz[1]?m.pz[0]+' de '+m.pz[1]:(ri?'':'sem prazo cadastrado (Configuração)'))+
-      (ri?kpi('Com exigência',pct(pp(m.exig)),m.exig[0]+' de '+m.exig[1]+' registrados')+kpi('Cancelados',pct(pp(m.canc)),m.canc[0]+' de '+m.canc[1])+kpi('Pela central (ONR)',pct(pp(m.cen)),m.cen[0]+' central · '+(m.cen[1]-m.cen[0])+' balcão'):'')+'</div>';
+      kpi(ri?'Protocolos':'Documentos',m.n.toLocaleString('pt-BR'),ri?m.R+' registrados':'finalizados no período','hero',{go:goLista(nome,TL,L)})+
+      kpi(ri?'Mediana bruta':'Mediana',e.n?numBR(e.mediana,1)+' <small style="font-size:14px">d.u.</small>':'—',e.n?'média '+numBR(e.media,1)+(e.moda!=null?' · mais comum '+e.moda+' ('+pct(e.modaPct)+')':'')+' · 90% em até '+numBR(e.p90,1)+(e.n<MIN_N?' · poucos casos':''):'','',{go:goLista(nome,TL,L), f:kConta(ri?'mediana dos dias úteis do ingresso ao registro':'mediana dos dias úteis do ingresso à finalização',e.n+' casos',e.n?numBR(e.mediana,1)+' d.u.':null)})+
+      (ri?kpi('Mediana líquida',m.eL.n?numBR(m.eL.mediana,1)+' <small style="font-size:14px">d.u.</small>':'—',m.eL.n?'média '+numBR(m.eL.media,1)+' · só o tempo com o cartório (sem suspensões)':'','',{go:goLista(nome,TL,L)}):'')+
+      kpi('No prazo',m.pz[1]?pct(pp(m.pz)):'—',m.pz[1]?m.pz[0]+' de '+m.pz[1]:(ri?'':'sem prazo cadastrado (Configuração)'),'',{go:goLista(nome,TL,L), f:m.pz[1]?kConta('no prazo ÷ com prazo',m.pz[0]+' ÷ '+m.pz[1],pct(pp(m.pz))):''})+
+      (ri?kpi('Com exigência',pct(pp(m.exig)),m.exig[0]+' de '+m.exig[1]+' registrados','',{go:goLista(nome+' · com exigência','atos',L.filter(function(a){ return a.cat==='R'&&a.nex>0; })), f:kConta('registrados com exigência ÷ registrados',m.exig[0]+' ÷ '+m.exig[1],pct(pp(m.exig)))})+kpi('Cancelados',pct(pp(m.canc)),m.canc[0]+' de '+m.canc[1],'',{go:goLista(nome+' · cancelados','atos',L.filter(function(a){ return a.cat==='N'; })), f:kConta('cancelados ÷ atos',m.canc[0]+' ÷ '+m.canc[1],pct(pp(m.canc)))})+kpi('Pela central (ONR)',pct(pp(m.cen)),m.cen[0]+' central · '+(m.cen[1]-m.cen[0])+' balcão','',{go:goLista(nome+' · pela central','atos',L.filter(function(a){ return (a.cat==='R'||a.cat==='N')&&origemAto(a)==='central'; })), f:kConta('atos da central ÷ registrados e cancelados',m.cen[0]+' ÷ '+m.cen[1],pct(pp(m.cen)))}):'')+'</div>';
     cards.push(vzCard('Volume por mês','clique no mês para ver só ele',gLinhas(ms,[{nome:'Volume',cor:'var(--c1)',v:ms.map(function(x){ return (porM[x]||[]).length||null; })}],{titulo:'Volume',area:true,zero:true,irMes:'nat'}),'vz-wide'));
     cards.push(vzCard('Mediana de dias úteis por mês',(ri?'bruto = do ingresso ao registro · líquido = só o tempo com o cartório (sem suspensões)':'dias úteis do ingresso ao fim · no RC e no RTD/PJ o VHL não traz as suspensões: só existe o tempo total'),gLinhas(ms,[{nome:ri?'Mediana bruta':'Mediana',cor:'var(--c1)',v:ms.map(function(x){ var v=(porM[x]||[]).map(nxDias).filter(function(y){ return y!=null; }); return v.length?mediana(v):null; })},{nome:'P90',cor:'var(--c2)',tracejado:true,v:ms.map(function(x){ var v=est((porM[x]||[]).map(nxDias).filter(function(y){ return y!=null; })); return v.n?v.p90:null; })}].concat(ri?[{nome:'Mediana líquida',cor:'var(--c3)',v:ms.map(function(x){ var v=(porM[x]||[]).map(nxLiq).filter(function(y){ return y!=null; }); return v.length?mediana(v):null; })}]:[]),{titulo:'Mediana por mês',un:'d.u.',zero:true,irMes:'nat',ref:ri?[{v:20,nome:'20 d.u.'}]:[]}),'vz-wide'));
     var comD=L.filter(function(x){ return nxDias(x)!=null; });

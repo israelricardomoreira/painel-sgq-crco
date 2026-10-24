@@ -1,10 +1,15 @@
 /* Painel SGQ · CRCO — js/graficos.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/graficos.js']='0.23.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/graficos.js']='0.24.0';
   function mesesGraficos(){
     var s={}; [state.docs,state.cert,state.senhas,state.k9,state.inconf,state.serv].forEach(function(o){ Object.keys(o||{}).forEach(function(m){ if (/^\d{4}-\d{2}$/.test(m)) s[m]=1; }); });
     Object.keys(HIST_SEMENTE).forEach(function(m){ s[m]=1; }); Object.keys(state.kp).forEach(function(m){ if (state.kp[m]&&state.kp[m].hist) s[m]=1; });
     return Object.keys(s).sort().slice(-12);
   }
+  // 0.24.0: mês parcial = mês em andamento, ou mês cujos dados terminam antes do último dia útil. Ponto vazado e sem comparação com o mês anterior.
+  function ultDadoMes(m){ var mx=''; var d=state.docs[m]; if (d) d.atos.forEach(function(a){ var f=String(a.fin||'').slice(0,10); if (f.slice(0,7)===m&&f>mx) mx=f; }); return mx; }
+  function ultDiaUtilMes(m){ var fer=Motor.feriadoSet(state.extras), p=m.split('-').map(Number), d=new Date(Date.UTC(p[0],p[1],0)); for (var i=0;i<12;i++){ var iso=d.toISOString().slice(0,10); if (trDiaUtil(iso,fer)) return iso; d=new Date(d.getTime()-864e5); } return m+'-28'; }
+  function mesParcial(m){ if (!m||!/^\d{4}-\d{2}$/.test(m)) return false; if (m>=mesHoje()) return true; var u=ultDadoMes(m); return !!u && u<ultDiaUtilMes(m); }
+  function parcTxt(m){ var u=ultDadoMes(m); return 'mês parcial'+(u?' · dados até '+fmtData(u).slice(0,5):''); }
   function fmtG(v,un){ if (v==null||isNaN(v)) return '—'; return un==='%'?numBR(v,1)+'%':un==='min'?numBR(v,2)+' min':un==='d.u.'?numBR(v,1)+' d.u.':un==='pp'?numBR(v,1)+' p.p.':un==='h'?numBR(v,v>=100?0:1)+' h':numBR(v,v%1?1:0); }
   // gráfico de linha simples (1 série) com linha de meta opcional; dica ao tocar/passar o mouse em cada mês
   function graficoLinha(ms, vals, o){
@@ -18,11 +23,12 @@
     if (o.meta!=null) s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+y(o.meta)+'" y2="'+y(o.meta)+'" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="4 3"/><text x="'+(W-pr)+'" y="'+(y(o.meta)-4)+'" text-anchor="end" font-size="11" style="fill:var(--ink-2)">meta '+fmtG(o.meta,o.un)+'</text>';
     var d='', ult=-1; vals.forEach(function(v,i){ if (v==null||isNaN(v)) return; d+=(d?' L':'M')+x(i).toFixed(1)+','+y(v).toFixed(1); ult=i; });
     s+='<path d="'+d+'" fill="none" stroke="var(--serie)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'; // 0.12.0: um estilo só para todos os gráficos de linha
+    var PC=ms.map(mesParcial);
     vals.forEach(function(v,i){ if (v==null||isNaN(v)) return; var fora=o.meta!=null&&(o.menor?v>o.meta:v<o.meta);
-      s+='<circle cx="'+x(i)+'" cy="'+y(v)+'" r="'+(i===ult?4.5:3.5)+'" fill="'+(fora?'var(--crit)':'var(--serie)')+'" stroke="var(--surface)" stroke-width="2"/>'; });
+      s+=PC[i]?'<circle cx="'+x(i)+'" cy="'+y(v)+'" r="'+(i===ult?4.5:3.5)+'" fill="var(--surface)" stroke="'+(fora?'var(--crit)':'var(--serie)')+'" stroke-width="2"/>':'<circle cx="'+x(i)+'" cy="'+y(v)+'" r="'+(i===ult?4.5:3.5)+'" fill="'+(fora?'var(--crit)':'var(--serie)')+'" stroke="var(--surface)" stroke-width="2"/>'; });
     var passo=n>8?2:1;
     ms.forEach(function(m,i){ var lbl=MES_AB[+m.slice(5)-1]; if ((n-1-i)%passo===0) s+='<text x="'+x(i)+'" y="'+(H-7)+'" text-anchor="middle" font-size="11" style="fill:var(--ink-3)">'+lbl+'</text>';
-      var v=vals[i], w=n<2?W:(W-pl-pr)/(n-1); s+=hitRect(x(i)-w/2,0,w,H,'<b>'+compLabel(m)+'</b><br>'+o.titulo+': '+fmtG(v,o.un)+(o.extra&&o.extra[i]?'<br>'+o.extra[i]:'')+(o.meta!=null&&v!=null?'<br>'+((o.menor?v<=o.meta:v>=o.meta)?'dentro da meta':'fora da meta'):''),o.ir&&v!=null?goMes(m,o.ir):null); });
+      var v=vals[i], w=n<2?W:(W-pl-pr)/(n-1); s+=hitRect(x(i)-w/2,0,w,H,'<b>'+compLabel(m)+'</b><br>'+o.titulo+': '+fmtG(v,o.un)+(o.extra&&o.extra[i]?'<br>'+o.extra[i]:'')+(o.meta!=null&&v!=null?'<br>'+((o.menor?v<=o.meta:v>=o.meta)?'dentro da meta':'fora da meta'):'')+(PC[i]?'<br><i>'+parcTxt(m)+': ainda vai mudar</i>':''),o.ir&&v!=null?goMes(m,o.ir):null); });
     if (ult>=0) s+='<text x="'+Math.min(x(ult),W-pr)+'" y="'+(y(vals[ult])-9)+'" text-anchor="'+(ult===n-1?'end':'middle')+'" font-size="11" font-weight="700" style="fill:var(--ink)">'+fmtG(vals[ult],o.un)+'</text>';
     return s+'</svg>';
   }
@@ -47,10 +53,11 @@
     ];
     el.innerHTML=cards.filter(function(c){ return c.v.some(function(v){return v!=null&&!isNaN(v);}); }).map(function(c){
       var idx=-1; c.v.forEach(function(v,i){ if (v!=null&&!isNaN(v)) idx=i; }); var ant=-1; for (var i=idx-1;i>=0;i--){ if (c.v[i]!=null&&!isNaN(c.v[i])){ ant=i; break; } }
+      var pIdx=mesParcial(ms[idx]); if (pIdx) ant=-1; // 0.24.0: mês parcial não compara com o anterior
       var v=c.v[idx], dl=ant>=0?v-c.v[ant]:null, bom=dl==null||dl===0?null:(c.menor?dl<0:dl>0);
       var fora=c.meta!=null?c.v.filter(function(x){ return x!=null&&(c.menor?x>c.meta:x<c.meta); }).length:0;
       return '<div class="gm-card"><div class="gm-h"><span class="gm-t">'+esc(c.t)+'</span><span class="gm-v">'+fmtG(v,c.un)+'</span></div>'+
-        '<div class="gm-s">'+compLabel(ms[idx]).slice(4)+(dl!=null?' · <span class="'+(bom==null?'':bom?'gm-bom':'gm-mau')+'">'+(dl>0?'▲ ':dl<0?'▼ ':'')+fmtG(Math.abs(dl),c.un==='%'?'pp':c.un)+'</span> vs '+MES_AB[+ms[ant].slice(5)-1]:'')+(c.meta!=null?' · '+(fora?fora+' mês(es) fora da meta':'sempre na meta'):'')+'</div>'+
+        '<div class="gm-s">'+compLabel(ms[idx]).slice(4)+(pIdx?' · <span class="pill mute">'+parcTxt(ms[idx])+'</span>':'')+(dl!=null?' · <span class="'+(bom==null?'':bom?'gm-bom':'gm-mau')+'">'+(dl>0?'▲ ':dl<0?'▼ ':'')+fmtG(Math.abs(dl),c.un==='%'?'pp':c.un)+'</span> vs '+MES_AB[+ms[ant].slice(5)-1]:'')+(c.meta!=null?' · '+(fora?fora+' mês(es) fora da meta':'sempre na meta'):'')+'</div>'+
         graficoLinha(ms,c.v,{titulo:c.t,un:c.un,meta:c.meta,menor:c.menor,zero:c.zero,extra:c.ex,ir:c.ir})+'<button type="button" class="lnk gm-ir" data-ir="'+c.ir+'">Ver detalhes →</button></div>';
     }).join('');
   }
@@ -98,7 +105,7 @@
   // lista de itens abaixo do gráfico clicado
   function sitAto(a){ if (a.cat==='R') return a.dentro?'<span class="pill good">no prazo</span>':justDe(a)?'<span class="pill good">justificado</span>':'<span class="pill crit">acima do prazo</span>';
     if (a.cat==='N') return '<span class="pill mute">'+esc(MOTIVOS[a.motivo]||'cancelado')+'</span>'; return '<span class="pill mute">'+esc(SIT[a.cat]||a.cat)+'</span>'; }
-  function goCodigo(tipo,x){ return tipo==='cods'||tipo==='prots'?x:tipo==='cert'?x.p:tipo==='senhas'?null:x.c; }
+  function goCodigo(tipo,x){ return tipo==='cods'||tipo==='prots'?x:tipo==='pnAnd'?x.n:tipo==='pnTrab'?null:tipo==='cert'?x.p:tipo==='senhas'?null:x.c; }
   function goListaHTML(a){
     var C=LISTA_COLS[a.tipo]||LISTA_COLS.atos, n=a.itens.length, cod=goCodigo(a.tipo,a.itens[0])!=null, f=LISTA_ORD[a.tipo];
     var L=a.itens.slice(); if (f) L.sort(function(x,y){ return f(y)-f(x); }); else if (a.tipo==='inc') L.sort(function(x,y){ return x.d<y.d?1:x.d>y.d?-1:0; });
@@ -140,12 +147,13 @@
     // 0.19.0: marcos (linha vertical num mês: "ação da NC-010") · o.marcos=[{i, txt}]
     (o.marcos||[]).forEach(function(mk,k){ if (mk.i==null||mk.i<0||mk.i>=n) return; var xm=x(mk.i), t=String(mk.txt||''), dir=xm>W*0.6; if (t.length>28) t=t.slice(0,27)+'…';
       s+='<line x1="'+xm.toFixed(1)+'" x2="'+xm.toFixed(1)+'" y1="'+pt+'" y2="'+(H-pb)+'" stroke="var(--warn)" stroke-width="1.5" stroke-dasharray="5 3" pointer-events="none"/><text x="'+(dir?xm-4:xm+4).toFixed(1)+'" y="'+(pt+10+(k%3)*13)+'" font-size="11"'+(dir?' text-anchor="end"':'')+' style="fill:var(--ink-2)" pointer-events="none">▼ '+esc(t)+'</text>'; });
+    var PCL=ms.map(function(m){ return /^\d{4}-\d{2}$/.test(m)&&mesParcial(m); }); // 0.24.0: mês parcial = ponto vazado
     var umaSo=series.length===1; // 0.12.0: série única usa a cor padrão dos gráficos
     series.forEach(function(se,k){ var corS=umaSo&&!se.fixa?'var(--serie)':se.cor; var d='', first=-1, last=-1; se.v.forEach(function(v,i){ if (v==null||isNaN(v)) return; d+=(d?' L':'M')+x(i).toFixed(1)+','+y(v).toFixed(1); if (first<0) first=i; last=i; });
       if (!d) return;
       if (o.area&&k===0) s+='<path d="'+d+' L'+x(last).toFixed(1)+','+y(lo).toFixed(1)+' L'+x(first).toFixed(1)+','+y(lo).toFixed(1)+' Z" style="fill:'+corS+';opacity:.10"/>';
       s+='<path d="'+d+'" fill="none" style="stroke:'+corS+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"'+(se.tracejado?' stroke-dasharray="5 4"':'')+'/>';
-      se.v.forEach(function(v,i){ if (v==null||isNaN(v)) return; var al=se.alerta&&se.alerta[i], vz=se.vazio&&se.vazio[i]; s+=vz?'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(v).toFixed(1)+'" r="4.5" style="fill:var(--surface);stroke:'+corS+'" stroke-width="2"/>':'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(v).toFixed(1)+'" r="'+(al?5:3.5)+'" style="fill:'+(al?'var(--crit)':corS)+'" stroke="var(--surface)" stroke-width="2"/>'; });
+      se.v.forEach(function(v,i){ if (v==null||isNaN(v)) return; var al=se.alerta&&se.alerta[i], vz=(se.vazio&&se.vazio[i])||(o.parcial!==false&&PCL[i]); s+=vz?'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(v).toFixed(1)+'" r="4.5" style="fill:var(--surface);stroke:'+corS+'" stroke-width="2"/>':'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(v).toFixed(1)+'" r="'+(al?5:3.5)+'" style="fill:'+(al?'var(--crit)':corS)+'" stroke="var(--surface)" stroke-width="2"/>'; });
       if (series.length<=4 && last>=0 && o.rotulos!==false) s+='<text x="'+Math.min(x(last)+2,W-pr)+'" y="'+(y(se.v[last])-8).toFixed(1)+'" text-anchor="end" font-size="11" font-weight="700" style="fill:var(--ink)">'+fmtG(se.v[last],un)+'</text>'; });
     var passo=n>8?2:1;
     ms.forEach(function(m,i){ if ((n-1-i)%passo===0) s+='<text x="'+x(i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="11" style="fill:var(--ink-3)">'+MES_AB[+m.slice(5)-1]+'</text>';

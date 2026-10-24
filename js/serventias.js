@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/serventias.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/serventias.js']='0.23.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/serventias.js']='0.24.0';
   function servDocs(tipo){ var out=[]; Object.keys(state.serv).sort().forEach(function(m){ if (state.periodo!=='todos'&&state.periodo!==m) return; state.serv[m].forEach(function(d){ if (!tipo||tipo==='__todas'||d.t===tipo) out.push(d); }); }); return out; }
   function servTipos(){ var c={}; Object.keys(state.serv).forEach(function(m){ state.serv[m].forEach(function(d){ c[d.t]=(c[d.t]||0)+1; }); });
     return Object.keys(c).sort(function(a,b){ var ia=SERV_ORD.indexOf(a), ib=SERV_ORD.indexOf(b); return (ia<0?99:ia)-(ib<0?99:ib) || c[b]-c[a]; }); }
@@ -50,11 +50,11 @@
     var comP=D.filter(function(d){ return servPrazo(d)!=null; }), okN=comP.filter(servOk).length;
     var incC={}; incTodos().filter(incOk).forEach(function(r){ incC[String(r.c).toUpperCase()]=1; }); var comInc=D.filter(function(d){ return incC[String(d.c).toUpperCase()]; }).length;
     var poucos=comP.length>0&&comP.length<cfgS('amostra.min'); // 1.10.4: amostra pequena não vira alarme
-    return kpi('No prazo',comP.length?pct(okN/comP.length*100):'—',comP.length?(poucos?'⚠ amostra pequena · ':'')+okN+' de '+comP.length+' com prazo cadastrado (Configuração)'+(comP.length<D.length?' · '+(D.length-comP.length)+' sem prazo cadastrado':''):'sem prazo cadastrado (<b>Configuração</b>)'+(e.n?' · referência: 90% em até '+f1(e.p90)+' d.u.':''),poucos?'':'hero')+
-      kpi('Finalizados',String(D.length),state.periodo==='todos'?'no período importado':nomeMes(state.periodo))+
-      kpi('Mediana até finalizar',e.n?f1(e.mediana)+' <small style="font-size:14px">d.u.</small>':'—',e.n?'média '+f1(e.media)+(e.moda!=null?' · mais comum '+e.moda:'')+' · 90% em até '+f1(e.p90):'')+
-      kpi('Tempo de atuação',tAt.n?fmtMS(tAt.mediana):'—',tAt.n?'mediana por documento (cronômetro do VHL)':'sem cronômetro registrado')+
-      kpi('Com inconformidade',D.length?pct(comInc/D.length*100):'—',comInc+' de '+D.length+' documentos finalizados');
+    return kpi('No prazo',comP.length?pct(okN/comP.length*100):'—',comP.length?(poucos?'⚠ amostra pequena · ':'')+okN+' de '+comP.length+' com prazo cadastrado (Configuração)'+(comP.length<D.length?' · '+(D.length-comP.length)+' sem prazo cadastrado':''):'sem prazo cadastrado (<b>Configuração</b>)'+(e.n?' · referência: 90% em até '+f1(e.p90)+' d.u.':''),poucos?'':'hero',{go:goLista('No prazo · documentos com prazo cadastrado','docs',comP), f:kConta('documentos finalizados no prazo ÷ documentos com prazo cadastrado',okN+' ÷ '+comP.length,comP.length?pct(okN/comP.length*100):null,'Relatório de documentos da serventia (VHL)'+' + prazos da Configuração','Documentos sem prazo cadastrado ficam fora.')})+
+      kpi('Finalizados',String(D.length),state.periodo==='todos'?'no período importado':nomeMes(state.periodo),'',{go:goLista('Finalizados · '+selNome(),'docs',D)})+
+      kpi('Mediana até finalizar',e.n?f1(e.mediana)+' <small style="font-size:14px">d.u.</small>':'—',e.n?'média '+f1(e.media)+(e.moda!=null?' · mais comum '+e.moda:'')+' · 90% em até '+f1(e.p90):'','',{go:goLista('Documentos finalizados · '+selNome(),'docs',D), f:kConta('mediana dos dias úteis do ingresso à finalização',e.n+' documentos',e.n?f1(e.mediana)+' d.u.':null,'Relatório de documentos da serventia (VHL)')})+
+      kpi('Tempo de atuação',tAt.n?fmtMS(tAt.mediana):'—',tAt.n?'mediana por documento (cronômetro do VHL)':'sem cronômetro registrado','',{go:goLista('Documentos com cronômetro','docs',D.filter(function(d){ return d.tempo>0; })), f:kConta('mediana do tempo cronometrado por documento',tAt.n+' documentos com cronômetro',null,'Relatório de documentos da serventia (VHL)')})+
+      kpi('Com inconformidade',D.length?pct(comInc/D.length*100):'—',comInc+' de '+D.length+' documentos finalizados','',{go:goLista('Documentos com inconformidade','docs',D.filter(function(d){ return incC[String(d.c).toUpperCase()]; })), f:kConta('documentos finalizados com ao menos 1 inconformidade (ligada pelo código) ÷ documentos finalizados',comInc+' ÷ '+D.length,D.length?pct(comInc/D.length*100):null,'PAINEL-04 × '+'Relatório de documentos da serventia (VHL)')});
   }
   function servGraficosHTML(){
     var PM=servPorMesSel(), ks=Object.keys(PM).sort(), i0=-1; ks.forEach(function(m,i){ if (i0<0&&PM[m].length) i0=i; }); if (i0<0) return '<div class="empty">Sem documentos nesta seleção.</div>'; var ms=ks.slice(i0).slice(-12); // 1.10.4: mês sem documento aparece com 0
@@ -95,7 +95,7 @@
   function servFpHTML(D){
     var comP=D.filter(function(d){ return servPrazo(d)!=null; }), fora=comP.filter(function(d){ return !servOk(d); });
     if (!comP.length) return '<div class="empty"><b>Nenhum prazo legal definido para '+esc(selNome())+'</b>Preencha a coluna Prazo (d.u.) na página <b>Por natureza</b>.</div>';
-    return '<div class="kpis" style="margin-bottom:12px">'+kpi('Fora do prazo',String(fora.length),'de '+comP.length+' com prazo definido',fora.length?'canc':'')+kpi('No prazo',pct((comP.length-fora.length)/comP.length*100),'')+'</div>'+
+    return '<div class="kpis" style="margin-bottom:12px">'+kpi('Fora do prazo',String(fora.length),'de '+comP.length+' com prazo definido',fora.length?'canc':'',{go:goLista('Fora do prazo','docs',fora)})+kpi('No prazo',pct((comP.length-fora.length)/comP.length*100),'','',{go:goLista('No prazo','docs',comP.filter(servOk)), f:kConta('no prazo ÷ com prazo definido',(comP.length-fora.length)+' ÷ '+comP.length,pct((comP.length-fora.length)/comP.length*100),'Relatório de documentos da serventia (VHL)')})+'</div>'+
       (fora.length?'<div class="tbl-wrap" style="max-height:520px"><table class="tleft"><thead><tr><th>Código</th><th>Natureza</th><th>Ingresso</th><th>Finalização</th><th>d.u.</th><th>Prazo</th><th></th><th>Atuação</th></tr></thead><tbody>'+servLista(fora)+'</tbody></table></div>':'<div class="empty">Todos dentro do prazo no período.</div>');
   }
 

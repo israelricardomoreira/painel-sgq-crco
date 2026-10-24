@@ -1,10 +1,10 @@
-/* Painel SGQ · CRCO — js/trabalho.js (0.23.0: tempo de trabalho cronometrado no VHL · relatório "Desempenho Usuário")
+/* Painel SGQ · CRCO — js/trabalho.js (0.24.0: tempo de trabalho cronometrado no VHL · relatório "Desempenho Usuário")
  * Cada planilha = 1 pessoa × 1 mês: Tipo de Documento, Etapa, Natureza, Tempo (média por ato, cronômetro do VHL) e Quantidade.
  * A pessoa e o período vêm do nome do arquivo que o VHL gera ("Desempenho Usuário - Nome - AAAA-MM-DD - AAAA-MM-DD-…").
  * Daqui sai: tempo-padrão de cada ato (mediana da equipe), ocupação (horas com trabalho registrado ÷ horas disponíveis),
  * ritmo (tempo dela ÷ tempo-padrão da equipe nas mesmas etapas e naturezas), carga × capacidade dos setores e o trabalho que entrou.
  * As faixas "normais" saem dos próprios dados (quartis da equipe), nada é fixado à mão. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/trabalho.js']='0.23.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/trabalho.js']='0.24.0';
   var TR_CAB=['Tipo de Documento','Etapa','Natureza','Tempo','Quantidade'];
   var TR_MIN_CEL=10;      // atos cronometrados para uma célula (etapa × natureza) ter tempo-padrão
   var TR_COB_OK=0.8;      // parte dos atos da pessoa em etapas que o cronômetro cobre, para entrar na faixa e na leitura
@@ -78,6 +78,19 @@
     var tot=a.reduce(function(s,e){ return s+e.w; },0), alvo=tot*p, acc=0; for (var i=0;i<a.length;i++){ acc+=a[i].w; if (acc>=alvo-1e-9) return a[i].v; } return a[a.length-1].v; }
   function trQ(v, p){ var a=v.filter(function(x){ return x!=null&&!isNaN(x); }).sort(function(x,y){ return x-y; }); if (!a.length) return null; var i=(a.length-1)*p, lo=Math.floor(i); return a[lo]+(a[Math.min(lo+1,a.length-1)]-a[lo])*(i-lo); }
   function trDiaUtil(iso, fer){ var p=String(iso).slice(0,10).split('-').map(Number), t=Date.UTC(p[0],p[1]-1,p[2]), w=new Date(t).getUTCDay(), d=Math.round(t/864e5); return w!==0&&w!==6&&!fer[d]; }
+  // 0.24.0: UMA definição de dia ativo, usada em Tempo de trabalho, Relatórios e Visão geral:
+  // dia útil em que a pessoa teve execução no VHL, andamento ou certidão no Tri7, ou senha atendida no balcão. {chavePessoa: {AAAA-MM: {AAAA-MM-DD:1}}}
+  var DIA_ATIVO_DEF='dia útil com execução no VHL, andamento ou certidão no Tri7, ou senha atendida';
+  function diasAtivos(){ var X=eqExecs(), EB=state.etB||null, fer=Motor.feriadoSet(state.extras);
+    var k0=[X.length, EB?EB.length:-1, Object.keys(state.senhas).length, Object.keys(state.cert).length, state.andVer||0, (state.extras||[]).length, state.pesVer||0].join('|');
+    if (state._da&&state._da.k===k0) return state._da.v;
+    var DA={}; function dia(k,iso){ iso=String(iso||'').slice(0,10); if (!k||iso.length<10||!trDiaUtil(iso,fer)) return; var x=(DA[k]=DA[k]||{}), m=iso.slice(0,7); (x[m]=x[m]||{})[iso]=1; }
+    X.forEach(function(x){ dia(chavePessoa(x.nome), x.d); });
+    if (EB) EB.forEach(function(x){ dia(chavePessoa(x.rp), Motor.isoDeDia(x.d)); });
+    Object.keys(state.senhas).forEach(function(m){ state.senhas[m].L.forEach(function(s){ if (s.at&&s.c!=null&&!/^tri7$/i.test(s.at)) dia(chavePessoa(s.at), s.dia); }); });
+    Object.keys(state.cert).forEach(function(m){ state.cert[m].recs.forEach(function(r){ if (r.u&&!/^tri7$/i.test(r.u)) dia(chavePessoa(r.u), Motor.isoMin(r.f||r.i)); }); });
+    state._da={k:k0,v:DA}; return DA; }
+  function diasAtivosN(k,m){ return Object.keys(((diasAtivos()[k]||{})[m])||{}).length; }
   // tempo de uma certidão do Tri7 que não passa pelo VHL: o da certidão do VHL mais parecida
   var TR_CERT_MAP=[[/inteiro teor/i,/inteiro teor/i],[/[oô]nus/i,/[oô]nus/i],[/negativa/i,/negativa/i],[/descritiva|situa/i,/descritiva/i],[/c[oó]pia/i,/c[oó]pia/i]];
   function trBase(){
@@ -86,7 +99,7 @@
     if (state._trB&&state._trB.k===k0) return state._trB.v;
     var ms=Object.keys(state.trab).sort(), L=[], nomeK={};
     ms.forEach(function(m){ var P=state.trab[m].p; Object.keys(P).forEach(function(n){ var k=chavePessoa(n); nomeK[k]=nomeK[k]||n;
-      var oc=typeof eqOculto==='function'&&eqOculto(semAc(n)); // 0.23.0: oculto em Equipe e funções não entra em faixa, tempo-padrão nem comparação (as horas continuam na carga)
+      var oc=typeof eqOculto==='function'&&eqOculto(semAc(n)); // 0.24.0: oculto em Equipe e funções não entra em faixa, tempo-padrão nem comparação (as horas continuam na carga)
       P[n].L.forEach(function(l){ L.push({k:k, nome:n, m:m, tipo:l.tipo, et:l.et, nat:l.nat, seg:l.seg, q:l.q, fn:eqFnDe(l.et,A), sv:eqSetorDoc(l.tipo), oc:oc}); }); }); });
     // etapas que o cronômetro cobre: metade ou mais dos atos com tempo
     var ET={}; L.forEach(function(l){ var e=ET[l.et]=ET[l.et]||{q:0,qc:0}; e.q+=l.q; if (l.seg>0) e.qc+=l.q; });
@@ -96,9 +109,7 @@
     Object.keys(C).forEach(function(id){ var c=C[id]; c.np=Object.keys(c.ks).length; c.pad=c.q>=TR_MIN_CEL?trWq(c.E,.5):null; c.p25=trWq(c.E,.25); c.p75=trWq(c.E,.75); c.ex={}; });
     function padSem(c,k){ if (c.ex[k]!==undefined) return c.ex[k]; var E=c.E.filter(function(e){ return e.k!==k; }), q=E.reduce(function(s,e){ return s+e.w; },0); return c.ex[k]=(q>=TR_MIN_CEL&&c.np>=2)?trWq(E,.5):null; }
     // dias ativos: dia útil com alguma execução (VHL ou Tri7) ou senha atendida
-    var DA={}; function dia(k,m,iso){ if (!trDiaUtil(iso,fer)) return; var x=(DA[k]=DA[k]||{}); (x[m]=x[m]||{})[String(iso).slice(0,10)]=1; }
-    X.forEach(function(x){ dia(chavePessoa(x.nome), x.m, x.d); });
-    if (EB) EB.forEach(function(x){ var iso=Motor.isoDeDia(x.d); dia(chavePessoa(x.rp), iso.slice(0,7), iso); });
+    var DA=diasAtivos(); function dia(){} // 0.24.0: dias ativos vêm de diasAtivos() (definição única)
     // balcão: tempo de atendimento das senhas (até 1 h cada)
     var BAL={}; Object.keys(state.senhas).forEach(function(m){ state.senhas[m].L.forEach(function(s){ if (!s.at||s.c==null||s.t==null||s.t>3600||/^tri7$/i.test(s.at)) return; var k=chavePessoa(s.at); dia(k,m,s.dia); var b=(BAL[k]=BAL[k]||{}); b[m]=(b[m]||0)+s.t; nomeK[k]=nomeK[k]||s.at; }); });
     // certidões do Tri7 fora do VHL (código que não aparece em execução do VHL): tempo da certidão do VHL mais parecida
@@ -169,9 +180,9 @@
     var pms=Object.keys(B.PM).map(function(id){ return B.PM[id]; }).filter(function(p){ return MS.indexOf(p.m)>=0; });
     h+='<div class="sec-h"><h2>Tempo de trabalho · '+esc(MS.length>1?nomeMes(MS[0])+' a '+nomeMes(MS[MS.length-1]):nomeMes(MS[0]))+'</h2><span class="note">Fonte: VHL · Desempenho Usuário (o cronômetro que a pessoa liga ao começar o documento): tempo médio por ato em cada etapa e natureza. As faixas normais saem dos próprios dados: <b>metade central</b> dos meses da equipe em que o cronômetro cobre a função ('+F.n+' meses-pessoa). Jornada considerada: '+B.jor+' h por dia ativo (expediente da Configuração menos 1 h de almoço).</span></div>';
     h+='<div class="kpis" style="margin-bottom:12px">'+
-      kpi('Horas cronometradas',trFmtH(tot),q.toLocaleString('pt-BR')+' atos · '+trFmtPct(q?qc/q:null)+' com cronômetro')+
-      kpi('Ocupação · mediana da equipe',trFmtPct(F.oc.p50),'horas com trabalho registrado ÷ horas disponíveis · a linha normal é por função (abaixo)')+
-      kpi('Tempo por ato × equipe · linha normal',F.ri.p25==null?'—':trFmtRi(F.ri.p25)+' a '+trFmtRi(F.ri.p75),'1,00 = igual à mediana da equipe nos mesmos atos')+
+      kpi('Horas cronometradas',trFmtH(tot),q.toLocaleString('pt-BR')+' atos · '+trFmtPct(q?qc/q:null)+' com cronômetro','',(pnListasReg(),{go:goLista('Tempo de trabalho · linhas das planilhas','pnTrab',B.L.filter(function(l){ return MS.indexOf(l.m)>=0; }).sort(function(a,b){ return b.seg*b.q-a.seg*a.q; })), f:kConta('soma de (minutos por ato × atos) de cada linha das planilhas',qc.toLocaleString('pt-BR')+' atos com cronômetro',trFmtH(tot),'Desempenho Usuário do VHL (cronômetro)','Uma linha = pessoa × mês × etapa × natureza.')}))+
+      kpi('Ocupação · mediana da equipe',trFmtPct(F.oc.p50),'horas com trabalho registrado ÷ horas disponíveis · a linha normal é por função (abaixo)','',{f:kConta('(horas no cronômetro do VHL + certidões do Tri7 fora do VHL × tempo da certidão parecida + balcão até 1 h por senha) ÷ (dias ativos × '+B.jor+' h)',null,null,'Desempenho Usuário do VHL (cronômetro)'+' + Relatório de andamentos do Tri7 + Consulta de senhas','Dia ativo = dia útil com execução no VHL, no Tri7 ou senha atendida. O cartão mostra a mediana dos meses-pessoa; a conta de cada pessoa está na tabela Por pessoa.')})+
+      kpi('Tempo por ato × equipe · linha normal',F.ri.p25==null?'—':trFmtRi(F.ri.p25)+' a '+trFmtRi(F.ri.p75),'1,00 = igual à mediana da equipe nos mesmos atos','',{f:kConta('tempo por ato da pessoa ÷ mediana dos outros nos mesmos atos (etapa × natureza), ponderado pela quantidade',null,null,'Desempenho Usuário do VHL (cronômetro)','Linha normal = metade central dos meses-pessoa (de '+trFmtRi(F.ri.p25)+' a '+trFmtRi(F.ri.p75)+').')})+
       kpi('Certidões fora do VHL · todos os meses',B.EB?B.certFora.toLocaleString('pt-BR'):'…',B.EB?'entram na balança com o tempo da certidão parecida do VHL'+(B.certGeral!=null?' (média '+numBR(B.certGeral,1)+' min)':'')+' · '+B.certDentro.toLocaleString('pt-BR')+' já contadas no cronômetro':'lendo as execuções do VHL para não contar duas vezes…')+'</div>';
     h+=trFuncoesHTML(B);
     h+=trEtapasHTML(B,MS);
@@ -272,7 +283,7 @@
     var h='<div class="sub-h" style="margin-top:18px">Por pessoa · '+esc(MS.length>1?nomeMes(MS[0])+' a '+nomeMes(MS[MS.length-1]):nomeMes(MS[0]))+' <span class="pill mute">só administração</span></div>';
     h+='<p class="hint" style="margin-top:0">Ocupação = (horas cronometradas no VHL + certidões do Tri7 fora do VHL + atendimento no balcão) ÷ (dias ativos × '+B.jor+' h). Dia ativo = dia útil com alguma execução no VHL ou no Tri7, ou senha atendida; assim férias e afastamento não derrubam a ocupação. Tempo por ato × equipe compara cada ato com a mediana <b>das outras pessoas</b> na mesma etapa e natureza. Só entram meses com '+TR_DIAS_OK+'+ dias ativos e com o cronômetro cobrindo '+Math.round(TR_COB_OK*100)+'%+ dos atos.</p>';
     if (at.length) h+='<div class="banner warn">3 meses seguidos com ocupação abaixo do décimo mais baixo de quem tem a mesma função, com o cronômetro cobrindo a função: <b>'+at.map(esc).join('</b>, <b>')+'</b>. Antes de concluir, confira função, tarefas fora do VHL e afastamentos.</div>';
-    // 0.23.0: gráfico na frente (ocupação de cada pessoa sobre a faixa da função dela); a tabela fica atrás
+    // 0.24.0: gráfico na frente (ocupação de cada pessoa sobre a faixa da função dela); a tabela fica atrás
     h+='<div class="vz-grid">'+vzCard('Ocupação de cada pessoa','barra = ocupação no período · faixa cinza = linha normal de quem tem a mesma função principal · cor = leitura · clique para ver mês a mês',trOcBarras(L.filter(function(x){ return x.oc!=null; })),'vz-wide')+'</div>';
     h+='<details class="met-sec" style="margin:0 0 10px"><summary>Ver a tabela</summary><div class="tbl-wrap"><table class="tleft"><thead><tr><th>Pessoa</th><th>Função principal</th><th class="num" title="Linha normal da ocupação de quem tem a mesma função principal">Linha normal da função</th><th class="num">Atos</th><th class="num" title="Parte dos atos em etapas que o cronômetro cobre">Cobertura</th><th class="num">Dias ativos</th><th class="num" title="Horas com trabalho registrado (VHL + certidões fora do VHL + balcão)">Horas</th><th class="num">Ocupação</th><th class="num" title="Tempo dela ÷ mediana das outras pessoas, mesmos atos. 1,00 = igual">Tempo por ato × equipe</th><th>Leitura</th></tr></thead><tbody>'+
       L.map(function(x){ var fo=x.fo, ocC=x.oc==null||!fo?'':x.lei.cod==='baixo2'?'acima':/^baixo/.test(x.lei.cod)?'warn-t':'', riC=x.ritmo==null?'':x.ritmo>F.ri.p75?'acima':x.ritmo<F.ri.p25?'bom':'';

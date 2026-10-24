@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/desempenho.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/desempenho.js']='0.23.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/desempenho.js']='0.24.0';
   // ═════════ desempenho: linha normal de cada pessoa, comparação com a equipe e tendência macro ═════════
   function mesDeDia(d){ return new Date(d*864e5).toISOString().slice(0,7); }
   // cada execução de etapa (VHL · Produção por Etapa): pessoa, etapa, natureza, mês da execução e dias úteis que o documento ficou na etapa
@@ -54,10 +54,10 @@
       p.lVol=lam==null||lam<MIN_N?{txt:'—',cls:'mut'}:((vAg-lam)/Math.sqrt(lam)<=-2&&vAg<lam*0.7)?{txt:'abaixo do normal',cls:'acima'}:((vAg-lam)/Math.sqrt(lam)>=2&&vAg>lam*1.3)?{txt:'acima do normal',cls:'bom'}:{txt:'normal',cls:''};
       return p; }).filter(function(p){ return p.agAll>0; }).sort(function(a,b){ return b.agAll-a.agAll; });
   }
-  // 0.23.0: duas visões — tempo de trabalho (cronômetro do VHL) e dias na etapa (linha normal por execução)
+  // 0.24.0: duas visões — tempo de trabalho (cronômetro do VHL) e dias na etapa (linha normal por execução)
   function renderDes(){
     var el=$('tabDes'); if (!el) return;
-    var vis=desAbaAtual(), seg=''; if (vis==='vg'&&!podeEscrever) vis='trab'; // 0.23.0: as abas ficam na barra do topo da página
+    var vis=desAbaAtual(), seg=''; if (vis==='vg'&&!podeEscrever) vis='trab'; // 0.24.0: as abas ficam na barra do topo da página
     if (typeof desAbasRender==='function') desAbasRender();
     if (vis==='vg'){ el.innerHTML=''; vgRender(el); return; }
     if (vis==='trab'){ el.innerHTML=''; trRender(el); return; }
@@ -73,10 +73,10 @@
     var alertas=P.filter(function(p){ return p.lRi.cls==='acima'||p.lVol.cls==='acima'; });
     h+='<div class="sub-h" style="margin-top:18px">Por pessoa · '+esc(nomeMes(J.agora))+'</div>';
     if (alertas.length) h+='<div class="banner warn" style="margin:0 0 10px">'+alertas.map(function(p){ return '<b>'+esc(p.nome)+'</b>: '+[p.lRi.cls==='acima'?'tempo por execução acima da linha normal dela ('+fDif(p.ritmo&&p.ritmo.dif)+')':'',p.lVol.cls==='acima'?'volume abaixo do normal ('+numBR(p.volAg,1)+' por dia '+(p.porDiaAtivo?'ativo':'útil')+', normal '+numBR(p.volAn,1)+')':''].filter(Boolean).join(' e '); }).join(' · ')+'. Antes de concluir, confira férias, afastamento ou mudança de função.</div>';
-    h+='<div class="tbl-wrap"><table class="tleft"><thead><tr><th>Pessoa</th><th class="num">Execuções</th>'+(prodDiaria()?'<th class="num" title="Dias úteis com ao menos 1 execução no VHL, de quantos dias úteis teve o mês">Dias ativos</th><th class="num" title="Documentos trabalhados ÷ dias ativos">Docs por dia ativo</th>':'<th class="num" title="'+(svModo()==='ri'?'Documentos trabalhados no VHL':'Execuções')+' por dia útil do mês">Por dia útil</th>')+'<th>Volume × normal dela</th><th class="num" title="Média de (tempo dela − tempo da equipe na mesma etapa e natureza)">× equipe</th><th>Leitura</th><th class="num" title="Desvio médio nos meses anteriores">Linha normal</th><th>Ritmo</th></tr></thead><tbody>'+
+    h+='<div class="tbl-wrap"><table class="tleft"><thead><tr><th>Pessoa</th><th class="num">Execuções</th>'+(prodDiaria()?'<th class="num" title="Dia ativo = '+esc(DIA_ATIVO_DEF)+' · de quantos dias úteis teve o mês">Dias ativos</th><th class="num" title="Documentos trabalhados ÷ dias ativos">Docs por dia ativo</th>':'<th class="num" title="'+(svModo()==='ri'?'Documentos trabalhados no VHL':'Execuções')+' por dia útil do mês">Por dia útil</th>')+'<th>Volume × normal dela</th><th class="num" title="Média de (tempo dela − tempo da equipe na mesma etapa e natureza)">× equipe</th><th>Leitura</th><th class="num" title="Desvio médio nos meses anteriores">Linha normal</th><th>Ritmo</th></tr></thead><tbody>'+
       P.map(function(p){ var nl=p.an.length?media(p.an):null, ag=p.ag.length?media(p.ag):null;
         return '<tr class="click'+(state.desSel===p.k?' sel':'')+'" data-dessel="'+esc(p.k)+'"><td>'+esc(p.nome)+'</td><td class="num">'+p.agAll+'</td>'+(p.porDiaAtivo?'<td class="num">'+p.dAg+' <span class="mut">de '+p.duAg+'</span></td><td class="num" title="'+esc(p.vAg+' documentos em '+p.dAg+' dias ativos')+'"><b>'+numBR(p.volAg,1)+'</b></td>':'<td class="num">'+numBR(p.volAg,1)+'</td>')+'<td class="'+p.lVol.cls+'">'+p.lVol.txt+(p.volAn!=null?' <span class="mut">('+numBR(p.volAn,1)+')</span>':'')+'</td><td class="num">'+fDif(ag)+'</td><td class="'+p.lEq.cls+'">'+p.lEq.txt+'</td><td class="num">'+fDif(nl)+'</td><td class="'+p.lRi.cls+'">'+p.lRi.txt+'</td></tr>'; }).join('')+'</tbody></table></div>'+
-      '<p class="hint">Desvio = dias úteis da pessoa na etapa − média da equipe na mesma etapa e natureza. Negativo é mais rápido. '+(prodDiaria()?'Dia ativo = dia útil com ao menos 1 execução no VHL; "Volume × normal dela" compara os documentos por dia ativo do mês com a média dela por dia ativo nos meses anteriores, então férias não viram queda de volume. ':'(Carregando as execuções para a média por dia ativo…) ')+'Clique numa pessoa para ver a carta de controle dela.</p>';
+      '<p class="hint">Desvio = dias úteis da pessoa na etapa − média da equipe na mesma etapa e natureza. Negativo é mais rápido. '+(prodDiaria()?'Dia ativo = '+DIA_ATIVO_DEF+'; "Volume × normal dela" compara os documentos por dia ativo do mês com a média dela por dia ativo nos meses anteriores, então férias não viram queda de volume. ':'(Carregando as execuções para a média por dia ativo…) ')+'Clique numa pessoa para ver a carta de controle dela.</p>';
     var sel=P.filter(function(p){ return p.k===state.desSel; })[0]; if (sel) h+=desPessoaHTML(sel,X,J);
     el.innerHTML=seg+h;
   }

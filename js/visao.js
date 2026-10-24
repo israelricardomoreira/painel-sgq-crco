@@ -1,11 +1,11 @@
-/* Painel SGQ · CRCO — js/visao.js (0.23.0: Desempenho › Visão geral — quanto cada pessoa entrega, comparado com quem faz o mesmo serviço)
+/* Painel SGQ · CRCO — js/visao.js (0.24.0: Desempenho › Visão geral — quanto cada pessoa entrega, comparado com quem faz o mesmo serviço)
  * Nota = (horas-padrão entregues − horas de retrabalho) ÷ horas disponíveis.
  *   Horas-padrão: cada ato vale o tempo-padrão da equipe para aquela etapa e natureza (mediana do cronômetro, sem as pessoas ocultas);
  *   a contagem de atos vem do relatório Desempenho Usuário (não depende de a pessoa ligar o cronômetro). Certidões do Tri7 fora do VHL e
  *   balcão (senhas) entram em horas. Retrabalho: cada inconformidade interna e cada exigência avaliada como não conforme desconta o
  *   tempo-padrão de refazer (Re-Análise da natureza). Nenhum peso é escolhido: o "peso" de cada linha é o tempo que a própria equipe leva.
  * Gráficos na frente; o clique numa pessoa abre a conta, linha por linha. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/visao.js']='0.23.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/visao.js']='0.24.0';
   var VG_PAD_OK=0.8;   // parte dos atos com tempo-padrão para a pessoa entrar na comparação
   var VG_MIN_H=80;     // horas disponíveis mínimas no período para sair de "pouco dado"
   function vgWmean(E){ var s=0, w=0; E.forEach(function(e){ s+=e.v*e.w; w+=e.w; }); return w?s/w:null; }
@@ -57,7 +57,7 @@
       p.fn=Object.keys(fnH).sort(function(a,b){ return fnH[b]-fnH[a]; })[0]||null;
       p.oculto=p.L.some(function(x){ return x.oculto; }); p.cob=p.L.reduce(function(s,x){ return s+x.qPad; },0)/Math.max(1,p.L.reduce(function(s,x){ return s+x.q; },0));
       p.v={}; VG_VAR.forEach(function(vr){ p.v[vr.id]=vgNota(vr.ult3?p.L.filter(function(x){ return u3.indexOf(x.m)>=0; }):p.L, vr); });
-      p.R=p.v.base; p.inc=0; p.docs=0; p.L.forEach(function(x){ p.inc+=x.inc; p.docs+=x.ndocs; }); p.taxa=p.docs>=30?p.inc/p.docs:null;
+      p.R=p.v.base; p.inc=0; p.docs=0; p.L.forEach(function(x){ p.inc+=x.inc; p.docs+=x.ndocs; }); p.taxa=p.docs>=MIN_PROD?p.inc/p.docs:null; // 0.24.0: mesma definição de TAXA_DEF
       p.da=p.L.reduce(function(s,x){ return s+x.da; },0); p.du=p.L.reduce(function(s,x){ return s+x.du; },0); p.dev=V.DEV[k]||{fns:[],aptos:[]};
       p.apr=[].concat.apply([],p.L.map(function(x){ return x.p.apr||[]; })).filter(function(v,i,a){ return a.indexOf(v)===i; });
       return p; });
@@ -98,7 +98,7 @@
     var sel=state.vgSel&&R.L.filter(function(p){ return p.k===state.vgSel; })[0];
     if (sel) h+=vgContaHTML(V,R,sel,MS);
     h+=vgTabelaHTML(R,g,fsel);
-    h+=vgDimHTML(V,B);
+    // 0.24.0: dimensionamento saiu do ar (comparava o trabalho do VHL com o dia inteiro da pessoa). Volta na 0.27 com fila × capacidade por etapa.
     el.innerHTML+=h.replace(/<div class="tbl-wrap"/g,'<div class="tbl-wrap" tabindex="0" role="region" aria-label="Tabela (role para ver tudo)"');
   }
   // barras empilhadas por pessoa, com a faixa da função ao fundo
