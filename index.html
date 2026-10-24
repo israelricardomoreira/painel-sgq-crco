@@ -6,7 +6,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex, nofollow">
-<meta name="painel-versao" content="0.23.0">
+<meta name="painel-versao" content="0.24.0">
 <title>Painel SGQ · CRCO</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23c94f0a'/%3E%3Ctext x='16' y='21' font-family='Arial' font-size='12' font-weight='700' fill='white' text-anchor='middle'%3ESGQ%3C/text%3E%3C/svg%3E">
 <style>
@@ -145,6 +145,12 @@ input[type=date]{background:var(--surface);border:1px solid var(--line);border-r
 .kpi .l{font-size:12px;color:var(--ink-3);font-weight:700}
 .kpi .v{font-size:28px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
 .kpi .s{font-size:12px;color:var(--ink-3)}
+.kpi{position:relative}.kpi.click,.apo.click{cursor:pointer}.kpi.click:hover,.apo.click:hover{border-color:var(--brand)}
+.kpi.tem-f .l,.kpi.tem-f .ofk-h{padding-right:26px}.apo{position:relative}.apo.tem-f .dt{padding-right:26px}
+.kpi-a{all:unset;box-sizing:border-box;cursor:pointer;display:block;max-width:100%}.kpi-a:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}.kpi-a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px}
+.spark-p{font-size:11px;color:var(--ink-3);margin-top:2px}
+.kpi-q{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink-3);font:700 12px/1 inherit;cursor:pointer;padding:0}.kpi-q:hover,.kpi-q.on{border-color:var(--brand);color:var(--brand)}
+.kpi-f{margin-top:8px;padding:8px 10px;border-radius:8px;background:var(--brand-soft);font-size:12px;line-height:1.45;color:var(--ink);cursor:default;text-align:left}.kpi-f b{font-weight:700}
 .kpi.hero{border-color:var(--brand);box-shadow:inset 3px 0 0 var(--brand)}
 .kpi.hero .v{color:var(--ink)}
 .dot{display:inline-block;width:9px;height:9px;border-radius:4px;margin-right:5px;vertical-align:baseline}
@@ -362,7 +368,7 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
 .selo.neutro{border-color:var(--line);color:var(--ink-3);padding:3px 9px}
 #kpis .apoio{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
 #kpis .apoio>div{padding:10px 14px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);margin:0 -1px -1px 0}
-#kpis .apoio dt{font-size:12px;color:var(--ink-3)}#kpis .apoio dd{margin:2px 0 0;font-size:20px;font-weight:650}#kpis .apoio dd small{font-size:12px;font-weight:500;color:var(--ink-3);margin-left:3px}
+#kpis .apoio .dt{font-size:12px;color:var(--ink-3)}#kpis .apoio .dd{display:block;margin:2px 0 0;font-size:20px;font-weight:650}#kpis .apoio .dd small{font-size:12px;font-weight:500;color:var(--ink-3);margin-left:3px}
 #kpis .apoio p{margin:2px 0 0;font-size:12px;color:var(--ink-3);line-height:1.35}
 @media (max-width:900px){#kpis .of{grid-template-columns:1fr}#kpis .apoio{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .btn{white-space:nowrap}.brand h1{white-space:nowrap}.top .brand{flex:none}
@@ -488,6 +494,7 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
   <button class="tab" type="button" data-tab="met" aria-selected="false">Como é calculado</button>
   <div class="menu-grp" id="grpDados">Dados</div>
   <button class="tab" type="button" data-tab="sau" id="tabSauBtn" aria-selected="false">Saúde dos dados</button>
+  <button class="tab" type="button" data-tab="pes" id="tabPesBtn" aria-selected="false">Nomes das pessoas</button>
   <button class="tab" type="button" data-tab="cfg" id="tabCfgBtn" aria-selected="false">Configuração</button>
   <button class="tab" type="button" data-tab="imp" id="tabImp" aria-selected="false">Importar dados</button>
 </nav>
@@ -597,6 +604,7 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
     <div id="tabMet" hidden></div>
     <div id="tabDes" hidden></div>
     <div id="tabSau" hidden></div>
+    <div id="tabPes" hidden></div>
     <div id="tabEqp" hidden></div>
     <div id="tabApr" hidden></div>
     <div id="tabPn" hidden></div>
@@ -624,33 +632,34 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
-<script src="config.js?v=0.23.0"></script>
-<script src="nuvem.js?v=0.23.0"></script>
-<script src="motor.js?v=0.23.0"></script>
-<script src="js/nucleo.js?v=0.23.0"></script>
-<script src="js/prazos.js?v=0.23.0"></script>
-<script src="js/inconformidades.js?v=0.23.0"></script>
-<script src="js/relatorios.js?v=0.23.0"></script>
-<script src="js/kpis.js?v=0.23.0"></script>
-<script src="js/atendimento.js?v=0.23.0"></script>
-<script src="js/ficha.js?v=0.23.0"></script>
-<script src="js/configuracao.js?v=0.23.0"></script>
-<script src="js/tri7.js?v=0.23.0"></script>
-<script src="js/serventias.js?v=0.23.0"></script>
-<script src="js/dados.js?v=0.23.0"></script>
-<script src="js/graficos.js?v=0.23.0"></script>
-<script src="js/desempenho.js?v=0.23.0"></script>
-<script src="js/trabalho.js?v=0.23.0"></script>
-<script src="js/visao.js?v=0.23.0"></script>
-<script src="js/visual.js?v=0.23.0"></script>
-<script src="js/certidoes.js?v=0.23.0"></script>
-<script src="js/importar.js?v=0.23.0"></script>
-<script src="js/saude.js?v=0.23.0"></script>
-<script src="js/equipe.js?v=0.23.0"></script>
-<script src="js/catalogo.js?v=0.23.0"></script>
-<script src="js/aprendizagem.js?v=0.23.0"></script>
-<script src="js/construtor.js?v=0.23.0"></script>
-<script src="js/navegacao.js?v=0.23.0"></script>
-<script src="js/inicio.js?v=0.23.0"></script>
+<script src="config.js?v=0.24.0"></script>
+<script src="nuvem.js?v=0.24.0"></script>
+<script src="motor.js?v=0.24.0"></script>
+<script src="js/nucleo.js?v=0.24.0"></script>
+<script src="js/prazos.js?v=0.24.0"></script>
+<script src="js/inconformidades.js?v=0.24.0"></script>
+<script src="js/relatorios.js?v=0.24.0"></script>
+<script src="js/kpis.js?v=0.24.0"></script>
+<script src="js/atendimento.js?v=0.24.0"></script>
+<script src="js/ficha.js?v=0.24.0"></script>
+<script src="js/configuracao.js?v=0.24.0"></script>
+<script src="js/tri7.js?v=0.24.0"></script>
+<script src="js/serventias.js?v=0.24.0"></script>
+<script src="js/dados.js?v=0.24.0"></script>
+<script src="js/graficos.js?v=0.24.0"></script>
+<script src="js/desempenho.js?v=0.24.0"></script>
+<script src="js/trabalho.js?v=0.24.0"></script>
+<script src="js/visao.js?v=0.24.0"></script>
+<script src="js/pessoas.js?v=0.24.0"></script>
+<script src="js/visual.js?v=0.24.0"></script>
+<script src="js/certidoes.js?v=0.24.0"></script>
+<script src="js/importar.js?v=0.24.0"></script>
+<script src="js/saude.js?v=0.24.0"></script>
+<script src="js/equipe.js?v=0.24.0"></script>
+<script src="js/catalogo.js?v=0.24.0"></script>
+<script src="js/aprendizagem.js?v=0.24.0"></script>
+<script src="js/construtor.js?v=0.24.0"></script>
+<script src="js/navegacao.js?v=0.24.0"></script>
+<script src="js/inicio.js?v=0.24.0"></script>
 </body>
 </html>
