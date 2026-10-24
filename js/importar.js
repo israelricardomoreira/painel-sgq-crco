@@ -1,15 +1,15 @@
 /* Painel SGQ · CRCO — js/importar.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/importar.js']='0.24.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/importar.js']='0.25.0';
   function salvarCfg(){ if (dbPronto&&podeEscrever) db.doc('config/geral').set({feriadosExtras:state.extras, expIni:state.cfg.expIni, expFim:state.cfg.expFim, intim:null}).catch(function(){ toast('Não consegui salvar a configuração'); }); }
 
   function avDoc(a,res,ob){ return res?{codigo:a.c,mes:a.mes,natureza:a.natOrig||a.nat,exigencias:a.nex,resultado:res,obs:ob,em:new Date().toISOString()}:null; }
-  function gravarLote(itens){ // itens: [{a, dados}] — grava tudo de uma vez e redesenha uma vez só
-    var feitos=[];
-    itens.forEach(function(it){ var id=idDoc(it.a.c); if (it.dados==null) delete state.aval[id]; else state.aval[id]=it.dados; delete state.avDraft[it.a.c]; feitos.push(it); });
+  function gravarLote(itens, desfazendo){ // itens: [{a, dados}] — grava tudo de uma vez e redesenha uma vez só
+    var feitos=[], antes=[];
+    itens.forEach(function(it){ var id=idDoc(it.a.c); antes.push({a:it.a, dados:state.aval[id]?JSON.parse(JSON.stringify(state.aval[id])):null}); if (it.dados==null) delete state.aval[id]; else state.aval[id]=it.dados; delete state.avDraft[it.a.c]; feitos.push(it); });
     render();
     if (!dbPronto){ toast('Registrado no painel (não salvo): '+feitos.length); return; }
     Promise.all(feitos.map(function(it){ var ref=db.doc('avaliacoes/'+idDoc(it.a.c)); return it.dados==null?ref.delete():ref.set(it.dados); }))
-      .then(function(){ toast(feitos.length+(feitos.length>1?' avaliações salvas':' avaliação salva')); })
+      .then(function(){ if (desfazendo) return toast('Desfeito'); toastDesfazer(feitos.length+(feitos.length>1?' avaliações salvas':' avaliação salva'),function(){ gravarLote(antes,true); }); })
       .catch(function(e){ toast(e&&e.code==='invalid_argument'?'Sem permissão para salvar':'Algumas não foram salvas, tente de novo'); });
   }
   // quem redigiu as exigências do título (Revisão de Exigência que virou Nota de Exigência no Tri7)
@@ -25,16 +25,17 @@
     state.relSel=k; irAba('rel'); toast('Linha incluída em "Pontos de atenção". Revise e clique em Salvar devolutiva');
   }
   function avd2(a){ var d=state.avDraft[a.c]; if (d) return {resultado:d.res,obs:d.obs}; return state.aval[idDoc(a.c)]||{}; }
-  function gravar(col, a, dados){
-    var id=idDoc(a.c), alvo=col==='justificativas'?state.just:state.aval;
+  function gravar(col, a, dados, desfazendo){
+    var id=idDoc(a.c), alvo=col==='justificativas'?state.just:state.aval, antes=alvo[id]?JSON.parse(JSON.stringify(alvo[id])):null;
     if (dados==null){ delete alvo[id]; } else { alvo[id]=dados; }
     render();
     if (!dbPronto){ toast('Registrado no painel (não salvo)'); return; }
     var ref=db.doc(col+'/'+id);
-    (dados==null?ref.delete():ref.set(dados)).then(function(){ toast(dados==null?'Reaberto':'Salvo'); })
+    (dados==null?ref.delete():ref.set(dados)).then(function(){ var msg=desfazendo?'Desfeito':(dados==null?'Reaberto':'Justificado')+' · '+a.c; if (desfazendo) toast(msg); else toastDesfazer(msg,function(){ gravar(col,a,antes,true); }); })
       .catch(function(e){ toast(e&&e.code==='invalid_argument'?'Sem permissão para salvar':'Não consegui salvar, tente de novo'); });
   }
-  function atoPorCod(c){ var A=todosAtos(); for (var i=0;i<A.length;i++) if (A[i].c===c) return A[i]; return null; }
+  function atoPorCod(c){ var A=todosAtos(); for (var i=0;i<A.length;i++) if (A[i].c===c) return A[i];
+    var ms=Object.keys(state.docs); for (var j=0;j<ms.length;j++){ var L=state.docs[ms[j]].atos; for (var k=0;k<L.length;k++) if (L[k].c===c) return L[k]; } return null; } // 0.25.0: Minhas pendências trabalha com todos os meses
 
   function renderMetodo(){
     var meses=Object.keys(state.docs).sort().reverse();

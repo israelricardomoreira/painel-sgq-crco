@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/tri7.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/tri7.js']='0.24.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/tri7.js']='0.25.0';
   function ehCanc(st){ return st==='CD'||st==='CP'||st==='CC'; } // 0.10.5: a partir desta competência, reingresso só com retorno comprovado (Re-análise depois de Nota de Exigência)
   function exAjuste(a, ix){
     if (a.nexV===undefined){ a.nexV=a.nex||0; a.npgV=a.npg||0; a.nriV=a.nri||0; a.catV=a.cat; a.motivoV=a.motivo; }
@@ -157,11 +157,17 @@
       kpi('Registros (selos gerados)',String(tot.SG),'protocolos de RI','',{go:goLista('Tri7 · selos gerados','pnAnd',evS('SG')), f:kConta('andamentos 0019 Selos Gerados no período',null,null,FA)})+
       kpi('Contagem igual VHL × Tri7',cob.length?pct((cob.length-div.length)/cob.length*100):'—',cob.length?div.length+' de '+cob.length+' atos registrados com contagem corrigida pelo Tri7':'sem atos cobertos no período','',{go:goLista('Exigências · contagem corrigida pelo Tri7','atos',div), f:kConta('registrados com a mesma contagem de exigências no VHL e no Tri7 ÷ registrados que têm andamento no Tri7',(cob.length-div.length)+' ÷ '+cob.length,cob.length?pct((cob.length-div.length)/cob.length*100):null,'Produção por Etapa do VHL × Relatório de andamentos do Tri7','Não é o mesmo número de Exigências → Cobertos pelo Tri7: lá é quantos registrados têm andamento no Tri7 ('+cob.length+' de '+R.length+'). A lista mostra os '+div.length+' corrigidos.')})+'</div>';
     var ks=Object.keys(P).map(function(k){ var x=P[k]; x.total=x.PN+x.PA+x.RA+x.REx+x.NE+x.CI+x.AP+x.SG+(x.CE||0); return x; }).filter(function(x){ return x.total && x.u!=='TRI7' && !/^tri7$/i.test(x.nome||''); }).sort(function(a,b){ return b.total-a.total; });
-    function cel(v,mx){ return '<td class="num">'+(v?'<span class="barra" style="--w:'+Math.round(v/mx*100)+'%">'+v.toLocaleString('pt-BR')+'</span>':'<span class="mut">·</span>')+'</td>'; }
+    function cel(v,mx,go){ return '<td class="num'+(v&&go?' click':'')+'"'+(v?goAttr(go):'')+'>'+(v?'<span class="barra" style="--w:'+Math.round(v/mx*100)+'%">'+v.toLocaleString('pt-BR')+'</span>':'<span class="mut">·</span>')+'</td>'; }
+    // 0.25.0: cada célula abre os andamentos (ou certidões) que formam o número
+    function celGo(x,k){ var nm=x.nome||nomeLogin(x.u), S={PN:['PN','PA'],RA:['RA'],NE:['NE'],CI:['CI','AP'],SG:['SG']}[k], L;
+      if (k==='CE') return goLista('Certidões · '+nm,'cert',cer.filter(function(c){ return semAc(c.u)===semAc(nm); }));
+      if (k==='REx') L=EP.filter(function(e){ if (e.u!==x.u||e.s!=='RE') return false; var LL=ix[e.n]||[]; return reVirouNota(LL,LL.indexOf(e)); });
+      else L=EP.filter(function(e){ return e.u===x.u&&S.indexOf(e.s)>=0; });
+      return goLista(k+' · '+nm,'pnAnd',L); }
     var cols=[['PN','Entradas','Prenotado + Prenotado automaticamente',function(x){return x.PN+x.PA;}],['RA','Re-análise','Recebeu o título de volta',function(x){return x.RA;}],['REx','Exigência redigida','Revisão de Exigência que virou Nota de Exigência',function(x){return x.REx;}],['NE','Nota emitida','Nota de Exigência: emitida por quem revisou',function(x){return x.NE;}],['CI','Custas informadas','Custas Informadas (SAEC/ONR)',function(x){return x.CI+x.AP;}],['SG','Registro (selos)','Selos Gerados em protocolo de RI',function(x){return x.SG;}],['CE','Certidões','Certidões emitidas (selos)',function(x){return x.CE||0;}]];
     var mx={}; cols.forEach(function(c){ mx[c[0]]=Math.max(1,Math.max.apply(null,ks.map(c[3]))); });
     h+='<div class="sub-h" style="margin-top:16px">Produção por pessoa · '+(state.periodo==='todos'?'todo o período':nomeMes(state.periodo))+'</div><div class="tbl-wrap"><table><thead><tr><th class="tleft">Pessoa</th>'+cols.map(function(c){ return '<th title="'+esc(c[2])+'">'+c[1]+'</th>'; }).join('')+'</tr></thead><tbody>'+
-      ks.map(function(x){ return '<tr><td class="tleft">'+esc(x.nome||nomeLogin(x.u))+'</td>'+cols.map(function(c){ return cel(c[3](x),mx[c[0]]); }).join('')+'</tr>'; }).join('')+'</tbody></table></div>';
+      ks.map(function(x){ return '<tr><td class="tleft">'+esc(x.nome||nomeLogin(x.u))+'</td>'+cols.map(function(c){ return cel(c[3](x),mx[c[0]],c[3](x)?celGo(x,c[0]):null); }).join('')+'</tr>'; }).join('')+'</tbody></table></div>';
     var fx=function(x,k){ var e=est(x[k]); return e.n>=MIN_N?'<td class="num">'+e.n+'</td><td class="num">'+fmtH(e.mediana)+'</td><td class="num">'+fmtH(e.p90)+'</td>':'<td class="num">'+(e.n||'·')+'</td><td class="num mut" colspan="2">'+(e.n?'poucos casos':'')+'</td>'; };
     var ae=ks.filter(function(x){return x.tEx.length;}), ar=ks.filter(function(x){return x.tRv.length;});
     if (ae.length||ar.length){

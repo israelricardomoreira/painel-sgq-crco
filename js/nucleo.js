@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/nucleo.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/nucleo.js']='0.24.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/nucleo.js']='0.25.0';
   // ——— tema (automático / claro / escuro) e barra lateral recolhida: preferências deste navegador
   function prefLer(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
   function prefGravar(k,v){ try{ if (v==null) localStorage.removeItem(k); else localStorage.setItem(k,v); }catch(e){} }
@@ -15,6 +15,8 @@
   function media(arr){ var a=arr.filter(function(x){return x!=null;}); if(!a.length) return null; return a.reduce(function(s,x){return s+x;},0)/a.length; }
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
   function toast(t){ var d=document.createElement('div'); d.className='toast'; d.textContent=t; document.body.appendChild(d); setTimeout(function(){ d.remove(); },2600); }
+  // 0.25.0: aviso com Desfazer por 10 segundos
+  function toastDesfazer(t, fn){ var v=document.querySelector('.toast.desf'); if (v) v.remove(); var d=document.createElement('div'); d.className='toast desf'; d.setAttribute('role','status'); d.textContent=t; var b=document.createElement('button'); b.type='button'; b.className='lnk'; b.textContent='Desfazer'; b.addEventListener('click',function(){ d.remove(); fn(); }); d.appendChild(b); document.body.appendChild(d); setTimeout(function(){ d.remove(); },10000); }
   function pctK(x){ if(x==null||isNaN(x)) return '—'; var t=Math.floor(x*100+1e-9)/100; return t.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%'; }
   function pillKpi(v){ if(v==null) return '<span class="pill mute">—</span>'; var c=v>=100?'good':v>=95?'warn':'crit'; return '<span class="pill '+c+'">'+pctK(v)+'</span>'; }
 
@@ -79,7 +81,7 @@
     var mx=Math.max.apply(null,c), im=c.indexOf(mx);
     return c.map(function(x,i){ var lab=i===0?'até '+rot(cortes[0]):i===cortes.length?'acima de '+rot(cortes[i-1]):rot(cortes[i-1])+' a '+rot(cortes[i]);
       return '<div class="etapa-row" data-tip="'+esc('<b>'+lab+'</b><br>'+x+' casos ('+pct(x/n*100)+')')+'"><div class="nm">'+lab+(i===im?' <small>· mais comum</small>':'')+'</div><div class="track"><div class="fill" style="width:'+(x/mx*100).toFixed(1)+'%'+(i===im?'':';opacity:.55')+'"></div></div><div class="vv">'+pct(x/n*100)+'</div></div>'; }).join(''); }
-  function render(){ if (renderPend){ clearTimeout(renderPend); renderPend=null; } aplicarGrupos(); state.sujo={}; render0(); if (state.aba==='des') renderDes(); if (state.aba==='vis') renderVis(); if (state.aba==='pes'&&typeof renderPes==='function'&&!FOCO('#tabPes input')) renderPes(); }
+  function render(){ if (renderPend){ clearTimeout(renderPend); renderPend=null; } aplicarGrupos(); state.sujo={}; render0(); if (state.aba==='des') renderDes(); if (state.aba==='geral') renderVis(); if (state.aba==='pend'&&typeof renderPendencias==='function') renderPendencias(); if (typeof pendBadge==='function') pendBadge(); if (state.aba==='pes'&&typeof renderPes==='function'&&!FOCO('#tabPes input')) renderPes(); }
   // vários snapshots chegam juntos na carga: junta tudo num desenho só
   function agendarRender(){ if (renderPend) return; renderPend=setTimeout(function(){ renderPend=null; render(); }, 40); }
   function pag(aba, fn){ if (state.aba===aba) fn(); else state.sujo[aba]=fn; }
@@ -88,7 +90,7 @@
     renderAtrSelect(); renderSelect(); var atos=todosAtos();
     if (atrAtual()!=='RI'){ if (SO_RI.indexOf(state.aba)>=0 || (svModo()==='todas'&&SO_SERV.indexOf(state.aba)>=0)) irAba('geral'); renderAtr(); pag('k1',function(){ renderK1([]); }); pag('at',renderAtend); pag('rel',function(){ if (!FOCO('#tabRel textarea')) renderRel(); }); pag('lanc',function(){ if (!FOCO('#tabLanc input[type=text],#tabLanc textarea')) renderLanc(); }); pag('met',renderMetodo); pag('sau',renderSau); pag('eqp',renderEqp); pag('apr',renderApr); pag('pn',function(){ state._pnC=null; if (!state.pnEd) renderPn(); }); return; }
     var vazio=!atos.length && !Object.keys(state.inconf).length && !Object.keys(state.cert).length && !Object.keys(state.senhas).length;
-    $('secTendencia').hidden = Object.keys(state.docs).length<2;
+    $('secTendencia').hidden = Object.keys(state.docs).length<2 || state.periodo!=='todos'; // 0.25.0: com um mês escolhido, o dia a dia substitui a comparação por mês
     if (vazio){
       $('kpis').innerHTML='<div class="panel empty" style="grid-column:1/-1"><b>Nenhum mês carregado ainda</b>Abra <b>Importar dados</b> no menu e solte as planilhas do VHL. Os resultados ficam salvos aqui e cada mês novo vai se somando.</div>';
       ['tabNat','tabK1','tabCer','tabEta','tabNao','tabFp','tabEx','tabRel'].forEach(function(id){ $(id).innerHTML='<div class="empty">Sem dados para o período.</div>'; });

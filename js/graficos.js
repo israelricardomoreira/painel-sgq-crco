@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/graficos.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/graficos.js']='0.24.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/graficos.js']='0.25.0';
   function mesesGraficos(){
     var s={}; [state.docs,state.cert,state.senhas,state.k9,state.inconf,state.serv].forEach(function(o){ Object.keys(o||{}).forEach(function(m){ if (/^\d{4}-\d{2}$/.test(m)) s[m]=1; }); });
     Object.keys(HIST_SEMENTE).forEach(function(m){ s[m]=1; }); Object.keys(state.kp).forEach(function(m){ if (state.kp[m]&&state.kp[m].hist) s[m]=1; });
@@ -23,18 +23,60 @@
     if (o.meta!=null) s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+y(o.meta)+'" y2="'+y(o.meta)+'" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="4 3"/><text x="'+(W-pr)+'" y="'+(y(o.meta)-4)+'" text-anchor="end" font-size="11" style="fill:var(--ink-2)">meta '+fmtG(o.meta,o.un)+'</text>';
     var d='', ult=-1; vals.forEach(function(v,i){ if (v==null||isNaN(v)) return; d+=(d?' L':'M')+x(i).toFixed(1)+','+y(v).toFixed(1); ult=i; });
     s+='<path d="'+d+'" fill="none" stroke="var(--serie)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'; // 0.12.0: um estilo só para todos os gráficos de linha
-    var PC=ms.map(mesParcial);
+    var PC=o.vazio||ms.map(mesParcial);
     vals.forEach(function(v,i){ if (v==null||isNaN(v)) return; var fora=o.meta!=null&&(o.menor?v>o.meta:v<o.meta);
       s+=PC[i]?'<circle cx="'+x(i)+'" cy="'+y(v)+'" r="'+(i===ult?4.5:3.5)+'" fill="var(--surface)" stroke="'+(fora?'var(--crit)':'var(--serie)')+'" stroke-width="2"/>':'<circle cx="'+x(i)+'" cy="'+y(v)+'" r="'+(i===ult?4.5:3.5)+'" fill="'+(fora?'var(--crit)':'var(--serie)')+'" stroke="var(--surface)" stroke-width="2"/>'; });
-    var passo=n>8?2:1;
-    ms.forEach(function(m,i){ var lbl=MES_AB[+m.slice(5)-1]; if ((n-1-i)%passo===0) s+='<text x="'+x(i)+'" y="'+(H-7)+'" text-anchor="middle" font-size="11" style="fill:var(--ink-3)">'+lbl+'</text>';
-      var v=vals[i], w=n<2?W:(W-pl-pr)/(n-1); s+=hitRect(x(i)-w/2,0,w,H,'<b>'+compLabel(m)+'</b><br>'+o.titulo+': '+fmtG(v,o.un)+(o.extra&&o.extra[i]?'<br>'+o.extra[i]:'')+(o.meta!=null&&v!=null?'<br>'+((o.menor?v<=o.meta:v>=o.meta)?'dentro da meta':'fora da meta'):'')+(PC[i]?'<br><i>'+parcTxt(m)+': ainda vai mudar</i>':''),o.ir&&v!=null?goMes(m,o.ir):null); });
+    var passo=o.passo||(n>8?2:1);
+    ms.forEach(function(m,i){ var lbl=o.lbl?o.lbl(m,i):MES_AB[+m.slice(5)-1]; if ((n-1-i)%passo===0) s+='<text x="'+x(i)+'" y="'+(H-7)+'" text-anchor="middle" font-size="11" style="fill:var(--ink-3)">'+lbl+'</text>';
+      var v=vals[i], w=n<2?W:(W-pl-pr)/(n-1); s+=hitRect(x(i)-w/2,0,w,H,'<b>'+(o.tit?o.tit(m,i):compLabel(m))+'</b><br>'+o.titulo+': '+fmtG(v,o.un)+(o.extra&&o.extra[i]?'<br>'+o.extra[i]:'')+(o.meta!=null&&v!=null?'<br>'+((o.menor?v<=o.meta:v>=o.meta)?'dentro da meta':'fora da meta'):'')+(PC[i]?'<br><i>'+(o.vazio?(o.vzTxt||'poucos casos'):parcTxt(m)+': ainda vai mudar')+'</i>':''),o.go?o.go(i):(o.ir&&v!=null?goMes(m,o.ir):null)); });
     if (ult>=0) s+='<text x="'+Math.min(x(ult),W-pr)+'" y="'+(y(vals[ult])-9)+'" text-anchor="'+(ult===n-1?'end':'middle')+'" font-size="11" font-weight="700" style="fill:var(--ink)">'+fmtG(vals[ult],o.un)+'</text>';
     return s+'</svg>';
   }
+  // 0.25.0: comparação do Painel geral com um mês escolhido — um ponto por dia útil; dia com poucos casos = ponto vazado; clique no dia lista os registros
+  var GM_MIN_DIA=5, DSEM_C=['dom','seg','ter','qua','qui','sex','sáb'];
+  function renderGraficosDia(m){
+    var el=$('graficos'), gt=$('gmTit'), gn=$('gmNota'), fer=Motor.feriadoSet(state.extras);
+    if (gt) gt.textContent='Dia a dia · '+nomeMes(m);
+    if (gn) gn.textContent='Um ponto por dia útil · ponto vazado = menos de '+GM_MIN_DIA+' casos no dia (não leia como tendência) · clique no dia para ver os registros · KPI-09 e KPI-03 são mensais: veja em "Todos os meses"';
+    var atos=atosDoMes(m), Rall=atos.filter(function(a){ return a.cat==='R'; }), Rlim=resumo(atos).R.filter(function(a){ return a.bruto!=null; });
+    var nc={}; incTodos().forEach(function(r){ if (r.t==='RI') nc[r.c]=1; });
+    var X=cancSoTri7Mes(m), C=state.cert[m]?certCalc(state.cert[m].recs).filter(function(x){ return !x.intim; }):[], S=state.senhas[m]?state.senhas[m].L.filter(function(x){ return x.c!=null&&x.e!=null; }):[];
+    var dFin=function(a){ return String(a.fin||'').slice(0,10); }, dCert=function(c){ return c.f!=null?Motor.isoMin(c.f).slice(0,10):''; }, dSen=function(x){ return String(x.dia||'').slice(0,10); };
+    var share=function(f){ return function(L){ return L.length?L.filter(f).length/L.length*100:null; }; };
+    var cards=[
+      {t:'KPI-02 · finalizados no prazo', un:'%', it:Rall, dia:dFin, tipo:'atos', ir:'fp', val:share(ok), ex:function(L){ return L.filter(ok).length+' de '+L.length+' registrados'; }},
+      {t:'KPI-02 comp. · cancelamento', un:'%', menor:true, it:atos.concat(X), dia:dFin, tipo:'atos', ir:'nao', val:share(function(a){ return a.cat==='N'; }), ex:function(L){ return L.filter(function(a){ return a.cat==='N'; }).length+' de '+L.length+' protocolos'; }},
+      {t:'KPI-01 · inconformidades', un:'%', menor:true, meta:metaDe('KPI-01',16.5), it:Rall, dia:dFin, tipo:'atos', ir:'k1', val:share(function(a){ return nc[a.c]; }), ex:function(L){ return L.filter(function(a){ return nc[a.c]; }).length+' de '+L.length+' registrados com inconformidade'; }},
+      {t:'Mediana bruta até o registro', un:'d.u.', menor:true, meta:20, zero:true, it:Rlim, dia:dFin, tipo:'atos', ir:'nat', val:function(L){ return L.length?mediana(L.map(function(a){ return a.bruto; })):null; }, ex:function(L){ return L.length+' registrados'; }},
+      {t:'Aprovados na 1ª qualificação', un:'%', it:Rall, dia:dFin, tipo:'atos', ir:'ex', val:share(function(a){ return !a.nex; }), ex:function(L){ return L.filter(function(a){ return !a.nex; }).length+' de '+L.length+' sem exigência'; }},
+      {t:'Certidões no prazo', un:'%', it:C, dia:dCert, tipo:'cert', ir:'cer', val:share(function(x){ return x.ok; }), ex:function(L){ return L.filter(function(x){ return x.ok; }).length+' de '+L.length+' concluídas'; }},
+      {t:'KPI-13 · espera média', un:'min', menor:true, meta:metaDe('KPI-13',15), zero:true, it:S, dia:dSen, tipo:'senhas', ir:'at', val:function(L){ return L.length?L.reduce(function(s,x){ return s+x.e; },0)/L.length/60:null; }, ex:function(L){ return L.length+' senhas chamadas'; }},
+      {t:'Senhas com espera ≥ 10 min', un:'%', menor:true, zero:true, it:S, dia:dSen, tipo:'senhas', ir:'at', val:share(function(x){ return x.e>=600; }), ex:function(L){ return L.filter(function(x){ return x.e>=600; }).length+' de '+L.length+' senhas'; }},
+      {t:'Volume RI (atos finalizados)', un:'', zero:true, semMin:true, it:atos, dia:dFin, tipo:'atos', ir:'nat', val:function(L){ return L.length; }, ex:function(){ return ''; }}
+    ];
+    // dias do eixo: dias úteis do mês + qualquer dia com registro
+    var dset={}, p=m.split('-').map(Number), nd=new Date(Date.UTC(p[0],p[1],0)).getUTCDate();
+    for (var d=1; d<=nd; d++){ var iso=m+'-'+(d<10?'0':'')+d; if (trDiaUtil(iso,fer)) dset[iso]=1; }
+    cards.forEach(function(c){ c.G={}; c.it.forEach(function(x){ var k=c.dia(x); if (k.slice(0,7)!==m) return; (c.G[k]=c.G[k]||[]).push(x); dset[k]=1; }); });
+    var dias=Object.keys(dset).sort(), parc=mesParcial(m);
+    el.innerHTML=cards.filter(function(c){ return c.it.length; }).map(function(c){
+      var vals=dias.map(function(k){ var L=c.G[k]||[]; return L.length?c.val(L):null; }), vz=dias.map(function(k){ var n=(c.G[k]||[]).length; return !c.semMin&&n>0&&n<GM_MIN_DIA; });
+      var tot=c.val(c.it.filter(function(x){ return c.dia(x).slice(0,7)===m; })), fora=c.meta!=null?vals.filter(function(v,i){ return v!=null&&!vz[i]&&(c.menor?v>c.meta:v<c.meta); }).length:0;
+      return '<div class="gm-card"><div class="gm-h"><span class="gm-t">'+esc(c.t)+'</span><span class="gm-v">'+fmtG(tot,c.un)+'</span></div>'+
+        '<div class="gm-s">'+esc(nomeMes(m))+' · total do mês'+(parc?' · <span class="pill mute">'+parcTxt(m)+'</span>':'')+(c.meta!=null?' · '+(fora?fora+' dia(s) fora da meta':'nenhum dia fora da meta'):'')+'</div>'+
+        graficoLinha(dias,vals,{titulo:c.t,un:c.un,meta:c.meta,menor:c.menor,zero:c.zero,vazio:vz,vzTxt:'poucos casos no dia: não é tendência',passo:Math.ceil(dias.length/8),
+          lbl:function(k){ return String(+k.slice(8)); }, tit:function(k){ var w=new Date(k+'T12:00:00Z').getUTCDay(); return DSEM_C[w]+' '+fmtData(k).slice(0,5); },
+          extra:dias.map(function(k){ var L=c.G[k]||[]; return L.length?c.ex(L):'sem registros'; }),
+          go:function(i){ return goLista(c.t+' · '+fmtData(dias[i]),c.tipo,c.G[dias[i]]||[]); }})+
+        '<button type="button" class="lnk gm-ir" data-ir="'+c.ir+'">Ver detalhes →</button></div>';
+    }).join('')||'<div class="empty">Sem registros em '+esc(nomeMes(m))+'.</div>';
+  }
   function serieKPI(id, ms){ return ms.map(function(m){ var o=kpiValor(id,m); return o?(o.r!=null?o.r:o.n):null; }); }
   function renderGraficos(){
-    var el=$('graficos'); if (!el) return; if (atrAtual()!=='RI'){ if (svModo()==='todas') renderComparativo(); else el.innerHTML=servGraficosHTML(); return; } aplicarTri7(); var ms=mesesGraficos();
+    var el=$('graficos'); if (!el) return; var gt=$('gmTit'), gn=$('gmNota'); if (gt) gt.textContent='Comparação mês a mês'; if (gn) gn.textContent='Últimos 12 meses · linha tracejada = meta · ponto vermelho = fora da meta · toque ou passe o mouse para ver o valor';
+    if (atrAtual()!=='RI'){ if (svModo()==='todas') renderComparativo(); else el.innerHTML=servGraficosHTML(); return; } aplicarTri7();
+    if (state.periodo&&state.periodo!=='todos') return renderGraficosDia(state.periodo); // 0.25.0: um mês escolhido = um ponto por dia útil
+    var ms=mesesGraficos();
     if (!ms.length){ el.innerHTML='<div class="empty">Importe planilhas para ver a comparação mês a mês.</div>'; return; }
     function rs(m){ return state.docs[m]?resumo(atosDoMes(m)):null; }
     var cards=[

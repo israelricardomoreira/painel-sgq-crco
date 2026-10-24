@@ -4,7 +4,7 @@
  * inconformidades (responsável) e folha. O painel inteiro passa a mostrar só o nome de exibição; os nomes de origem
  * ficam na trilha (dica do nome e nesta página). Guardado em config/pessoas = {p:{id:{nome, v:[nomes de origem], sit, ate, ign}}, em, por}.
  * A troca dos nomes acontece quando os dados são lidos (decodificação), por isso salvar o cadastro recarrega a página. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/pessoas.js']='0.24.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/pessoas.js']='0.25.0';
   var PES={p:{}, map:{}, carregado:false}, PES_VISTOS={};
   var PES_FONTES={vhl:'VHL', tri7:'Tri7', senhas:'Senhas', inc:'Inconformidades', trab:'Desempenho Usuário', folha:'Folha'};
   function pesNorm(s){ return semAc(s).replace(/\s+/g,' ').trim(); }

@@ -1,7 +1,7 @@
 /* Painel SGQ · CRCO — js/equipe.js (0.15.0: página "Equipe e funções" e o que ela leva para o relatório por pessoa)
  * Quem faz o quê (VHL · Produção por Etapa + Tri7 · andamentos e certidões) e comparação só com quem faz a mesma tarefa
  * na mesma natureza. Não soma funções diferentes, não faz ranking, não usa ausência nem atestado. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/equipe.js']='0.24.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/equipe.js']='0.25.0';
   var EQ_CORES=['var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)','var(--c6)'], EQ_OUTRAS='var(--ink-3)';
   var EQ_TRI={PN:'Prenotação',PA:'Prenotação',RE:'Revisão de exigência',NE:'Nota de exigência',RA:'Re-análise (entrada)',CI:'Custas informadas',SG:'Selos / registro',RC:'Recebido para entrega',CD:'Cancelamento',CP:'Cancelamento',CC:'Cancelamento'};
   // nome da função a partir da etapa do VHL: tira o prazo do nome ("Análise - 1 D", "4H - Análise" e "Análise - 2 D" viram "Análise")
@@ -12,6 +12,12 @@
   function eqMetaEt(et){ var s=String(et||''), m=s.match(/(\d+)\s*D\b/i)||s.match(/^(\d+)D\s*-/i); if (m) return +m[1]; m=s.match(/(\d+)\s*H\b/i); if (m) return Math.round(+m[1]/8*100)/100; return null; }
   function eqOculto(k){ return !!(state.eqOcl&&state.eqOcl[k]); }
   function eqSalvarOcl(){ if (dbPronto&&podeEscrever) db.doc('config/equipe').set({ocultos:state.eqOcl||{}}).catch(function(){ toast('Não consegui salvar a lista de ocultos'); }); }
+  // 0.25.0: tirar/voltar uma pessoa da comparação na própria linha, com Desfazer
+  function oclBtn(nome){ var k=semAc(nome), fora=eqOculto(k); return '<button type="button" class="btn sm" data-ocl="'+esc(nome)+'" title="'+(fora?'Volta para as faixas, o tempo-padrão e as comparações':'Sai das faixas, do tempo-padrão e das comparações; as horas continuam na carga (ex.: gestão, apoio eventual)')+'">'+(fora?'Voltar à comparação':'Tirar da comparação')+'</button>'; }
+  function oclAlternar(nome, desfazendo){ var k=semAc(nome), fora=!!(state.eqOcl&&state.eqOcl[k]); state.eqOcl=Object.assign({},state.eqOcl||{}); if (fora) delete state.eqOcl[k]; else state.eqOcl[k]=nome;
+    state._pd=null; state._trB=null; eqSalvarOcl(); if (typeof apurLog==='function'&&!desfazendo) apurLog('Pessoa '+(fora?'de volta à':'fora da')+' comparação', fora?'fora':'na comparação', fora?'na comparação':'fora', nome, 'na linha do Desempenho'); if (!desfazendo&&dbPronto&&podeEscrever&&state.apur) db.doc('config/apuracao').set(state.apur).catch(function(){});
+    render(); if (state.aba==='des') renderDes(); if (state.aba==='eqp') renderEqp();
+    if (desfazendo) toast('Desfeito'); else toastDesfazer(nome.split(' ')[0]+(fora?' voltou à comparação':' saiu da comparação'),function(){ oclAlternar(nome,true); }); }
   function eqMesDia(d){ return new Date(d*864e5).toISOString().slice(0,7); }
   function eqNoPeriodo(m){ return state.periodo==='todos'||state.periodo===m; }
   // natureza de cada protocolo do RI (para dar natureza aos andamentos do Tri7)

@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/atendimento.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/atendimento.js']='0.24.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/atendimento.js']='0.25.0';
   function hms(s){ if (s==null||s==='') return null; if (typeof s==='number') return Math.round(s*86400); var p=String(s).trim().split(':').map(Number); if (p.length<2||p.some(isNaN)) return null; return p[0]*3600+p[1]*60+(p[2]||0); }
   function fmtMS(seg){ if (seg==null||isNaN(seg)) return '—'; seg=Math.round(seg); var h=Math.floor(seg/3600), m=Math.floor(seg%3600/60), s=seg%60; return (h?h+'h':'')+(h||m?(h?String(m).padStart(2,'0'):m)+'min':'')+(h?'':String(s).padStart(m?2:1,'0')+'s'); }
   function hhmm(seg){ return seg==null?'—':String(Math.floor(seg/3600)).padStart(2,'0')+':'+String(Math.floor(seg%3600/60)).padStart(2,'0'); }

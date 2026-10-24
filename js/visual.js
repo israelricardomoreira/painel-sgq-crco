@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/visual.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/visual.js']='0.24.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/visual.js']='0.25.0';
   // ═════════ modo visual: o painel em gráficos (segue Serventia e Período do topo) ═════════
   function renderVis(){
     var el=$('tabVis'); if (!el) return; var modo=svModo(), ms=mesesGraficos(), cards=[];
@@ -7,8 +7,6 @@
     if (modo==='ri'||modo==='cert'){
       aplicarTri7(); var atos=todosAtos(), r=resumo(atos), msR=ms.filter(function(m){ return state.docs[m]; });
       if (modo==='ri'){
-        cards.push(vzCard('Volume de atos','atos RI por mês, sem pesquisas qualificadas · clique no mês para ver só ele em Por natureza',gLinhas(msR,[{nome:'Atos',cor:'var(--c1)',v:msR.map(function(m){ return atosDoMes(m).length; })}],{titulo:'Volume',area:true,irMes:'nat'}),'vz-wide'));
-        cards.push(vzCard('KPI-02 · no prazo','% por mês · clique no mês para ver os fora do prazo',gLinhas(msR,[{nome:'No prazo',cor:'var(--c1)',v:msR.map(function(m){ var x=resumo(atosDoMes(m)); return x.n?x.kpi:null; })}],{titulo:'KPI-02',un:'%',W:360,H:210,irMes:'fp'})));
         var tud=atos.filter(function(a){ return a.cat==='R'||a.cat==='N'; }), cenL=tud.filter(function(a){ return origemAto(a)==='central'; }), balL=tud.filter(function(a){ return origemAto(a)!=='central'; });
         cards.push(vzCard('Origem dos protocolos',per+' · clique na fatia para listar',gRosca([{nome:'Balcão',v:balL.length,cor:'var(--c1)',go:goLista('Protocolos de balcão','atos',balL)},{nome:'Central (ONR)',v:cenL.length,cor:'var(--c2)',go:goLista('Protocolos da central (ONR)','atos',cenL)}],{titulo:'Origem'})));
         var R=r.Rall, E0=R.filter(function(a){ return !a.nex; }), E1=R.filter(function(a){ return a.nex===1; }), E2=R.filter(function(a){ return a.nex>=2; });
@@ -60,14 +58,14 @@
     if (modo==='ri'){ PP={}; todosAtos().forEach(function(a){ var vist={}; nxEventos(a).forEach(function(e){ if (!e.rp) return; var k=semAc(e.rp); if (vist[k]) return; vist[k]=1; var q=PP[k]=PP[k]||{nome:e.rp,docs:0}; q.docs++; }); });
       II={}; incRecs().filter(function(r){ return r.t==='RI'; }).forEach(function(r){ var k=semAc(r.r), x=II[k]=II[k]||{recs:[]}; x.recs.push(r); }); } // 1.10.4: só protocolos do RI
     if (modo==='cert') PP={}; // 1.10.4: em Certidões vale 'Certidões por escrevente'
-    var pts=Object.keys(PP).map(function(k){ var p=PP[k], inc=((II[k]||{}).recs||[]).length; return p.docs>=MIN_PROD?{nome:p.nome,x:p.docs,y:inc/p.docs*100,rot:p.docs,extra:inc+' inconformidades',go:goPessoa(p.nome)}:null; }).filter(Boolean);
+    var pts=Object.keys(PP).map(function(k){ var p=PP[k], inc=((II[k]||{}).recs||[]).filter(function(r){ return grupoDe(r)==='I'; }).length; return p.docs>=MIN_PROD?{nome:p.nome,x:p.docs,y:inc/p.docs*100,rot:p.docs,extra:inc+' internas em '+p.docs+' documentos',go:goPessoa(p.nome)}:null; }).filter(Boolean); // 0.25.0: mesma taxa (internas ÷ documentos)
     var prodP=Object.keys(PP).map(function(k){ return {nome:PP[k].nome,v:PP[k].docs,go:goPessoa(PP[k].nome)}; }).filter(function(x){ return x.v; }).sort(function(a,b){ return b.v-a.v; }).slice(0,12);
     if (prodP.length) cards.push(vzCard('Produção por pessoa',(modo==='ri'?'protocolos do RI':'documentos')+' trabalhados no VHL · clique para o relatório individual',gBarrasH(prodP)));
-    if (pts.length>=2) cards.push(vzCard('Produção × inconformidades','dispersão · cada ponto é uma pessoa com '+MIN_PROD+'+ documentos · clique para o relatório',gDispersao(pts,{xl:'documentos trabalhados',yl:'% inconformidades',unY:'%',nRot:6,quem:'pessoa'}),'vz-wide'));
+    if (pts.length>=2) cards.push(vzCard('Produção × inconformidades','dispersão · cada ponto é uma pessoa com '+MIN_PROD+'+ documentos · clique para o relatório',gDispersao(pts,{xl:'documentos trabalhados',yl:'% internas',unY:'%',nRot:6,quem:'pessoa'}),'vz-wide'));
     if (modo!=='cert'){ var X=desExecs(); if (X.length){ var J=desJanelas(X), P=desPessoas(X,J).filter(function(p){ return p.ag.length>=MIN_N; });
       if (P.length) cards.push(vzCard('Ritmo × equipe · '+nomeMes(J.agora),'d.u. por execução vs equipe (mesma etapa e natureza) · negativo = mais rápido · clique para a carta de controle',gBarrasH(P.map(function(p){ return {nome:p.nome,v:Math.round(media(p.ag)*100)/100,cor:media(p.ag)>DES_MIN_DIF?'var(--c2)':'var(--c1)',extra:p.ag.length+' execuções · '+p.lEq.txt,go:{t:'des',k:p.k}}; }).sort(function(a,b){ return a.v-b.v; }),{un:''}))); } }
-    var h='<div class="sec-h"><span class="note">Os mesmos números das outras páginas, em gráfico. Segue a Serventia e o Período do topo ('+esc(per)+'). Passe o mouse para ver os valores; clique (no celular, toque duas vezes) para ir ao dado de origem.</span></div>';
-    el.innerHTML=h+(cards.length?'<div class="vz-grid">'+cards.join('')+'</div>':'<div class="empty">Sem dados para o período.</div>');
+    var vn=$('visNota'); if (vn) vn.textContent=per+' · clique no gráfico para ver os registros';
+    el.innerHTML=(cards.length?'<div class="vz-grid">'+cards.join('')+'</div>':'<div class="empty">Sem dados para o período.</div>');
   }
   function visGrade(cards){ return VIS_DICA+(cards.length?'<div class="vz-grid">'+cards.join('')+'</div>':'<div class="empty">Sem dados para o período.</div>'); }
   // mapa de calor genérico · linhas/colunas [{k,nome,curto?,go?,tip?}] · cel(linha,coluna) -> {v, txt?, tip, go}
