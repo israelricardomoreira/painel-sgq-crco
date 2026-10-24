@@ -6,7 +6,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex, nofollow">
-<meta name="painel-versao" content="0.24.0">
+<meta name="painel-versao" content="0.25.0">
 <title>Painel SGQ · CRCO</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23c94f0a'/%3E%3Ctext x='16' y='21' font-family='Arial' font-size='12' font-weight='700' fill='white' text-anchor='middle'%3ESGQ%3C/text%3E%3C/svg%3E">
 <style>
@@ -149,6 +149,12 @@ input[type=date]{background:var(--surface);border:1px solid var(--line);border-r
 .kpi.tem-f .l,.kpi.tem-f .ofk-h{padding-right:26px}.apo{position:relative}.apo.tem-f .dt{padding-right:26px}
 .kpi-a{all:unset;box-sizing:border-box;cursor:pointer;display:block;max-width:100%}.kpi-a:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}.kpi-a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px}
 .spark-p{font-size:11px;color:var(--ink-3);margin-top:2px}
+.tab .badge{display:inline-block;min-width:18px;padding:0 6px;margin-left:6px;border-radius:9px;background:var(--crit);color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center}
+.pend-b{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:0 0 12px;background:var(--surface)}.pend-h{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}.pend-h h3{margin:0;font-size:15px;display:flex;gap:8px;align-items:center}
+.pend-l{margin:4px 0;padding-left:18px}.pend-l li{margin:3px 0}.pend-chips{display:flex;flex-wrap:wrap;gap:6px}.pend-chips .chip{cursor:pointer}a.kpi.pend-k{text-decoration:none;color:inherit}a.kpi.pend-k:hover{border-color:var(--brand)}
+.toast .lnk{margin-left:10px;color:inherit;text-decoration:underline;font-weight:700;background:none;border:0;cursor:pointer;font:inherit}
+.txt-q{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:var(--surface);color:var(--ink-3);border-radius:999px;padding:2px 10px 2px 4px;font:600 12px/1.4 inherit;cursor:pointer;margin:2px 0;align-self:center}.txt-q span{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;border:1px solid currentColor;font-size:11px}.txt-q:hover,.txt-q.on{color:var(--brand);border-color:var(--brand)}.txt-enc{flex-basis:100%;background:var(--brand-soft);color:var(--ink)!important;padding:8px 10px;border-radius:8px}
+td.click{cursor:pointer}td.click:hover{background:var(--brand-soft)}
 .kpi-q{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink-3);font:700 12px/1 inherit;cursor:pointer;padding:0}.kpi-q:hover,.kpi-q.on{border-color:var(--brand);color:var(--brand)}
 .kpi-f{margin-top:8px;padding:8px 10px;border-radius:8px;background:var(--brand-soft);font-size:12px;line-height:1.45;color:var(--ink);cursor:default;text-align:left}.kpi-f b{font-weight:700}
 .kpi.hero{border-color:var(--brand);box-shadow:inset 3px 0 0 var(--brand)}
@@ -223,7 +229,7 @@ table.tleft th,table.tleft td{text-align:left}
 .lc-an textarea{width:100%;box-sizing:border-box;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font:inherit;font-size:14px;resize:vertical}
 .lc-det{margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}.lc-det summary{cursor:pointer;font-weight:700}
 @media (max-width:520px){.cp.w2{grid-column:auto}.lc-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.tab[aria-selected=true]{color:var(--ink);border-bottom-color:var(--brand)}
+.tab[aria-current=page]{color:var(--ink);border-bottom-color:var(--brand)}
 
 /* gráficos */
 svg text{fill:var(--ink-2);font-family:var(--font)}
@@ -278,7 +284,7 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
 .menu-grp{font-size:12px;color:var(--ink-3);font-weight:700;padding:14px 10px 4px}
 .menu .tab{display:block;width:100%;text-align:left;border:0;border-radius:8px;padding:9px 10px;background:none;color:var(--ink-2);font-weight:600;font-size:14px;white-space:normal;border-bottom:0}
 .menu .tab:hover{background:var(--surface-2);color:var(--ink)}
-.menu .tab[aria-selected=true]{background:var(--brand-soft);color:var(--brand-ink)}
+.menu .tab[aria-current=page]{background:var(--brand-soft);color:var(--brand-ink)}
 .layout>.wrap{min-width:0;width:100%}
 .menu-btn{display:none;font-size:16px;padding:6px 11px}
 .menu-recolher{margin-left:auto;padding:2px 9px;font-size:16px;line-height:1.2}
@@ -473,30 +479,31 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
 <div class="layout">
 <nav id="menu" class="menu" aria-label="Seções do painel">
   <div class="menu-marca"><div class="mark">SGQ</div><b>Painel SGQ</b><button class="btn sm menu-recolher" id="btnRecolher" type="button" title="Recolher a barra lateral" aria-label="Recolher a barra lateral">«</button></div>
-  <button class="tab" type="button" data-tab="geral" aria-selected="true">Painel geral</button>
-  <button class="tab" type="button" data-tab="vis" aria-selected="false">Gráficos</button>
-  <button class="tab" type="button" data-tab="pn" aria-selected="false">Meus painéis</button>
-  <div class="menu-grp">Prazos</div>
-  <button class="tab" type="button" data-tab="nat" aria-selected="false">Por natureza</button>
-  <button class="tab" type="button" data-tab="eta" aria-selected="false">Por etapa</button>
-  <button class="tab" type="button" data-tab="fp" aria-selected="false">Fora do prazo</button>
-  <button class="tab" type="button" data-tab="ex" aria-selected="false">Exigências</button>
-  <button class="tab" type="button" data-tab="nao" aria-selected="false">Cancelados e especiais</button>
-  <div class="menu-grp">Qualidade</div>
-  <button class="tab" type="button" data-tab="k1" aria-selected="false">Inconformidades</button>
-  <button class="tab" type="button" data-tab="cer" aria-selected="false">Certidões</button>
-  <button class="tab" type="button" data-tab="at" aria-selected="false">Atendimento</button>
-  <div class="menu-grp">Equipe</div>
-  <button class="tab" type="button" data-tab="des" aria-selected="false">Desempenho</button>
-  <button class="tab" type="button" data-tab="apr" id="tabAprBtn" aria-selected="false">Aprendizagem</button>
-  <div class="menu-grp">Indicadores</div>
-  <button class="tab" type="button" data-tab="lanc" aria-selected="false">Lançar KPIs</button>
-  <button class="tab" type="button" data-tab="met" aria-selected="false">Como é calculado</button>
-  <div class="menu-grp" id="grpDados">Dados</div>
-  <button class="tab" type="button" data-tab="sau" id="tabSauBtn" aria-selected="false">Saúde dos dados</button>
-  <button class="tab" type="button" data-tab="pes" id="tabPesBtn" aria-selected="false">Nomes das pessoas</button>
-  <button class="tab" type="button" data-tab="cfg" id="tabCfgBtn" aria-selected="false">Configuração</button>
-  <button class="tab" type="button" data-tab="imp" id="tabImp" aria-selected="false">Importar dados</button>
+  <!-- 0.25.0: menu em 5 áreas, cada uma responde uma pergunta da gestão -->
+  <div class="menu-grp" title="Estamos atingindo as metas?">Indicadores</div>
+  <button class="tab" type="button" data-tab="geral">Painel geral</button>
+  <button class="tab" type="button" data-tab="lanc">Lançar KPIs</button>
+  <div class="menu-grp" title="Onde o fluxo trava e por quê?">Processo</div>
+  <button class="tab" type="button" data-tab="nat">Prazos por natureza</button>
+  <button class="tab" type="button" data-tab="eta">Prazos por etapa</button>
+  <button class="tab" type="button" data-tab="ex">Exigências</button>
+  <button class="tab" type="button" data-tab="nao">Cancelados e especiais</button>
+  <button class="tab" type="button" data-tab="k1">Inconformidades</button>
+  <button class="tab" type="button" data-tab="cer">Certidões</button>
+  <button class="tab" type="button" data-tab="at">Atendimento</button>
+  <div class="menu-grp" title="Quem entrega o quê, com que qualidade?">Pessoas</div>
+  <button class="tab" type="button" data-tab="des">Desempenho</button>
+  <button class="tab" type="button" data-tab="apr" id="tabAprBtn">Aprendizagem</button>
+  <div class="menu-grp" id="grpPend" title="O que falta eu fazer?">Minhas pendências</div>
+  <button class="tab" type="button" data-tab="pend" id="tabPendBtn">Pendências <span class="badge" id="pendN" hidden></span></button>
+  <button class="tab" type="button" data-tab="fp">Justificar fora do prazo</button>
+  <div class="menu-grp" id="grpDados" title="Posso confiar nesse número?">Dados</div>
+  <button class="tab" type="button" data-tab="sau" id="tabSauBtn">Saúde dos dados</button>
+  <button class="tab" type="button" data-tab="met">Como é calculado</button>
+  <button class="tab" type="button" data-tab="pn">Meus painéis</button>
+  <button class="tab" type="button" data-tab="pes" id="tabPesBtn">Nomes das pessoas</button>
+  <button class="tab" type="button" data-tab="cfg" id="tabCfgBtn">Configuração</button>
+  <button class="tab" type="button" data-tab="imp" id="tabImp">Importar dados</button>
 </nav>
 <div id="menuFundo" class="menu-fundo" hidden></div>
 <div class="wrap">
@@ -510,7 +517,6 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
     <div class="spacer"></div>
     <div class="ctl">
       <form id="protForm" class="protf" role="search"><input type="search" id="protIn" placeholder="Buscar protocolo ou código" aria-label="Buscar protocolo ou código"><button class="btn" type="submit">Ver ficha</button></form>
-      <button class="btn" type="button" id="btnVis" aria-pressed="false" title="Ver em gráficos">◫<span class="tx"> Gráficos</span></button>
       <details class="umenu" id="umenu"><summary class="btn" aria-label="Conta e preferências"><span class="uav" id="uAv">·</span></summary>
         <div class="umenu-p"><div id="umenuCorpo"></div><button class="btn" type="button" id="btnTema" title="Tema: automático (segue o computador)" aria-label="Trocar tema">◐ Auto</button></div>
       </details>
@@ -577,13 +583,17 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
     <div class="kpis" id="kpis"></div>
   </section>
   <section class="section panel" id="secGraficos">
-    <div class="sec-h"><h2>Comparação mês a mês</h2><span class="note">Últimos 12 meses · linha tracejada = meta · ponto vermelho = fora da meta · toque ou passe o mouse para ver o valor</span></div>
+    <div class="sec-h"><h2 id="gmTit">Comparação mês a mês</h2><span class="note" id="gmNota">Últimos 12 meses · linha tracejada = meta · ponto vermelho = fora da meta · toque ou passe o mouse para ver o valor</span></div>
     <div class="gm" id="graficos"></div>
   </section>
   <section class="section panel" id="secTendencia">
     <div class="sec-h"><h2>Tempo até o registro</h2><span class="note">Mediana em dias úteis · KPI-02 acima de cada mês</span></div>
     <div class="legend"><span><span class="dot" style="background:var(--s-bruto)"></span>Bruto (ingresso → registro)</span><span><span class="dot" style="background:var(--s-liq)"></span>Líquido (com o cartório)</span></div>
     <div class="chart" id="chartMeses"></div>
+  </section>
+  <section class="section panel" id="secVis">
+    <div class="sec-h"><h2>Mais gráficos</h2><span class="note" id="visNota"></span></div>
+    <div id="tabVis"></div>
   </section>
   </div>
 
@@ -608,7 +618,7 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
     <div id="tabEqp" hidden></div>
     <div id="tabApr" hidden></div>
     <div id="tabPn" hidden></div>
-    <div id="tabVis" hidden></div>
+    <div id="tabPend" hidden></div>
     <div id="tabCfg" hidden>
       <div id="cfgCorpo"></div>
       <div id="cfgCal">
@@ -632,34 +642,35 @@ tr.tri td{background:var(--brand-soft)}tr.tri td:first-child{box-shadow:inset 3p
 
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
-<script src="config.js?v=0.24.0"></script>
-<script src="nuvem.js?v=0.24.0"></script>
-<script src="motor.js?v=0.24.0"></script>
-<script src="js/nucleo.js?v=0.24.0"></script>
-<script src="js/prazos.js?v=0.24.0"></script>
-<script src="js/inconformidades.js?v=0.24.0"></script>
-<script src="js/relatorios.js?v=0.24.0"></script>
-<script src="js/kpis.js?v=0.24.0"></script>
-<script src="js/atendimento.js?v=0.24.0"></script>
-<script src="js/ficha.js?v=0.24.0"></script>
-<script src="js/configuracao.js?v=0.24.0"></script>
-<script src="js/tri7.js?v=0.24.0"></script>
-<script src="js/serventias.js?v=0.24.0"></script>
-<script src="js/dados.js?v=0.24.0"></script>
-<script src="js/graficos.js?v=0.24.0"></script>
-<script src="js/desempenho.js?v=0.24.0"></script>
-<script src="js/trabalho.js?v=0.24.0"></script>
-<script src="js/visao.js?v=0.24.0"></script>
-<script src="js/pessoas.js?v=0.24.0"></script>
-<script src="js/visual.js?v=0.24.0"></script>
-<script src="js/certidoes.js?v=0.24.0"></script>
-<script src="js/importar.js?v=0.24.0"></script>
-<script src="js/saude.js?v=0.24.0"></script>
-<script src="js/equipe.js?v=0.24.0"></script>
-<script src="js/catalogo.js?v=0.24.0"></script>
-<script src="js/aprendizagem.js?v=0.24.0"></script>
-<script src="js/construtor.js?v=0.24.0"></script>
-<script src="js/navegacao.js?v=0.24.0"></script>
-<script src="js/inicio.js?v=0.24.0"></script>
+<script src="config.js?v=0.25.0"></script>
+<script src="nuvem.js?v=0.25.0"></script>
+<script src="motor.js?v=0.25.0"></script>
+<script src="js/nucleo.js?v=0.25.0"></script>
+<script src="js/prazos.js?v=0.25.0"></script>
+<script src="js/inconformidades.js?v=0.25.0"></script>
+<script src="js/relatorios.js?v=0.25.0"></script>
+<script src="js/kpis.js?v=0.25.0"></script>
+<script src="js/atendimento.js?v=0.25.0"></script>
+<script src="js/ficha.js?v=0.25.0"></script>
+<script src="js/configuracao.js?v=0.25.0"></script>
+<script src="js/tri7.js?v=0.25.0"></script>
+<script src="js/serventias.js?v=0.25.0"></script>
+<script src="js/dados.js?v=0.25.0"></script>
+<script src="js/graficos.js?v=0.25.0"></script>
+<script src="js/desempenho.js?v=0.25.0"></script>
+<script src="js/trabalho.js?v=0.25.0"></script>
+<script src="js/visao.js?v=0.25.0"></script>
+<script src="js/pessoas.js?v=0.25.0"></script>
+<script src="js/visual.js?v=0.25.0"></script>
+<script src="js/certidoes.js?v=0.25.0"></script>
+<script src="js/importar.js?v=0.25.0"></script>
+<script src="js/saude.js?v=0.25.0"></script>
+<script src="js/equipe.js?v=0.25.0"></script>
+<script src="js/catalogo.js?v=0.25.0"></script>
+<script src="js/aprendizagem.js?v=0.25.0"></script>
+<script src="js/pendencias.js?v=0.25.0"></script>
+<script src="js/construtor.js?v=0.25.0"></script>
+<script src="js/navegacao.js?v=0.25.0"></script>
+<script src="js/inicio.js?v=0.25.0"></script>
 </body>
 </html>
