@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/graficos.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/graficos.js']='0.25.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/graficos.js']='0.27.0';
   function mesesGraficos(){
     var s={}; [state.docs,state.cert,state.senhas,state.k9,state.inconf,state.serv].forEach(function(o){ Object.keys(o||{}).forEach(function(m){ if (/^\d{4}-\d{2}$/.test(m)) s[m]=1; }); });
     Object.keys(HIST_SEMENTE).forEach(function(m){ s[m]=1; }); Object.keys(state.kp).forEach(function(m){ if (state.kp[m]&&state.kp[m].hist) s[m]=1; });
@@ -8,7 +8,7 @@
   // 0.24.0: mês parcial = mês em andamento, ou mês cujos dados terminam antes do último dia útil. Ponto vazado e sem comparação com o mês anterior.
   function ultDadoMes(m){ var mx=''; var d=state.docs[m]; if (d) d.atos.forEach(function(a){ var f=String(a.fin||'').slice(0,10); if (f.slice(0,7)===m&&f>mx) mx=f; }); return mx; }
   function ultDiaUtilMes(m){ var fer=Motor.feriadoSet(state.extras), p=m.split('-').map(Number), d=new Date(Date.UTC(p[0],p[1],0)); for (var i=0;i<12;i++){ var iso=d.toISOString().slice(0,10); if (trDiaUtil(iso,fer)) return iso; d=new Date(d.getTime()-864e5); } return m+'-28'; }
-  function mesParcial(m){ if (!m||!/^\d{4}-\d{2}$/.test(m)) return false; if (m>=mesHoje()) return true; var u=ultDadoMes(m); return !!u && u<ultDiaUtilMes(m); }
+  function mesParcial(m){ if (!m||!/^\d{4}-\d{2}$/.test(m)) return false; if (m>=mesHoje()) return true; var u=ultDadoMes(m); if (!u) return false; var lim=new Date(ultDiaUtilMes(m)+'T12:00:00Z'); lim.setUTCDate(lim.getUTCDate()-5); return u<lim.toISOString().slice(0,10); } // 0.27.0: folga de 5 dias (o último dia útil pode não ter finalização)
   function parcTxt(m){ var u=ultDadoMes(m); return 'mês parcial'+(u?' · dados até '+fmtData(u).slice(0,5):''); }
   function fmtG(v,un){ if (v==null||isNaN(v)) return '—'; return un==='%'?numBR(v,1)+'%':un==='min'?numBR(v,2)+' min':un==='d.u.'?numBR(v,1)+' d.u.':un==='pp'?numBR(v,1)+' p.p.':un==='h'?numBR(v,v>=100?0:1)+' h':numBR(v,v%1?1:0); }
   // gráfico de linha simples (1 série) com linha de meta opcional; dica ao tocar/passar o mouse em cada mês
@@ -108,7 +108,7 @@
     return ' data-go="'+id+'" data-goh="'+esc(goDica(a))+'"'; }
   function goDica(a){ var n=a.itens?a.itens.length:0;
     return a.t==='nat'?'abrir a natureza em Por natureza':a.t==='mes'?'ver '+nomeMes(a.m)+(a.aba&&TITULOS[a.aba]?' em '+TITULOS[a.aba]:''):a.t==='lista'?'listar '+(n===1?'o item':'os '+n.toLocaleString('pt-BR')+' itens'):
-      a.t==='pessoa'?'abrir o relatório de '+String(a.nome).split(' ')[0]:a.t==='prot'?'abrir a ficha':a.t==='des'?'ver o desempenho da pessoa':a.t==='vg'?'ver a conta':a.t==='trp'?'ver mês a mês':a.t==='sv'?'ver só '+a.sv:'abrir'; }
+      a.t==='pessoa'?'abrir o relatório de '+String(a.nome).split(' ')[0]:a.t==='prot'?'abrir a ficha':a.t==='des'?'ver o desempenho da pessoa':a.t==='vg'?'ver a conta':a.t==='ga'?'ver a fila dia a dia':a.t==='trp'?'ver mês a mês':a.t==='sv'?'ver só '+a.sv:'abrir'; }
   function goMes(m,aba){ return {t:'mes',m:m,aba:aba}; }
   function goLista(titulo,tipo,itens){ return itens&&itens.length?{t:'lista',titulo:titulo,tipo:tipo,itens:itens}:null; }
   function goPessoa(nome){ return nome?{t:'pessoa',nome:nome}:null; }
@@ -131,6 +131,7 @@
     $('tip').hidden=true;
     if (a.t==='lista') return goListaAbrir(a, el);
     if (a.t==='trp'){ state.trPes=state.trPes===a.k?null:a.k; state.desVis='trab'; renderDes(); setTimeout(function(){ var pp=document.querySelector('#tabDes .panel .sub-h'); if (pp&&state.trPes&&pp.scrollIntoView) pp.scrollIntoView({behavior:'smooth',block:'start'}); },40); return; }
+    if (a.t==='ga'){ state.gaSel=a.fn; if (state.aba==='gar') renderGargalo(); else irAba('gar'); setTimeout(function(){ var g=$('gaFila'); if (g&&g.scrollIntoView) g.scrollIntoView({behavior:'smooth',block:'center'}); },60); return; }
     if (a.t==='vg'){ state.vgSel=a.k; state.vgCmp=null; state.desVis='vg'; if (state.aba==='des') renderDes(); else irAba('des', true); setTimeout(function(){ var vc=$('vgConta'); if (vc&&vc.scrollIntoView) vc.scrollIntoView({behavior:'smooth',block:'start'}); },40); return; }
     goGuardar();
     if (a.t==='prot'){ $('protIn').value=a.c; return fichaProtocolo(a.c); }
@@ -198,8 +199,9 @@
       se.v.forEach(function(v,i){ if (v==null||isNaN(v)) return; var al=se.alerta&&se.alerta[i], vz=(se.vazio&&se.vazio[i])||(o.parcial!==false&&PCL[i]); s+=vz?'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(v).toFixed(1)+'" r="4.5" style="fill:var(--surface);stroke:'+corS+'" stroke-width="2"/>':'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(v).toFixed(1)+'" r="'+(al?5:3.5)+'" style="fill:'+(al?'var(--crit)':corS)+'" stroke="var(--surface)" stroke-width="2"/>'; });
       if (series.length<=4 && last>=0 && o.rotulos!==false) s+='<text x="'+Math.min(x(last)+2,W-pr)+'" y="'+(y(se.v[last])-8).toFixed(1)+'" text-anchor="end" font-size="11" font-weight="700" style="fill:var(--ink)">'+fmtG(se.v[last],un)+'</text>'; });
     var passo=n>8?2:1;
-    ms.forEach(function(m,i){ if ((n-1-i)%passo===0) s+='<text x="'+x(i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="11" style="fill:var(--ink-3)">'+MES_AB[+m.slice(5)-1]+'</text>';
-      var w=n<2?W:(W-pl-pr)/(n-1), tip='<b>'+compLabel(m)+'</b>'; series.forEach(function(se){ var v=se.v[i]; tip+='<br>'+esc(se.nome)+': '+fmtG(v,un)+(se.extra&&se.extra[i]?' <span class=mut>('+se.extra[i]+')</span>':''); });
+    var dia=/^\d{4}-\d{2}-\d{2}$/.test(ms[0]||''); if (dia&&!o.passo) passo=Math.max(1,Math.ceil(n/10)); // 0.27.0: eixo de dias
+    ms.forEach(function(m,i){ if ((n-1-i)%passo===0) s+='<text x="'+x(i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="11" style="fill:var(--ink-3)">'+(dia?fmtData(m).slice(0,5):MES_AB[+m.slice(5)-1])+'</text>';
+      var w=n<2?W:(W-pl-pr)/(n-1), tip='<b>'+(dia?fmtData(m):compLabel(m))+'</b>'; series.forEach(function(se){ var v=se.v[i]; tip+='<br>'+esc(se.nome)+': '+fmtG(v,un)+(se.extra&&se.extra[i]?' <span class=mut>('+se.extra[i]+')</span>':''); });
       if (o.banda&&o.banda.lo[i]!=null) tip+='<br>Faixa normal: '+fmtG(o.banda.lo[i],un)+' a '+fmtG(o.banda.hi[i],un);
       s+=hitRect(x(i)-w/2,0,w,H,tip,o.goMes?o.goMes(m,i):o.irMes?goMes(m,o.irMes):null); });
     return s+'</svg>'+legenda(series);

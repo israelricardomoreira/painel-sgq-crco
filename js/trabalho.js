@@ -4,7 +4,7 @@
  * Daqui sai: tempo-padrão de cada ato (mediana da equipe), ocupação (horas com trabalho registrado ÷ horas disponíveis),
  * ritmo (tempo dela ÷ tempo-padrão da equipe nas mesmas etapas e naturezas), carga × capacidade dos setores e o trabalho que entrou.
  * As faixas "normais" saem dos próprios dados (quartis da equipe), nada é fixado à mão. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/trabalho.js']='0.25.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/trabalho.js']='0.27.0';
   var TR_CAB=['Tipo de Documento','Etapa','Natureza','Tempo','Quantidade'];
   var TR_MIN_CEL=10;      // atos cronometrados para uma célula (etapa × natureza) ter tempo-padrão
   var TR_COB_OK=0.8;      // parte dos atos da pessoa em etapas que o cronômetro cobre, para entrar na faixa e na leitura

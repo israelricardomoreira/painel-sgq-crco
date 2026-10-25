@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/pendencias.js (0.25.0: Minhas pendências — o que falta fazer, de todos os meses, numa tela só; a ação fica na própria linha) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/pendencias.js']='0.25.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/pendencias.js']='0.27.0';
   // todos os atos de todos os meses (sem o filtro de período; respeita a origem escolhida no topo)
   function pendAtos(){ if (typeof aplicarTri7==='function') aplicarTri7(); var o=[]; Object.keys(state.docs).sort().forEach(function(m){ o=o.concat(atosDoMes(m)); }); return o; }
   function pendDados(){

@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/desempenho.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/desempenho.js']='0.25.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/desempenho.js']='0.27.0';
   // ═════════ desempenho: linha normal de cada pessoa, comparação com a equipe e tendência macro ═════════
   function mesDeDia(d){ return new Date(d*864e5).toISOString().slice(0,7); }
   // cada execução de etapa (VHL · Produção por Etapa): pessoa, etapa, natureza, mês da execução e dias úteis que o documento ficou na etapa

@@ -5,7 +5,7 @@
  *   balcão (senhas) entram em horas. Retrabalho: cada inconformidade interna e cada exigência avaliada como não conforme desconta o
  *   tempo-padrão de refazer (Re-Análise da natureza). Nenhum peso é escolhido: o "peso" de cada linha é o tempo que a própria equipe leva.
  * Gráficos na frente; o clique numa pessoa abre a conta, linha por linha. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/visao.js']='0.25.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/visao.js']='0.27.0';
   var VG_PAD_OK=0.8;   // parte dos atos com tempo-padrão para a pessoa entrar na comparação
   var VG_MIN_H=80;     // horas disponíveis mínimas no período para sair de "pouco dado"
   function vgWmean(E){ var s=0, w=0; E.forEach(function(e){ s+=e.v*e.w; w+=e.w; }); return w?s/w:null; }
@@ -98,6 +98,7 @@
     var sel=state.vgSel&&R.L.filter(function(p){ return p.k===state.vgSel; })[0];
     if (sel) h+=vgContaHTML(V,R,sel,MS);
     h+=vgTabelaHTML(R,g,fsel);
+    h+=(typeof paFotoBtn==='function'?paFotoBtn('Visão geral · '+fsel+' · '+per):''); // 0.26.0
     // 0.24.0: dimensionamento saiu do ar (comparava o trabalho do VHL com o dia inteiro da pessoa). Volta na 0.27 com fila × capacidade por etapa.
     el.innerHTML+=h.replace(/<div class="tbl-wrap"/g,'<div class="tbl-wrap" tabindex="0" role="region" aria-label="Tabela (role para ver tudo)"');
   }
@@ -121,7 +122,7 @@
   // tabela (atrás do gráfico): os números de cada pessoa da função
   function vgTabelaHTML(R, g, fsel){
     var tx=g.taxa;
-    return '<details class="met-sec" style="margin:6px 0 12px"><summary>Ver a tabela · '+esc(fsel)+'</summary><div class="tbl-wrap"><table class="tleft"><thead><tr><th>Pessoa</th><th class="num">Nota</th><th class="num">Horas entregues</th><th class="num">Retrabalho</th><th class="num">Disponíveis</th><th class="num" title="Inconformidades internas ÷ documentos trabalhados no VHL">Inconformidade</th><th>Posição</th><th class="num" title="Em quantos critérios do teste de robustez a posição se mantém">Robustez</th><th>Desenvolvimento</th>'+(podeEscrever?'<th></th>':'')+'</tr></thead><tbody>'+
+    return '<details class="met-sec" style="margin:6px 0 12px"><summary>Ver a tabela · '+esc(fsel)+'</summary><div class="tbl-wrap"><table class="tleft"><thead><tr><th>Pessoa</th><th class="num">Nota</th><th class="num" title="Horas-padrão das etapas + certidões + balcão, antes do retrabalho">Horas produzidas</th><th class="num">Retrabalho</th><th class="num">Disponíveis</th><th class="num" title="Inconformidades internas ÷ documentos trabalhados no VHL">Inconformidade</th><th>Posição</th><th class="num" title="Em quantos critérios do teste de robustez a posição se mantém">Robustez</th><th>Desenvolvimento</th>'+(podeEscrever?'<th></th>':'')+'</tr></thead><tbody>'+
       g.map(function(p){ var r=p.R; return '<tr class="click'+(state.vgSel===p.k?' sel':'')+'" data-vgsel="'+esc(p.k)+'"><td>'+esc(p.nome)+'</td><td class="num"><b>'+vgPct(r.nota)+'</b></td><td class="num">'+trFmtH(r.ent+r.cert+r.bal)+'</td><td class="num">'+(r.ret?'−'+trFmtH(r.ret):'—')+'</td><td class="num">'+trFmtH(r.disp)+'</td><td class="num '+(p.taxa!=null&&tx!=null&&p.taxa>tx*1.5&&p.inc>=3?'acima':'')+'">'+(p.taxa==null?'—':pct(p.taxa*100))+'</td><td class="'+(p.cat==='abaixo'?'acima':p.cat==='acima'?'bom':'')+'">'+esc(vgCatTxt(p))+'</td><td class="num">'+(p.nVal?(p.estavel?'firme':p.nMesma+' de '+p.nVal):'—')+'</td><td>'+p.dev.fns.length+' funções · '+p.dev.aptos.length+' POPs apta</td>'+(podeEscrever?'<td class="nw">'+oclBtn(p.nome)+'</td>':'')+'</tr>'; }).join('')+
       '</tbody></table></div><p class="hint">Inconformidade da função: '+(tx==null?'—':pct(tx*100))+'. Desenvolvimento não entra na nota: funções com '+eqMin()+'+ execuções nos últimos 12 meses e POPs com resultado Apto na Aprendizagem.</p></details>';
   }
