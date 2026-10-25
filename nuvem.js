@@ -81,7 +81,7 @@
       perfil=p.data;
       // 0.14.0: abre com os últimos 12 meses das coleções mensais; o resto (configuração, justificativas, KPIs…) vem inteiro
       return Promise.all([
-        lerPaginado(function(){ return sb.from('docs').select('colecao,id,dados').eq('arquivado',false).not('colecao','in','('+['brutos'].concat(COL_MES).join(',')+')').order('colecao').order('id'); }),
+        lerPaginado(function(){ return sb.from('docs').select('colecao,id,dados').eq('arquivado',false).not('colecao','in','('+['brutos','fotos'].concat(COL_MES).join(',')+')').order('colecao').order('id'); }),
         lerPaginado(function(){ return sb.from('docs').select('colecao,id,dados').eq('arquivado',false).in('colecao',COL_MES).gte('id',janela.corte).order('colecao').order('id'); })
       ]).then(function(rr){ rr[0].concat(rr[1]).forEach(function(r){ (cache[r.colecao]=cache[r.colecao]||{})[r.id]=r.dados; });
           $('nuvemLogin').hidden=true; barraUsuario(); vigiarInatividade(); resolverPronto();
@@ -124,7 +124,7 @@
 
   window.claude={ use:function(nome){ return pronto.then(function(){ return nome==='db'?dbApi:nome==='user'?userApi:nome==='downloads'?dlApi:null; }); } };
   // funções extras: backup, restauração e dados brutos
-  window.NUVEM_VERSAO='0.25.0'; // 0.11.0: conferida pelo app.js para avisar arquivos de versões diferentes
+  window.NUVEM_VERSAO='0.27.0'; // 0.11.0: conferida pelo app.js para avisar arquivos de versões diferentes
   window.nuvem={
     papel:function(){ return perfil&&perfil.papel; },
     nome:function(){ return (perfil&&perfil.nome)||(usuario&&usuario.email)||''; },
