@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/prazos.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/prazos.js']='0.27.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/prazos.js']='0.28.0';
   function pintarGeral(atos){
     var r=resumo(atos);
     // 0.13.0: indicadores oficiais em destaque (valor, meta, situação, linha do ano e selo de lançado); o apoio fica numa faixa
@@ -18,11 +18,12 @@
     var oK02={parc:PCg, go:goLista('KPI-02 · atos registrados · '+PER,'atos',R0), f:kConta('atos registrados no prazo (ou justificados) ÷ atos registrados', r.dentro+' ÷ '+r.n, r.n?pctK(r.kpi):null, FV, 'Prazo: 20 d.u.; com retorno, 5 d.u. após o retorno (mín. 20, máx. 25). Justificados em Fora do prazo contam como no prazo.')};
     var oK01={parc:PCg, go:k1?goLista('KPI-01 · registrados com inconformidade · '+PER,'atos',R0.filter(function(a){ return ncS[a.c]; })):null, f:k1?kConta('atos registrados com pelo menos 1 inconformidade (interna ou externa) ÷ atos registrados', k1.c+' ÷ '+k1.n, k1.k!=null?pct(k1.k):null, 'PAINEL-04 (inconformidades) × Produção por Etapa do VHL', 'Um ato com 3 inconformidades conta 1 vez.'):''};
     var oK13={parc:PCg, go:S13?goLista('KPI-13 · senhas atendidas · '+nomeMes(mesSel),'senhas',at13):null, f:S13?kConta('soma da espera (emissão → chamada) ÷ senhas chamadas', numBR(S13.med*S13.na/60,0)+' min ÷ '+S13.na, numBR(v13,2)+' min', 'Consulta de senhas', 'Todas as filas. Senhas não chamadas (desistências: '+S13.des+') ficam fora.'):''};
-    $('kpis').innerHTML='<div class="of">'+
+    var LIVRO_H='<div class="livro-h" aria-hidden="true"><span>Indicador</span><span>Resultado</span><span>Meta</span><span>Situação</span><span>'+(msG.length>1?esc(nomeMes(msG[0]))+' a '+esc(nomeMes(msG[msG.length-1])):'Meses')+'</span><span>ANOREG+</span><span></span></div>';
+    $('kpis').innerHTML='<div class="of" role="list" aria-label="Indicadores oficiais">'+LIVRO_H+
       oficialHTML('KPI-02','Finalizados no prazo',r.n?pctK(r.kpi).replace('%',''):'—',r.n?'%':'',r.dentro+' de '+r.n+' registrados'+(r.J?' · '+r.J+' justificado'+(r.J>1?'s':''):'')+parSel,null,r.n?{c:'mute',t:'Baseline'}:null,'sem meta fixada (baseline)',serieKPI('KPI-02',msG),null,mesSel,filtroOrig,oK02)+
-      oficialHTML('KPI-01','Atos com inconformidade',k1&&k1.k!=null?pct(k1.k).replace('%',''):'—',k1&&k1.k!=null?'%':'',k1?k1.c+' de '+k1.n+' registrados'+parSel:'importe as inconformidades',meta1,k1&&k1.k!=null?(k1.k<=meta1?{c:'good',t:'Atende'}:{c:'crit',t:'Fora da meta'}):null,'meta ≤ '+numBR(meta1,1)+'%',serieKPI('KPI-01',msG),meta1,mesSel,filtroOrig,oK01)+
-      oficialHTML('KPI-13','Espera para atendimento',v13!=null?numBR(v13,2):'—',v13!=null?'min':'',S13?'média de todas as filas · '+S13.na+' senhas':(mesSel?'importe a consulta de senhas':'escolha um mês no Período'),meta13,v13!=null?(v13<=meta13?{c:'good',t:'Atende'}:{c:'crit',t:'Fora da meta'}):null,'meta ≤ '+numBR(meta13,0)+' min',serieKPI('KPI-13',msG),meta13,mesSel,false,oK13)+
-      '</div><div class="apoio">'+
+      oficialHTML('KPI-01','Atos com inconformidade',k1&&k1.k!=null?pct(k1.k).replace('%',''):'—',k1&&k1.k!=null?'%':'',k1?k1.c+' de '+k1.n+' registrados'+parSel:'importe as inconformidades',meta1,k1&&k1.k!=null?(k1.k<=meta1?{c:'good',t:'Atende'}:{c:'crit',t:'Não atende'}):null,'meta ≤ '+numBR(meta1,1)+'%',serieKPI('KPI-01',msG),meta1,mesSel,filtroOrig,oK01)+
+      oficialHTML('KPI-13','Espera para atendimento',v13!=null?numBR(v13,2):'—',v13!=null?'min':'',S13?'média de todas as filas · '+S13.na+' senhas':(mesSel?'importe a consulta de senhas':'escolha um mês no Período'),meta13,v13!=null?(v13<=meta13?{c:'good',t:'Atende'}:{c:'crit',t:'Não atende'}):null,'meta ≤ '+numBR(meta13,0)+' min',serieKPI('KPI-13',msG),meta13,mesSel,false,oK13)+
+      '</div><h2 class="apoio-t">Como o prazo do RI se formou</h2><div class="apoio">'+
       apoioHTML('Mediana bruta',f1(r.medB),'d.u.','média '+f1(r.mB)+' · 90% em até '+f1(eb.p90),{go:goLista('Mediana bruta · registrados sem justificativa · '+PER,'atos',r.R), f:kConta('mediana dos dias úteis do ingresso ao registro', r.R.length+' atos', f1(r.medB)+' d.u.', FV, 'Justificados ficam fora das estatísticas de tempo.')})+
       apoioHTML('Folga até o limite',ef.n?f1(ef.mediana):'—','d.u.',ef.n?(alto?'<span class="at">'+pa+'</span>':pa)+' com 3 d.u. ou menos':'',{go:goLista('Folga · registrados no prazo · '+PER,'atos',r.R.filter(function(a){return a.dentro&&a.bruto!=null;})), f:kConta('mediana de (limite − dias úteis gastos) nos atos no prazo', ef.n+' atos · '+apert+' com 3 d.u. ou menos', ef.n?f1(ef.mediana)+' d.u.':null, FV)})+
       apoioHTML('Mediana líquida',f1(r.medL),'d.u.','tempo com o cartório',{go:goLista('Mediana líquida · '+PER,'atos',liq), f:kConta('mediana da soma dos dias úteis nas etapas do cartório, até o registro', liq.length+' atos com histórico de etapas', f1(r.medL)+' d.u.', FV, 'Etapas depois do registro não entram. Nunca passa do bruto.')})+
@@ -32,7 +33,35 @@
       apoioHTML('Volume',String(r.total),'atos',pesquisaTotal()?'fora '+pesquisaTotal()+' pesquisa'+(pesquisaTotal()>1?'s':'')+' qualificada'+(pesquisaTotal()>1?'s':''):'atos RI do período',{go:goLista('Volume · todos os atos · '+PER,'atos',atos), f:kConta('atos RI finalizados no período (registrados, cancelados, em exigência e outros)', null, null, FV)})+
       apoioHTML('Pela central',tudo.length?pct(cO/tudo.length*100).replace('%',''):'—','%',cO+' de '+tudo.length+' registrados e cancelados'+(filtroOrig?' · filtro ativo':''),{go:goLista('Pela central (ONR) · '+(mesSel?nomeMes(mesSel):'período todo'),'atos',tudo.filter(function(a){ return origemAto(a)==='central'; })), f:kConta('atos com natureza ONR ÷ registrados e cancelados', cO+' ÷ '+tudo.length, tudo.length?pct(cO/tudo.length*100):null, FV+' · natureza que começa com "ONR"')})+
       '</div>' + (r.aberto? '<div class="banner warn" style="grid-column:1/-1;margin:0">'+r.aberto+' ato(s) fora do prazo em aberto. Registre o motivo na aba <b>Fora do prazo</b> para levá-lo à curva normal.</div>':'') + (r.I? '<div class="banner warn" style="grid-column:1/-1;margin:0">'+r.I+' ato(s) sem histórico suficiente ficaram fora do cálculo. Reimporte o mês com a Produção por Etapa começando 2 meses antes.</div>':'');
+    var SIT=[r.n?{c:'mute'}:null, k1&&k1.k!=null?(k1.k<=meta1?{c:'good'}:{c:'crit'}):null, v13!=null?(v13<=meta13?{c:'good'}:{c:'crit'}):null];
+    renderGeralCab({at:SIT.filter(function(x){ return x&&x.c==='good'; }).length, na:SIT.filter(function(x){ return x&&x.c==='crit'; }).length, sd:SIT.filter(function(x){ return !x; }).length, bl:SIT.filter(function(x){ return x&&x.c==='mute'; }).length});
     renderTendencia(); renderGraficos();
+  }
+  // 0.28.0: cabeçalho do Painel geral — mês por extenso com setas, situação das fontes e contagem do livro
+  var MESES_LONGOS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  function mesExtenso(m){ var p=String(m).split('-'); return MESES_LONGOS[+p[1]-1]+' de '+p[0]; }
+  function renderGeralCab(info){
+    var el=$('geralCab'); if (!el) return; var m=state.periodo, sel=$('selMes');
+    var ops=sel?Array.prototype.map.call(sel.options,function(o){ return o.value; }).filter(function(v){ return /^\d{4}-\d{2}$/.test(v); }).sort():[];
+    if (!ops.length){ el.innerHTML=''; el.hidden=true; return; } el.hidden=false;
+    var i=ops.indexOf(m), ant=i>0?ops[i-1]:(m==='todos'?null:null), prox=(i>=0&&i<ops.length-1)?ops[i+1]:null;
+    var tit=m==='todos'?(sel&&sel.options[0]?sel.options[0].text.replace(/\s*\(\d+\)$/,''):'Todos os meses'):mesExtenso(m);
+    var frase='';
+    if (m==='todos') frase='Soma dos meses carregados. Escolha um mês para ver o dia a dia e lançar no ANOREG+.';
+    else { frase=(m<mesHoje()?'Mês fechado.':'Mês em andamento: os números ainda vão mudar.');
+      if (typeof saudeMes==='function'){ var o=saudeMes(m), F=[], A=[]; Object.keys(o).forEach(function(k){ if (o[k].nivel==='falta') F.push(o[k].fonte); else if (o[k].nivel==='at') A.push(o[k].fonte); });
+        if (F.length) frase+=' Falta importar: '+F.map(esc).join(', ')+'.'; if (A.length) frase+=' Conferir: '+A.map(esc).join(', ')+'.';
+        if (!F.length&&!A.length) frase+=' Todas as fontes cobrem o mês.'; frase+=' <button type="button" class="lnk" data-go-sau="1">Ver saúde dos dados</button>'; } }
+    var cont='';
+    if (info){ var c=function(n,t,cls){ return '<div class="pg-cont '+(n?cls:'mute')+'"><b>'+n+'</b><span>'+t+'</span></div>'; };
+      cont=c(info.at,info.at===1?'atende':'atendem','good')+c(info.na,info.na===1?'não atende':'não atendem','crit')+(info.bl?c(info.bl,'baseline',''):'')+c(info.sd,'sem dado','mute');
+      if (m!=='todos' && typeof KPIS!=='undefined'){ var L=(state.kp[m]&&state.kp[m].lanc)||{}, vis=KPIS.filter(function(K){ return !K.fora; }), f=vis.filter(function(K){ return L[K.id]; }).length;
+        cont+='<div class="pg-cont"><b>'+f+' de '+vis.length+'</b><span>lançados no ANOREG+</span></div>'; } }
+    el.innerHTML='<div class="pg-cab-t"><div class="pg-mes">'+
+      (m!=='todos'?'<button type="button" class="btn pg-seta" data-permes="'+(ant||'')+'" aria-label="Mês anterior"'+(ant?'':' disabled')+'>‹</button>':'')+
+      '<h1>'+esc(tit)+'</h1>'+
+      (m!=='todos'?'<button type="button" class="btn pg-seta" data-permes="'+(prox||'')+'" aria-label="Próximo mês"'+(prox?'':' disabled')+'>›</button>':'')+
+      '</div><p>'+frase+'</p></div>'+(cont?'<div class="pg-conts">'+cont+'</div>':'');
   }
 
   // 0.13.0: cartão de indicador oficial e item da faixa de apoio
@@ -41,16 +70,26 @@
     var n=vals.length, x=function(i){ return 4+(W-12)*i/(n-1); }, y=function(t){ return 4+(H-10)*(1-(t-lo)/(hi-lo)); }, d='', ult=-1;
     vals.forEach(function(t,i){ if (t==null||isNaN(t)) return; d+=(d?' L':'M')+x(i).toFixed(1)+','+y(t).toFixed(1); ult=i; });
     return '<svg class="spark" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" aria-hidden="true">'+(meta!=null?'<line x1="0" x2="'+W+'" y1="'+y(meta).toFixed(1)+'" y2="'+y(meta).toFixed(1)+'" stroke="var(--ink-3)" stroke-dasharray="4 3" stroke-width="1"/>':'')+
-      '<path d="'+d+'" fill="none" stroke="var(--serie)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>'+(ult>=0?'<circle cx="'+x(ult).toFixed(1)+'" cy="'+y(vals[ult]).toFixed(1)+'" r="3.5" '+(parc&&parc[ult]?'fill="var(--surface)" stroke="var(--serie)"':'fill="var(--serie)" stroke="var(--surface)"')+' stroke-width="2"/>':'')+'</svg>'+(parc&&ult>=0&&parc[ult]?'<div class="spark-p">último ponto: mês parcial</div>':''); }
+      '<path d="'+d+'" fill="none" stroke="var(--serie)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>'+(ult>=0?'<circle cx="'+x(ult).toFixed(1)+'" cy="'+y(vals[ult]).toFixed(1)+'" r="3.5" '+(parc&&parc[ult]?'fill="var(--surface)" stroke="var(--brand-fill)"':'fill="var(--brand-fill)" stroke="var(--surface)"')+' stroke-width="2"/>':'')+'</svg>'+(parc&&ult>=0&&parc[ult]?'<div class="spark-p">último ponto: mês parcial</div>':''); }
   var SELO_OK='<svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="7.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5.5 9.2l2.3 2.3 4.7-4.9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   var SELO_PEND='<svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="7.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.5 2"/></svg>';
+  var ICO_OK='<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+  var ICO_X='<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
   function seloHTML(id, mes, filtro){ if (!mes) return '<span class="selo neutro" title="Escolha um mês no Período para ver o lançamento">acumulado</span>';
-    var T=kpiTravado(mes,id); if (T) return '<span class="selo ok" title="Valor travado: '+esc(String(T.n))+' / '+esc(String(T.d))+(filtro?' · o cartão mostra o filtro de origem, o lançado é o total':'')+'">'+SELO_OK+'Lançado em '+fmtData(String(T.em||'').slice(0,10)).slice(0,5)+'</span>';
-    return '<span class="selo pend" title="Ainda não marcado como lançado em Lançar KPIs">'+SELO_PEND+'Ainda não lançado</span>'; }
+    var T=kpiTravado(mes,id); if (T) return '<span class="selo ok" title="Valor travado: '+esc(String(T.n))+' / '+esc(String(T.d))+(filtro?' · o cartão mostra o filtro de origem, o lançado é o total':'')+'">Lançado em '+fmtData(String(T.em||'').slice(0,10)).slice(0,5)+'</span>';
+    return '<span class="selo pend" title="Ainda não marcado como lançado em Lançar KPIs">Não lançado</span>'; }
+  // 0.28.0: selo da situação — sempre sinal + palavra
+  function seloSit(sit){ if (!sit) return '<span class="selo pend">Sem dado</span>'; return '<span class="selo '+sit.c+'">'+(sit.c==='good'?ICO_OK:sit.c==='crit'?ICO_X:'')+esc(sit.t)+'</span>'; }
+  // 0.28.0: indicador oficial como uma linha do livro (nome e fonte · resultado · meta · situação · meses · lançamento)
   function oficialHTML(id, nome, valor, un, base, meta, sit, metaTxt, serie, metaSerie, mes, filtro, o){ o=o||{};
-    return '<div class="kpi ofk'+(o.go?' click':'')+(o.f?' tem-f':'')+'"'+kpiGo(o.go)+'><div class="ofk-h"><span class="ofk-id">'+id+'</span>'+seloHTML(id,mes,filtro)+'</div><div class="ofk-nm">'+esc(nome)+'</div>'+
-      kpiV(o.go,valor+(un?'<small>'+un+'</small>':''),'ofk-v num','div',id+' '+nome)+'<div class="ofk-b num">'+base+'</div>'+
-      '<div class="ofk-m">'+(sit?'<span class="pill '+sit.c+'">'+(sit.c==='good'?'✓ ':sit.c==='crit'?'✕ ':'')+sit.t+'</span>':'')+'<span>'+metaTxt+'</span></div>'+sparkHTML(serie,metaSerie,o.parc)+kpiQ(o.f)+'</div>'; }
+    var vCls='ofk-v num'+(sit&&sit.c==='crit'?' crit':'')+(valor==='—'?' vazio':'');
+    return '<div class="kpi ofk'+(o.go?' click':'')+(o.f?' tem-f':'')+'" role="listitem"'+kpiGo(o.go)+'>'+
+      '<div class="lv-id"><span class="ofk-id">'+id+'</span><span class="ofk-nm">'+esc(nome)+'</span><span class="ofk-b num">'+base+'</span></div>'+
+      kpiV(o.go,valor+(un?'<small>'+un+'</small>':''),vCls,'div',id+' '+nome)+
+      '<div class="lv-meta">'+String(metaTxt).replace(/^meta /,'').replace(/^sem meta fixada \(baseline\)$/,'baseline')+'</div>'+
+      '<div class="lv-sit">'+seloSit(sit)+'</div>'+
+      '<div class="lv-spark">'+sparkHTML(serie,metaSerie,o.parc)+'</div>'+
+      '<div class="lv-lanc">'+seloHTML(id,mes,filtro)+'</div>'+kpiQ(o.f)+'</div>'; }
   function apoioHTML(t,v,un,s,o){ o=o||{}; return '<div class="apo'+(o.go?' click':'')+(o.f?' tem-f':'')+'"'+kpiGo(o.go)+'><div class="dt">'+t+'</div>'+kpiV(o.go,v+(un&&v!=='—'?'<small>'+un+'</small>':''),'dd num','div',t)+'<p>'+s+'</p>'+kpiQ(o.f)+'</div>'; }
   // 0.24.0: o = {go: ação (goLista…) — o cartão abre os registros; f: a conta com os números (texto/HTML) — botão "?"}
   // conta legível: kConta('no prazo ÷ registrados', '412 ÷ 450', '91,6%', 'fonte', 'obs')
@@ -183,7 +222,7 @@
       kpi('Líquido',f1(r.medL)+' <small style="font-size:14px">mediana</small>','média '+f1(r.mL)+' d.u.','',{go:goLista('Líquido · '+nat,'atos',r.R.filter(function(a){return a.liq!=null;})), f:kConta('mediana da soma dos dias úteis nas etapas do cartório, até o registro', null, null, 'Produção por Etapa do VHL')})+
       kpi('Espera do cliente',f1(r.mEsp),'média d.u. por ato','',{go:goLista('Espera do cliente · '+nat,'atos',r.R.filter(function(a){return a.espera>0;})), f:kConta('média de (bruto − líquido) por ato', null, null, 'Produção por Etapa do VHL')})+
       kpi('Cancelamento',pct(r.total?r.N/r.total*100:null),r.N+' de '+r.total+' atos','',{go:goLista('Cancelados · '+nat,'atos',atos.filter(function(a){return a.cat==='N';})), f:kConta('cancelados ÷ atos da natureza no período', r.N+' ÷ '+r.total, r.total?pct(r.N/r.total*100):null, 'Produção por Etapa do VHL', 'Aqui não entram os cancelados só no Tri7 (eles não têm natureza no VHL).')})+'</div>'+
-      '<div class="two"><div><div class="sub-h">Onde o tempo vai · média por etapa</div><div class="legend" style="margin-bottom:2px"><span><span class="dot" style="background:var(--s-liq)"></span>dentro da meta da etapa</span><span><span class="dot" style="background:var(--s-bruto)"></span>acima da meta</span><span>▏ meta</span></div>'+htmlEtapas(etapasAgg(r.R),12)+'</div>'+
+      '<div class="two"><div><div class="sub-h">Onde o tempo vai · média por etapa</div><div class="legend" style="margin-bottom:2px"><span><span class="dot" style="background:var(--s-liq)"></span>dentro da meta da etapa</span><span><span class="dot" style="background:var(--crit)"></span>acima da meta</span><span>▏ meta</span></div>'+htmlEtapas(etapasAgg(r.R),12)+'</div>'+
       '<div><div class="sub-h">Distribuição · dias úteis brutos até o registro</div>'+histograma(r.R)+'</div></div>'+
       '<div class="sub-h" style="margin-top:16px">Atos ('+lista.length+')</div>'+
       '<div class="search"><input type="search" id="busca" placeholder="Buscar código" value="'+esc(state.busca)+'"><label><input type="checkbox" id="soFora"'+(state.filtroFora?' checked':'')+'> só perto ou acima do limite</label></div>'+
@@ -198,7 +237,7 @@
   function renderEta(atos){
     var R=atos.filter(function(a){return a.cat==='R';}), lista=etapasAgg(R);
     $('tabEta').innerHTML='<div class="sec-h"><span class="note">Média de dias úteis que o ato fica em cada etapa, até o registro · traço = meta pelo nome da etapa · “90% ≤” = em 90% das passagens o ato saiu da etapa nesse tempo</span></div>'+
-      '<div class="legend"><span><span class="dot" style="background:var(--s-liq)"></span>dentro da meta</span><span><span class="dot" style="background:var(--s-bruto)"></span>acima da meta</span></div>'+htmlEtapas(lista)+
+      '<div class="legend"><span><span class="dot" style="background:var(--s-liq)"></span>dentro da meta</span><span><span class="dot" style="background:var(--crit)"></span>acima da meta</span></div>'+htmlEtapas(lista)+
       '<p class="hint" style="margin-top:12px">Imprimir Ficha e Arquivamento acontecem depois do registro e não entram aqui nem no prazo.</p>';
   }
 

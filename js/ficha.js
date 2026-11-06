@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/ficha.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/ficha.js']='0.27.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/ficha.js']='0.28.0';
   // ——— ficha do protocolo (log completo de como o painel calculou)
   function protLink(c){ return '<button type="button" class="lnk" data-prot="'+esc(c)+'" title="Ver ficha do protocolo">'+esc(c)+'</button>'; }
   function logDe(c, mesPref){
@@ -12,8 +12,8 @@
     c=String(c||'').trim().replace(/[^A-Za-z0-9\-]/g,'').toUpperCase(); var box=$('protBox'); state.protSel=c;
     if (!c){ box.hidden=true; return; }
     aplicarTri7(); var a=atoDe(c), L=logDe(c, a&&a.mes), inc=incTodos().filter(function(r){ return String(r.c)===c; });
-    var h='<div class="sec-h"><h2>Protocolo '+esc(c)+'</h2><span><button class="btn sm" type="button" id="protCopiar">Copiar resumo</button> <button class="btn sm" type="button" id="protFechar">Fechar</button></span></div>';
-    var SF=!a?servFicha(c):''; if (!a && SF){ h=h.replace('<h2>Protocolo ','<h2>Documento '); h+=SF; var incS=incTodos().filter(function(r){ return String(r.c).toUpperCase()===c; }); if (incS.length) h+=protInc(incS); box.innerHTML=h; box.hidden=false; box.scrollTop=0; state.protTxt='Documento '+c+': '+box.innerText.slice(0,600); return; }
+    var h='<div class="sec-h"><h2>Protocolo<span class="prot-cod">'+esc(c)+'</span>'+(a?'<span class="prot-nat">'+esc(a.nat)+'</span>':'')+'</h2><span><button class="btn sm" type="button" id="protCopiar">Copiar resumo</button> <button class="btn sm" type="button" id="protFechar">Fechar</button></span></div>';
+    var SF=!a?servFicha(c):''; if (!a && SF){ h=h.replace('<h2>Protocolo<','<h2>Documento<'); h+=SF; var incS=incTodos().filter(function(r){ return String(r.c).toUpperCase()===c; }); if (incS.length) h+=protInc(incS); box.innerHTML=h; box.hidden=false; box.scrollTop=0; state.protTxt='Documento '+c+': '+box.innerText.slice(0,600); return; }
     if (!a){
       h+='<div class="empty"><b>Não encontrei esse protocolo nos meses importados.</b>O painel guarda os atos <i>finalizados</i> (arquivados) nos meses carregados — '+(Object.keys(state.docs).sort().map(nomeMes).join(', ')||'nenhum')+'. Protocolo ainda em andamento, pesquisa qualificada ou de outro mês não aparece.</div>';
       var AF0=andFichaHTML(c); h+=AF0.h;
@@ -39,6 +39,7 @@
       if (a.espera!=null) exp.push(['Espera','<b>'+a.espera+(a.espera===1?' dia útil':' dias úteis')+'</b> parado com o cliente (bruto − líquido).']);
       exp.push(['Retornos',(a.nex?a.nex+' exigência(s) cumprida(s)':'nenhuma exigência')+(a.npg?' · '+a.npg+' espera(s) de pagamento':'')+(a.nri?' · '+a.nri+' devolução(ões) interna(s)':'')+(a.nex>=2?' <span class="pill crit">2+ exigências</span>':'')+(a.exT?'<div class="mut" style="margin-top:3px">'+exExplica(a)+'</div>':'')]);
     } else if (a.cat==='N') exp.push(['Saída',a.fin?fmtData(a.fin):'—']);
+    if (a.cat==='R' && a.bruto!=null && a.lim) h+=reguaPrazo(a, sit); // 0.28.0: régua do prazo
     h+='<div class="prot-grid">'+exp.map(function(x){ return '<div class="pk">'+x[0]+'</div><div class="pv">'+x[1]+'</div>'; }).join('')+'</div>';
     // linha do tempo única: etapas do VHL (dia) + andamentos do Tri7 (dia e hora)
     var TE=(andIndice()[c]||[]), AR=TE.length?andResumoHTML(TE):null, AF={h:'',txt:''};
@@ -64,6 +65,25 @@
     box.innerHTML=h; box.hidden=false; box.scrollTop=0;
     state.protTxt='Protocolo '+c+' — '+a.nat+'\n'+sit+'\nIngresso: '+(a.ing?fmtData(a.ing):'—')+(a.reg?' · Registro (última Revisão Oficial): '+fmtData(a.reg):'')+(a.bruto!=null?'\nBruto: '+a.bruto+' d.u. · Limite: '+a.lim+' d.u.'+(a.liq!=null?' · Líquido: '+a.liq+' d.u. · Espera: '+a.espera+' d.u.':''):'')+(a.cat==='R'?'\nExigências: '+a.nex+(a.npg?' · Retornos por pagamento: '+a.npg:''):'')+(linhasTxt.length?'\n\nLinha do tempo:\n'+linhasTxt.join('\n'):'')+AF.txt;
   }
+  // 0.28.0: régua do prazo — com o cartório, parado com o cliente, registro, limite e folga (ou atraso), em dias úteis
+  function reguaPrazo(a, sit){
+    var b=+a.bruto, lim=+a.lim, liq=a.liq!=null?Math.min(+a.liq,b):null, esp=liq!=null?Math.max(0,b-liq):null;
+    var max=Math.ceil((Math.max(b,lim)+3)/5)*5, W=560, x0=2, px=(W-x0-8)/max, X=function(d){ return x0+d*px; };
+    var dentro=!!a.dentro, fora=!dentro, cls=dentro?'good':(sit&&/justificativa/.test(sit)?'warn':'crit');
+    var ico=cls==='good'?'<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2"/></svg>':cls==='crit'?'<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" fill="none" stroke="currentColor" stroke-width="2"/></svg>':'';
+    var perto=Math.abs(b-lim)*px<70, aR=perto&&b<lim?'end':perto?'start':'middle', aL=perto&&b<lim?'start':perto?'end':'middle', dR=aR==='end'?-4:aR==='start'?4:0, dL=aL==='start'?4:aL==='end'?-4:0;
+    var t='<svg viewBox="0 0 '+W+' 74" role="img" aria-label="'+esc('Registro no '+b+'º dia útil, limite de '+lim+' dias úteis'+(liq!=null?', '+liq+' com o cartório e '+esp+' parado com o cliente':''))+'">'+
+      '<defs><pattern id="rgHach" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="var(--surface-2)"/><line x1="0" y1="0" x2="0" y2="6" stroke="var(--ink-3)" stroke-width="2"/></pattern></defs>'+
+      '<rect class="rg-fundo" x="'+X(0)+'" y="26" width="'+(X(max)-X(0))+'" height="16"/>'+
+      (liq!=null?'<rect class="rg-liq" x="'+X(0)+'" y="26" width="'+(liq*px).toFixed(1)+'" height="16"/><rect class="rg-esp" x="'+X(liq).toFixed(1)+'" y="26" width="'+(esp*px).toFixed(1)+'" height="16"/>':'<rect class="rg-liq" x="'+X(0)+'" y="26" width="'+(b*px).toFixed(1)+'" height="16" opacity=".55"/>')+
+      (dentro&&lim>b?'<line class="rg-folga" x1="'+(X(b)+5).toFixed(1)+'" x2="'+(X(lim)-5).toFixed(1)+'" y1="34" y2="34"/>'+((lim-b)*px>90?'<text class="rg-g" x="'+X((b+lim)/2).toFixed(1)+'" y="22" text-anchor="middle">folga de '+(lim-b)+' d.u.</text>':''):'')+
+      (fora&&b>lim?'<line class="rg-atraso" x1="'+(X(lim)+3).toFixed(1)+'" x2="'+(X(b)-3).toFixed(1)+'" y1="34" y2="34"/>':'')+
+      '<line class="rg-lim" x1="'+X(lim).toFixed(1)+'" x2="'+X(lim).toFixed(1)+'" y1="18" y2="50"/><text class="rg-b" x="'+(X(lim)+dL).toFixed(1)+'" y="12" text-anchor="'+aL+'">limite</text>'+
+      '<line class="rg-mark" x1="'+X(b).toFixed(1)+'" x2="'+X(b).toFixed(1)+'" y1="18" y2="50"/><text class="rg-b" x="'+(X(b)+dR).toFixed(1)+'" y="'+(perto?62:12)+'" text-anchor="'+aR+'">registro</text>';
+    for (var d=0; d<=max; d+=5) t+='<text x="'+X(d).toFixed(1)+'" y="'+(perto?74:64)+'" text-anchor="'+(d===0?'start':d===max?'end':'middle')+'">'+d+(d===max?' d.u.':'')+'</text>';
+    t+='</svg>';
+    return '<div class="prot-regua"><div class="prot-regua-h"><span class="selo '+cls+'">'+ico+esc(dentro?'Registrado no prazo':sit)+'</span><span><b>'+b+'</b> de <b>'+lim+'</b> dias úteis'+(fora&&b>lim?' · <b style="color:var(--crit)">'+(b-lim)+'</b> além do limite':'')+'</span></div>'+t+
+      (liq!=null?'<div class="rg-leg"><span><i class="l"></i>com o cartório '+numBR(liq,1)+'</span><span><i class="e"></i>parado com o cliente '+numBR(esp,1)+'</span></div>':'<div class="rg-leg"><span>Sem o histórico de etapas, não dá para separar o tempo com o cartório do tempo parado.</span></div>')+'</div>'; }
   function protInc(inc){ return '<div class="sub-h" style="margin-top:14px">Inconformidades deste protocolo ('+inc.length+')</div><div class="tbl-wrap"><table class="tleft"><thead><tr><th>Data</th><th>Responsável</th><th>Tipo</th><th>Erro</th><th>Observação</th></tr></thead><tbody>'+
     inc.map(function(r){ return '<tr><td>'+fmtData(r.d)+'</td><td>'+esc(r.r)+'</td><td>'+(grupoDe(r)==='E'?'Externo':'Interno')+'</td><td>'+esc(catDe(r))+'</td><td style="min-width:240px">'+esc(r.o)+'</td></tr>'; }).join('')+'</tbody></table></div>'; }
   function andNome(s){ return Motor.AND_NOME[s]||s; }

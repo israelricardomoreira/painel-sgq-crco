@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/kpis.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/kpis.js']='0.27.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/kpis.js']='0.28.0';
   function compLabel(m){ var p=m.split('-'); return p[1]+'. '+MES_C[+p[1]-1]+'/'+p[0]; }
   function evidLabel(m){ var p=m.split('-'); return MES_C[+p[1]-1]+' '+p[0]; }
   function mesAnt(m){ var p=m.split('-').map(Number); p[1]--; if(!p[1]){ p[1]=12; p[0]--; } return p[0]+'-'+(p[1]<10?'0':'')+p[1]; }
@@ -121,7 +121,7 @@
     var s={}; [state.docs,state.k9,state.kp,HIST_SEMENTE,state.senhas].forEach(function(o){ Object.keys(o||{}).forEach(function(m){ if (/^\d{4}-\d{2}$/.test(m)) s[m]=1; }); });
     var h=mesHoje(); s[h]=1; s[mesAnt(h)]=1; return Object.keys(s).sort().reverse();
   }
-  function cp(lab, val, cls){ var v=val==null?'':String(val); return '<button type="button" class="cp'+(cls?' '+cls:'')+'" data-cp="'+esc(v)+'" title="Clique para copiar"><span class="cpl">'+lab+'</span><span class="cpv">'+(v?esc(v):'<i>vazio</i>')+'</span></button>'; }
+  function cp(lab, val, cls){ var v=val==null?'':String(val); return '<button type="button" class="cp'+(cls?' '+cls:'')+'" data-cp="'+esc(v)+'" title="Clique para copiar"><span class="cpl">'+lab+'</span><span class="cpv">'+(v?esc(v):'<i title="sem valor">—</i>')+'</span></button>'; }
   function cardSaida(K, m){
     var o=kpiValor(K.id,m), sit=kpiSituacao(K,o), tend=kpiTendencia(K,o,m), e=kpEntrada(m,K.id);
     var txt=(o&&o.travado&&o.travado.n!=null)?(o.txt||''):(e.a!=null?e.a:((o&&o.txt)||''));
@@ -158,22 +158,24 @@
     var m=state.lancMes, L=(state.kp[m]&&state.kp[m].lanc)||{};
     var vis=KPIS.filter(function(K){ return state.lancTodos || !K.fora; });
     var feitos=vis.filter(function(K){ return L[K.id]; }).length;
-    var h='<div class="sec-h"><span class="note">Clique em qualquer campo para copiar e cole na linha do IND-SGQ-001. O Resultado o ANOREG+ calcula sozinho.</span></div>'+
+    var folhas=''; vis.forEach(function(K){ folhas+='<i'+(L[K.id]?' class="f"':'')+'></i>'; });
+    var h='<div class="lc-cab"><div><h2>'+esc(typeof mesExtenso==='function'?mesExtenso(m):compLabel(m))+'</h2><p>Clique em qualquer campo para copiar e cole na linha do IND-SGQ-001. O resultado o ANOREG+ calcula sozinho.</p></div>'+
+      '<div class="lc-folhas"><div role="img" aria-label="'+feitos+' de '+vis.length+' indicadores lançados">'+folhas+'</div><span><b>'+feitos+' de '+vis.length+'</b> lançados</span></div></div>'+
       '<div class="search"><select id="lancMes" aria-label="Competência">'+ms.map(function(x){ return '<option value="'+x+'"'+(x===m?' selected':'')+'>'+compLabel(x)+'</option>'; }).join('')+'</select>'+
-      '<span class="chip'+(feitos===vis.length?' ok':'')+'">'+feitos+' de '+vis.length+' lançados</span>'+
+
       '<label class="lc-chk"><input type="checkbox" id="lancTodos"'+(state.lancTodos?' checked':'')+'> mostrar ocultos</label>'+(podeEscrever?'<button class="btn sm" type="button" id="kpiEdBtn">Editar indicadores</button>':'')+
       '<span class="spacer"></span><button class="btn sm" type="button" id="memBtn" title="Planilha com o cálculo de cada KPI deste mês, ato por ato, com fórmulas do Excel — para anexar no ANOREG+">Baixar memória de cálculo (.xlsx)</button>'+'</div>'+'';
     h+=saudeAvisoLanc(m); // 0.14.0: avisa fonte incompleta do mês antes de lançar
     // 0.13.0: lista do mês à esquerda e o indicador escolhido à direita (no celular aparecem todos, um embaixo do outro)
     if (!state.lancSel || !vis.some(function(K){ return K.id===state.lancSel; })){ var pend=vis.filter(function(K){ return !L[K.id]; })[0]; state.lancSel=(pend||vis[0]||{}).id; }
     h+='<div class="lc-lay"><nav class="lc-lista" aria-label="Indicadores do mês">'+vis.map(function(K){ var o=kpiValor(K.id,m), sit=kpiSituacao(K,o), res=o?(o.r!=null&&!K.cont?numBR(o.r)+(K.minutos||K.den===100?'':'%'):numBR(o.n)):'—';
-        return '<button type="button" class="lc-it'+(K.id===state.lancSel?' on':'')+'" data-lancsel="'+esc(K.id)+'"><b>'+esc(K.id)+'</b><span class="lc-itn">'+esc(K.nome)+'</span><small class="num">'+res+(sit?' · '+esc(sit):'')+'</small><em class="'+(L[K.id]?'l':'p')+'">'+(L[K.id]?'Lançado':'Pendente')+'</em></button>'; }).join('')+'</nav><div class="lc-cards">';
+        return '<button type="button" class="lc-it'+(K.id===state.lancSel?' on':'')+'" data-lancsel="'+esc(K.id)+'"><b>'+esc(K.id)+'</b><span class="lc-itn">'+esc(K.nome)+'</span><small class="num">'+res+(sit?' · '+esc(sit):'')+'</small><em class="'+(L[K.id]?'l':'p')+'">'+(L[K.id]?'<span class="selo ok">Lançado</span>':'<span class="selo pend">Pendente</span>')+'</em></button>'; }).join('')+'</nav><div class="lc-cards">';
     h+=vis.map(function(K){
       var s=cardSaida(K,m), done=!!L[K.id], tr=kpiTravado(m,K.id);
       return '<div class="lc-card'+(done?' done':'')+(tr?' travado':'')+(K.id===state.lancSel?' lc-on':'')+'" data-kpi="'+esc(K.id)+'">'+
         '<div class="lc-top"><b>'+esc(K.id)+'</b><span class="lc-nome">'+esc(K.nome)+'</span>'+(K.freq?'<span class="chip">'+K.freq+'</span>':'')+(K.novo?'<span class="chip">ainda não existe no ANOREG+</span>':'')+
-        '<span class="spacer"></span><label class="lc-chk"><input type="checkbox" data-lanc="1"'+(done?' checked':'')+(podeEscrever?'':' disabled')+'> lançado</label></div>'+
-        (tr?'<div class="lc-trava"><span class="selo ok">'+SELO_OK+'Lançado em '+fmtDataHora(tr.em)+' · valor travado</span> Painel '+esc(tr.ver||'?')+'. Mudanças do painel não alteram este mês; para mudar, desmarque "lançado".</div>':done?'<div class="lc-trava velho">Marcado como lançado antes da trava (1.10.1): o valor não foi guardado. Desmarque e marque de novo para travar o valor de hoje.</div>':'')+
+        '<span class="spacer"></span><label class="lc-chk"><input type="checkbox" data-lanc="1"'+(done?' checked':'')+(podeEscrever?'':' disabled')+'> Lançado no ANOREG+</label></div>'+
+        (tr?'<div class="lc-trava"><span class="selo ok">Lançado em '+fmtDataHora(tr.em)+' · valor travado</span> Painel '+esc(tr.ver||'?')+'. Mudanças do painel não alteram este mês; para mudar, desmarque "lançado".</div>':done?'<div class="lc-trava velho">Marcado como lançado antes da trava (1.10.1): o valor não foi guardado. Desmarque e marque de novo para travar o valor de hoje.</div>':'')+
         '<div class="lc-ins">'+(tr?'':cardEntrada(K,m))+'</div>'+
         '<div class="lc-out">'+s.html+'</div>'+
         '<div class="lc-an"><div class="lc-anh"><span class="cpl">Análise / Ação</span><button type="button" class="btn sm" data-cpan="1">Copiar análise</button>'+(!tr&&kpEntrada(m,K.id).a!=null?'<button type="button" class="btn sm" data-anreset="1">Voltar ao texto sugerido</button>':'')+'</div>'+

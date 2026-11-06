@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/saude.js (0.14.0: página Saúde dos dados — cobertura de cada fonte mês a mês e aviso de mês incompleto antes de lançar) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/saude.js']='0.27.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/saude.js']='0.28.0';
   // Antes deste mês, Tri7 parcial, certidões sem natureza e atos sem histórico são limitação conhecida (decisão de não reimportar jan–set/2026)
   var SAUDE_MARCO='2026-10';
   var SD_NIVEL={ok:['good','ok'], at:['warn','atenção'], falta:['crit','falta'], lim:['mute','limitação conhecida'], na:['mute','—']};
@@ -43,7 +43,13 @@
     var ce=state.cert[m];
     if (!ce) out.cer=sdItem('Certidões (Tri7)',fech?'falta':'at','não importadas','');
     else { var nNat=ce.recs.filter(function(r){ return r.nat; }).length;
-      out.cer=(ce.recs.length && !nNat)?sdItem('Certidões (Tri7)',limOu('at'),ce.recs.length+' · sem natureza','O fluxo de intimação usa a regra antiga por pessoa.'+(antes?' Limitação conhecida: a natureza passou a ser gravada a partir de out/2026.':' Reimporte o Relatório de andamentos do mês.')):sdItem('Certidões (Tri7)','ok',ce.recs.length+(nNat<ce.recs.length?' · '+nNat+' c/ natureza':'')); }
+      // 0.27.1: até quando vão as certidões, e atenção quando param mais de 1 dia útil antes dos andamentos do Tri7 do mesmo mês
+      var cMax=-Infinity; ce.recs.forEach(function(r){ if (r.f>cMax) cMax=r.f; }); var aMax=-Infinity; (state.andam[m]||[]).forEach(function(e){ if (e.m>aMax) aMax=e.m; });
+      var cDia=cMax>-Infinity?Math.floor(cMax/1440):null, aDia=aMax>-Infinity?Math.floor(aMax/1440):null, ateC=cDia!=null?' · até '+fmtData(sdIso(cDia)):'';
+      var gapC=(cDia!=null&&aDia!=null&&aDia>cDia)?duCal()(cDia+1,aDia+1):0;
+      if (ce.recs.length && !nNat) out.cer=sdItem('Certidões (Tri7)',limOu('at'),ce.recs.length+' · sem natureza'+ateC,'O fluxo de intimação usa a regra antiga por pessoa.'+(antes?' Limitação conhecida: a natureza passou a ser gravada a partir de out/2026.':' Reimporte o Relatório de andamentos do mês.'));
+      else if (gapC>1) out.cer=sdItem('Certidões (Tri7)','at',ce.recs.length+(nNat<ce.recs.length?' · '+nNat+' c/ natureza':'')+ateC,'As certidões param em '+fmtData(sdIso(cDia))+', mas os andamentos do Tri7 do mesmo mês vão até '+fmtData(sdIso(aDia))+' ('+gapC+' dias úteis depois). Reexporte as certidões do Tri7 com o status Selos Gerados.');
+      else out.cer=sdItem('Certidões (Tri7)','ok',ce.recs.length+(nNat<ce.recs.length?' · '+nNat+' c/ natureza':'')+ateC); }
     // Senhas (PAINEL-05)
     var se=state.senhas[m];
     if (!se) out.sen=sdItem('Senhas (PAINEL-05)',fech?'falta':'at','não importadas','Sem as senhas o KPI-13 não sai.');
@@ -62,7 +68,8 @@
   function saudeAvisoLanc(m){ if (!m) return ''; if (m>=mesHoje()) return '<div class="banner warn sd-aviso"><b>'+esc(nomeMes(m))+' ainda está em andamento:</b> os dados do mês não estão completos. Lance depois do fechamento, com tudo importado. <button class="btn sm" type="button" data-go-sau="1">Ver Saúde dos dados</button></div>';
     var o=saudeMes(m), L=Object.keys(o).filter(function(k){ return o[k].nivel==='at'||o[k].nivel==='falta'; });
     if (!L.length) return '';
-    return '<div class="banner warn sd-aviso"><b>Antes de lançar '+esc(nomeMes(m))+':</b> '+L.map(function(k){ return esc(o[k].fonte)+' — '+esc(o[k].txt); }).join(' · ')+'. <button class="btn sm" type="button" data-go-sau="1">Ver Saúde dos dados</button></div>'; }
+    // 0.28.0: as fontes do mês em lista (✕ falta · ! atenção), não numa frase corrida
+    return '<div class="lc-fontes sd-aviso" role="note"><b>Antes de lançar '+esc(nomeMes(m))+', confira estas fontes</b><ul>'+L.map(function(k){ var f=o[k].nivel==='falta'; return '<li class="'+(f?'falta':'at')+'"><i aria-hidden="true">'+(f?'✕':'!')+'</i><span>'+esc(o[k].fonte)+' <small>'+(f?'falta':'atenção')+': '+esc(o[k].txt)+'</small></span></li>'; }).join('')+'</ul><div><button class="btn sm" type="button" data-go-sau="1">Ver Saúde dos dados</button></div></div>'; }
   function renderSau(){
     var el=$('tabSau'); if (!el) return; var ms=saudeMeses();
     var j=(window.nuvem&&window.nuvem.janela)?window.nuvem.janela():null;

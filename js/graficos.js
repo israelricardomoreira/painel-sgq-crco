@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/graficos.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/graficos.js']='0.27.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/graficos.js']='0.28.0';
   function mesesGraficos(){
     var s={}; [state.docs,state.cert,state.senhas,state.k9,state.inconf,state.serv].forEach(function(o){ Object.keys(o||{}).forEach(function(m){ if (/^\d{4}-\d{2}$/.test(m)) s[m]=1; }); });
     Object.keys(HIST_SEMENTE).forEach(function(m){ s[m]=1; }); Object.keys(state.kp).forEach(function(m){ if (state.kp[m]&&state.kp[m].hist) s[m]=1; });
@@ -68,7 +68,7 @@
           lbl:function(k){ return String(+k.slice(8)); }, tit:function(k){ var w=new Date(k+'T12:00:00Z').getUTCDay(); return DSEM_C[w]+' '+fmtData(k).slice(0,5); },
           extra:dias.map(function(k){ var L=c.G[k]||[]; return L.length?c.ex(L):'sem registros'; }),
           go:function(i){ return goLista(c.t+' · '+fmtData(dias[i]),c.tipo,c.G[dias[i]]||[]); }})+
-        '<button type="button" class="lnk gm-ir" data-ir="'+c.ir+'">Ver detalhes →</button></div>';
+        '<button type="button" class="lnk gm-ir" data-ir="'+c.ir+'">Ver detalhes</button></div>';
     }).join('')||'<div class="empty">Sem registros em '+esc(nomeMes(m))+'.</div>';
   }
   function serieKPI(id, ms){ return ms.map(function(m){ var o=kpiValor(id,m); return o?(o.r!=null?o.r:o.n):null; }); }
@@ -100,7 +100,7 @@
       var fora=c.meta!=null?c.v.filter(function(x){ return x!=null&&(c.menor?x>c.meta:x<c.meta); }).length:0;
       return '<div class="gm-card"><div class="gm-h"><span class="gm-t">'+esc(c.t)+'</span><span class="gm-v">'+fmtG(v,c.un)+'</span></div>'+
         '<div class="gm-s">'+compLabel(ms[idx]).slice(4)+(pIdx?' · <span class="pill mute">'+parcTxt(ms[idx])+'</span>':'')+(dl!=null?' · <span class="'+(bom==null?'':bom?'gm-bom':'gm-mau')+'">'+(dl>0?'▲ ':dl<0?'▼ ':'')+fmtG(Math.abs(dl),c.un==='%'?'pp':c.un)+'</span> vs '+MES_AB[+ms[ant].slice(5)-1]:'')+(c.meta!=null?' · '+(fora?fora+' mês(es) fora da meta':'sempre na meta'):'')+'</div>'+
-        graficoLinha(ms,c.v,{titulo:c.t,un:c.un,meta:c.meta,menor:c.menor,zero:c.zero,extra:c.ex,ir:c.ir})+'<button type="button" class="lnk gm-ir" data-ir="'+c.ir+'">Ver detalhes →</button></div>';
+        graficoLinha(ms,c.v,{titulo:c.t,un:c.un,meta:c.meta,menor:c.menor,zero:c.zero,extra:c.ex,ir:c.ir})+'<button type="button" class="lnk gm-ir" data-ir="'+c.ir+'">Ver detalhes</button></div>';
     }).join('');
   }
   function goAttr(a){ if (!a) return ''; var id=++goN; GO[id]=a;
@@ -304,4 +304,7 @@
         s+=hitRect(xe-4,cy-lh/2,pr-6,lh,tipC,acC); } });
     return s+'</svg>';
   }
-  function vzCard(tit, sub, corpo, cls){ return '<div class="vz-card'+(cls?' '+cls:'')+'"><div class="vz-h"><span class="vz-t">'+esc(tit)+'</span>'+(sub?'<span class="vz-s">'+sub+'</span>':'')+'</div>'+corpo+'</div>'; }
+  // 0.28.0: subtítulo em frases ("a · b" vira "A. B."), sem pontinhos
+  function vzFrase(sub){ var p=String(sub).split(' · ').filter(function(x){ return x.trim(); }); if (p.length<2) return sub;
+    return p.map(function(x){ x=x.trim(); var i=x.search(/[A-Za-zÀ-ÿ]/); if (i===0 && !/^[a-z]{1,3}\/\d/.test(x)) x=x.charAt(0).toUpperCase()+x.slice(1); return /[.!?:]$/.test(x)?x:x+'.'; }).join(' '); }
+  function vzCard(tit, sub, corpo, cls){ return '<div class="vz-card'+(cls?' '+cls:'')+'"><div class="vz-h"><span class="vz-t">'+esc(tit)+'</span>'+(sub?'<span class="vz-s">'+vzFrase(sub)+'</span>':'')+'</div>'+corpo+'</div>'; }

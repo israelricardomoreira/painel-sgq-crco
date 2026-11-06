@@ -123,3 +123,8 @@ Projeto sem acesso por 7 dias é **pausado** (os dados não somem). Para reativa
 | `motor.js` | Regras de cálculo (prazo em dias úteis, exigências, cancelamentos, certidões) |
 | `app.js` | Telas, abas, relatórios, backup e memória de cálculo |
 | `supabase/schema.sql` | Tabelas, travas de acesso e auditoria |
+
+---
+
+## Fontes
+Os números e títulos usam a **Barlow Semi Condensed** (pasta `fonts/`, licença SIL Open Font License em `fonts/OFL.txt`), servida pelo próprio site. O texto usa a Segoe UI, fonte da identidade do CRCO (no Windows já vem instalada).

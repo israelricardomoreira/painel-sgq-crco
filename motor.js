@@ -60,6 +60,14 @@ var Motor = (function(){
   // consultas que não são registro: contam só no volume (fora do KPI-02)
   var CONSULTAS = [PESQUISA, 'informacao verbal - visualizacao de matricula'];
 
+  // 0.27.1: documento de teste fica fora de todas as contas (mesma regra das demais serventias)
+  function ehTeste(c, nat){ return /teste/i.test(String(c==null?'':c)) || /desabilitada|nao usar/.test(semAcento(nat)); }
+  // 0.27.1: etapas do mesmo dia em ordem fixa: retorno → demais → pós-registro → desfecho; empate: etapa, responsável, prazo
+  var DESFECHO = ['onr - nota de devolucao','devolucao deposito previo','oficio de cancelamento','onr - envio do recibo do protocolo','cancelamento de protocolo'];
+  function grupoEtapa(etn){ var k=DESFECHO.indexOf(etn); if (k>=0) return 30+k; if (POS_REGISTRO.test(etn)) return 20; if (/re-analise|revisao de exigencia/.test(etn)) return 0; return 10; }
+  function ordemEtapas(a,b){ if (a.d!==b.d) return a.d-b.d; var ga=grupoEtapa(a.etn), gb=grupoEtapa(b.etn); if (ga!==gb) return ga-gb;
+    if (a.etn!==b.etn) return a.etn<b.etn?-1:1; var ra=semAcento(a.rp), rb=semAcento(b.rp); if (ra!==rb) return ra<rb?-1:1; return a.pz-b.pz; }
+
   function processar(prazoRows, etapaRows, demandaRows, SSF, extras){
     var du = criarCalendario(extras);
     var P = linhas(prazoRows), E = linhas(etapaRows), D = linhas(demandaRows);
@@ -67,22 +75,24 @@ var Motor = (function(){
     var dem={}; D.forEach(function(r){ var c=String(r['codigo']); dem[c]=semAcento(r['status']); }); var temDemanda=D.length>0;
     // etapas: dedupe + agrupa
     var vistos={}, porCod={}, prod={}, minEt=Infinity, maxEt=-Infinity, idx=0;
+    var testes={}; P.forEach(function(r){ var c=String(r['codigo']==null?'':r['codigo']).trim(); if (ehTeste(c, r['natureza'])) testes[c]=1; }); // 0.27.1
     E.forEach(function(r){
       var c=String(r['codigo']), d=paraDia(r['data execucao'],SSF), et=String(r['etapa']||'').trim(), pz=+r['prazo']||0;
       if (d==null) return;
+      if (testes[c] || /teste/i.test(c)) return; // 0.27.1: documento de teste fora do RI e da produção por pessoa
       var chave=c+'|'+d+'|'+et+'|'+(r['responsavel']||'')+'|'+pz;
       if (vistos[chave]) return; vistos[chave]=1;
       if (d<minEt) minEt=d; if (d>maxEt) maxEt=d;
       (porCod[c]=porCod[c]||[]).push({d:d,et:et,etn:semAcento(et),pz:pz,i:idx++,rp:String(r['responsavel']||'').trim()});
       var rp=String(r['responsavel']||'').trim(); if (rp){ var mm=isoDeDia(d).slice(0,7), P1=prod[mm]=prod[mm]||{}, Q=P1[rp]=P1[rp]||{docs:{},et:{},z:{}}; Q.docs[c]=1; Q.et[et]=(Q.et[et]||0)+1; Q.z[et]=(Q.z[et]||0)+pz; }
     });
-    for (var c in porCod) porCod[c].sort(function(a,b){ return a.d-b.d || a.i-b.i; });
+    for (var c in porCod) porCod[c].sort(ordemEtapas); // 0.27.1: ordem fixa no mesmo dia (o VHL só dá a data)
     // prazo: dedupe por código (última linha vence)
     var atosMap={}, certTip={};
     P.forEach(function(r){
       if (semAcento(r['tipo de documento'])==='certidao - ri'){ var fc=paraDia(r['finalizacao'],SSF); if (fc!=null){ var mc=isoDeDia(fc).slice(0,7); (certTip[mc]=certTip[mc]||{})[String(r['codigo'])]=String(r['natureza']||'').trim(); } return; }
       if (semAcento(r['tipo de documento'])!=='ri') return;
-      var c=String(r['codigo']); atosMap[c]=r;
+      var c=String(r['codigo']); if (ehTeste(c, r['natureza'])) return; atosMap[c]=r;
     });
     var meses={};
     Object.keys(atosMap).forEach(function(c){
@@ -231,6 +241,13 @@ var Motor = (function(){
     });
     return out;
   }
+  // 0.27.1: cada PAINEL-04 é lido sozinho e os arquivos se juntam pelo id — período repetido entre arquivos não duplica; linha repetida no mesmo arquivo continua contando
+  function processarInconfArquivos(listas, SSF){
+    var out={}, ja={};
+    (listas||[]).forEach(function(rows){ var r=processarInconf(rows, SSF);
+      Object.keys(r).forEach(function(m){ r[m].forEach(function(rec){ if (ja[rec.id]) return; ja[rec.id]=1; (out[m]=out[m]||[]).push(rec); }); }); });
+    return out;
+  }
   // ——— certidões (Tri7 · Andamentos)
   function paraMin(v){ // 'dd/mm/aaaa hh:mm:ss' (UTC no export do Tri7) -> minutos locais (UTC-3) desde a época, como relógio "ingênuo"
     if (v==null||v==='') return null; var s=String(v).trim(), m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})(?::(\d{2}))?/);
@@ -289,7 +306,7 @@ var Motor = (function(){
     return Math.round((d+h)*1440);
   }
   function processarAndam(rows){
-    var L=linhas(rows), ev={}, cert={}, ini=Infinity, fim=-Infinity, nP=0, nC=0, nAuto=0;
+    var L=linhas(rows), ev={}, cert={}, ini=Infinity, fim=-Infinity, nP=0, nC=0, nAuto=0, nCL=0;
     L.forEach(function(r){
       var tipo=semAcento(r['tipo']), st=semAcento(r['status do andamento']), num=r['nº']!=null?r['nº']:(r['no']!=null?r['no']:r['n°']);
       if (num==null||num===''||!st) return; num=String(num).replace(/\.0+$/,'').trim();
@@ -297,6 +314,7 @@ var Motor = (function(){
       var u=String(r['usuario']||'').trim().toUpperCase();
       if (mi<ini) ini=mi; if (mi>fim) fim=mi;
       if (tipo.indexOf('certid')>=0){ // certidões: pedido -> Selos Gerados
+        nCL++; // 0.27.1: linhas de certidão em qualquer status (aviso quando nenhuma é Selos Gerados)
         if (st!=='selos gerados') return;
         if (u==='TRI7'){ nAuto++; var ma=isoMin(mi).slice(0,7), CA=cert[ma]=cert[ma]||{mes:ma,recs:[],erros:0,pend:0}; (CA.auto=CA.auto||[]).push(num); return; } // emitida automaticamente pelo sistema (SAEC), sem ação humana
         var i=andMin(r['data prot.']); if (i==null) return; nC++;
@@ -308,7 +326,7 @@ var Motor = (function(){
       var ev1={t:t,n:num,s:cod,u:u,m:mi}; if (cod==='CD'||cod==='CP'||cod==='CC'){ var ip=andMin(r['data prot.']); if (ip!=null) ev1.i=ip; } // cancelado: guarda a prenotação (o protocolo pode ser de antes do relatório)
       (ev[me]=ev[me]||[]).push(ev1);
     });
-    return {ev:ev, cert:cert, ini:ini===Infinity?null:isoMin(ini), fim:fim===-Infinity?null:isoMin(fim), nP:nP, nC:nC, nAuto:nAuto};
+    return {ev:ev, cert:cert, ini:ini===Infinity?null:isoMin(ini), fim:fim===-Infinity?null:isoMin(fim), nP:nP, nC:nC, nAuto:nAuto, nCL:nCL};
   }
   function andChave(e){ return e.t+'|'+e.n+'|'+e.s+'|'+e.u+'|'+e.m; }
   function codificarAndam(mes, lista, origem){
@@ -356,7 +374,7 @@ var Motor = (function(){
         ets:f[7]?f[7].split(';').map(function(x){ var q=x.split(':'); return {et:doc.ets[+q[0]], rp:doc.resps[+q[1]], d:+q[2], pz:+q[3]}; }):[]}; });
   }
 
-  return {VERSAO:'0.27.0', limitePrazo:limitePrazo, mascarar:mascarar, processarServ:processarServ, codificarServ:codificarServ, decodificarServ:decodificarServ, tipoServ:tipoServ, processarAndam:processarAndam, codificarAndam:codificarAndam, decodificarAndam:decodificarAndam, andChave:andChave, AND_NOME:AND_NOME, isoMin:isoMin, processar:processar, processarInconf:processarInconf, processarCert:processarCert, codificarCert:codificarCert, decodificarCert:decodificarCert, horasUteis:horasUteis, limiteCert:limiteCert, certBalcao:certBalcao, feriadoSet:feriadoSet, feriadosNomeados:feriadosNomeados, nomearErro:nomearErro, CATS_ERRO:CATS_ERRO, detectar:detectar, codificar:codificar, decodificar:decodificar, criarCalendario:criarCalendario, diaDeIso:diaDeIso, isoDeDia:isoDeDia, codificarLog:codificarLog, decodificarLog:decodificarLog, paraDia:paraDia, semAcento:semAcento, linhas:linhas};
+  return {VERSAO:'0.28.0', limitePrazo:limitePrazo, mascarar:mascarar, processarServ:processarServ, codificarServ:codificarServ, decodificarServ:decodificarServ, tipoServ:tipoServ, processarAndam:processarAndam, codificarAndam:codificarAndam, decodificarAndam:decodificarAndam, andChave:andChave, AND_NOME:AND_NOME, isoMin:isoMin, processar:processar, processarInconf:processarInconf, processarInconfArquivos:processarInconfArquivos, ehTeste:ehTeste, ordemEtapas:ordemEtapas, processarCert:processarCert, codificarCert:codificarCert, decodificarCert:decodificarCert, horasUteis:horasUteis, limiteCert:limiteCert, certBalcao:certBalcao, feriadoSet:feriadoSet, feriadosNomeados:feriadosNomeados, nomearErro:nomearErro, CATS_ERRO:CATS_ERRO, detectar:detectar, codificar:codificar, decodificar:decodificar, criarCalendario:criarCalendario, diaDeIso:diaDeIso, isoDeDia:isoDeDia, codificarLog:codificarLog, decodificarLog:decodificarLog, paraDia:paraDia, semAcento:semAcento, linhas:linhas};
 })();
 if (typeof module!=='undefined') module.exports=Motor;
 // MOTOR-FIM ———————————————————————————————————————————————————
