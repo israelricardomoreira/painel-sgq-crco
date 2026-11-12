@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/navegacao.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/navegacao.js']='0.28.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/navegacao.js']='0.29.0';
   function pgVisLer(){ try{ return JSON.parse(localStorage.getItem('crco-pgvis')||'{}')||{}; }catch(e){ return {}; } }
   function pgVisDef(aba,on){ state.pgVis[aba]=on; try{ localStorage.setItem('crco-pgvis',JSON.stringify(state.pgVis)); }catch(e){} pgVisSw(); render(); }
   // 0.25.0: o botão Gráficos do topo saiu; nas páginas com visual próprio, o alternador fica no cabeçalho da página

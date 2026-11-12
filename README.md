@@ -19,7 +19,8 @@ Ele calcula os KPIs a partir dos exports do VHL, do Tri7 e da folha, guarda tudo
 
 ### 2. Supabase: criar as tabelas e as travas
 1. No menu lateral, abra **SQL Editor** e clique em **New query**.
-2. Cole todo o conteúdo de [`supabase/schema.sql`](supabase/schema.sql) e clique em **Run**. Deve aparecer *Success*.
+2. Cole todo o conteúdo de [`schema.sql`](schema.sql) e clique em **Run**. Deve aparecer *Success*.
+3. Faça o mesmo com [`versoes.sql`](versoes.sql). Ele guarda a versão anterior de cada registro e permite desfazer uma importação.
 
 ### 3. Supabase: configurar o login
 Em **Authentication**:
@@ -57,10 +58,11 @@ Em 1 ou 2 minutos o site fica em `https://israelricardomoreira.github.io/painel-
 | O que | Onde |
 |---|---|
 | Lançar um mês novo | Menu **Importar dados**: solte os PAINEL-01 a 05 do VHL, o Relatório de andamentos do Tri7 e o Rel. Eventos da folha, depois **Salvar e atualizar o painel** |
-| Ver quem deu entrada, redigiu exigência, revisou e gerou os selos | Menu **Quem fez · Tri7** e a ficha do protocolo |
+| Ver quem deu entrada, redigiu exigência, revisou e gerou os selos | Menu **Desempenho**, aba **Quem fez · Tri7**, e a ficha do protocolo |
 | Copiar os KPIs para o ANOREG+ | Aba **Lançar KPIs** |
 | Mudar meta, nome ou incluir um KPI | **Lançar KPIs → Editar indicadores** |
-| Ver só RI, RC, RTD/PJ, Apoio ou tudo junto | Filtro **Serventia** no topo ("Todas" abre o comparativo) (o prazo legal de cada natureza é preenchido em **Por natureza**) |
+| Ver só RI, RC, RTD/PJ ou tudo junto | Filtro **Serventia** no topo ("Todas" abre o comparativo). O prazo próprio de cada natureza fica em **Configuração** |
+| Levar uma tabela para o Excel | Botão **Baixar tabela (.xlsx)** acima de qualquer tabela. Sai como está na tela, com o filtro do topo |
 | Evidência auditável do mês | Aba **Lançar KPIs → Baixar memória de cálculo (.xlsx)** |
 | Ver como um protocolo foi calculado | Campo **Protocolo** no topo |
 | Backup | **Importar dados → Baixar backup (.json)**, uma vez por mês. O site avisa depois de 30 dias |
@@ -121,8 +123,10 @@ Projeto sem acesso por 7 dias é **pausado** (os dados não somem). Para reativa
 | `config.js` | URL e chave pública do Supabase |
 | `nuvem.js` | Login, verificação em duas etapas e acesso ao banco |
 | `motor.js` | Regras de cálculo (prazo em dias úteis, exigências, cancelamentos, certidões) |
-| `app.js` | Telas, abas, relatórios, backup e memória de cálculo |
-| `supabase/schema.sql` | Tabelas, travas de acesso e auditoria |
+| `js/` | Telas, uma por arquivo (painel geral, prazos, pessoas, importação, exportação de tabelas e as demais) |
+| `xlsx.full.min.js` | Biblioteca de planilhas, carregada só quando é preciso ler ou gerar um arquivo do Excel |
+| `schema.sql` | Tabelas, travas de acesso e auditoria |
+| `versoes.sql` | Versão anterior de cada registro, para desfazer uma importação |
 
 ---
 
