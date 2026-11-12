@@ -2,7 +2,7 @@
  * Regras: compara só quem faz o mesmo serviço (faixa da função principal); critérios fixos, iguais para todos;
  * aprendizagem, mudança de função e afastamento são contexto e não pontuam; atestado e falta nunca entram.
  * O painel monta o caso; quem decide é a gestão, com motivo registrado (LGPD art. 20). Só administrador vê. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/areapessoas.js']='0.29.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/areapessoas.js']='0.30.0';
   var PA_ABAS={pfi:'renderFicha', pcm:'renderComparar', pmt:'renderMatriz', pcs:'renderCaso', pcf:'renderConferencia', fot:'renderFotos'};
   function paRender(k){ var f=PA_ABAS[k]; if (f&&typeof window[f]==='function') window[f](); }
   function paSemDados(el, txt){ el.innerHTML='<div class="empty"><b>Sem dados para esta tela</b>'+(txt||'Importe o relatório Desempenho Usuário do VHL (um arquivo por pessoa e mês) em Importar dados.')+'</div>'; }
@@ -76,6 +76,16 @@
   function paListaPessoas(A){ var o={}; if (A){ A.R.L.forEach(function(p){ o[p.k]=p.nome; }); Object.keys(A.M.P).forEach(function(k){ var p=A.M.P[k]; if (!o[p.ck]) o[p.ck]=p.nome; }); }
     return Object.keys(o).map(function(k){ return {k:k, nome:o[k]}; }).sort(function(a,b){ return a.nome.localeCompare(b.nome,'pt-BR'); }); }
   function paSel(id, lista, val, rot, vazio){ return '<label class="pa-sel"><span>'+rot+'</span><select id="'+id+'" aria-label="'+esc(rot)+'">'+(vazio?'<option value="">'+vazio+'</option>':'')+lista.map(function(x){ return '<option value="'+esc(x.k)+'"'+(x.k===val?' selected':'')+'>'+esc(x.nome)+'</option>'; }).join('')+'</select></label>'; }
+  // 0.30.0: evolução mês a mês da pessoa (mesmos números da Ficha, um mês por linha; só meses fechados)
+  function paEvolLinhas(V, k, fech){ return fech.map(function(m){ var x=V.PM[k+'|'+m]; if (!x) return {m:m, sem:true};
+      var r=x.ok?vgNota([x],VG_VAR[0]):null, docs=x.ndocs||0, inc=x.inc||0;
+      return {m:m, nota:r?r.nota:null, horas:r?r.ent+r.cert+r.bal:null, docs:docs, inc:inc, taxa:docs>=MIN_PROD?inc/docs:null, da:x.da!=null?x.da:null}; }); }
+  function paEvolHTML(V, k, fech){ var L=paEvolLinhas(V,k,fech); if (!L.some(function(l){ return !l.sem; })) return '';
+    return '<div class="sub-h">Evolução mês a mês <span class="mut">(últimos '+L.length+' meses fechados)</span></div>'+
+      '<div class="tbl-wrap" style="margin-bottom:6px"><table><thead><tr><th class="tleft">Mês</th><th>Nota</th><th>Horas produzidas</th><th>Documentos</th><th>Inconformidades internas</th><th>Taxa</th><th>Dias ativos</th></tr></thead><tbody>'+
+      L.map(function(l){ if (l.sem) return '<tr class="mut"><td class="tleft">'+esc(nomeMes(l.m))+'</td><td colspan="6" class="tleft">sem produção carregada</td></tr>';
+        return '<tr><td class="tleft">'+esc(nomeMes(l.m))+'</td><td class="num">'+(l.nota!=null?'<b>'+vgPct(l.nota)+'</b>':'—')+'</td><td class="num">'+(l.horas!=null?trFmtH(l.horas):'—')+'</td><td class="num">'+l.docs+'</td><td class="num">'+l.inc+'</td><td class="num">'+(l.taxa!=null?pct(l.taxa*100):'<span class="mut" title="Menos de '+MIN_PROD+' documentos no mês">base pequena</span>')+'</td><td class="num">'+(l.da!=null?l.da:'—')+'</td></tr>'; }).join('')+
+      '</tbody></table></div><p class="hint" style="margin:0 0 12px">Cada linha usa a mesma conta da Ficha, só com os dados daquele mês. Nota sem valor: poucos dias ativos ou sem tempo-padrão no mês. Taxa só aparece com '+MIN_PROD+' documentos ou mais no mês.</p>'; }
   function renderFicha(){
     var el=$('tabPfi'); if (!el) return; var A=paBase(); if (!A){ paSemDados(el); return; }
     var L=paListaPessoas(A); if (!L.length){ paSemDados(el); return; }
@@ -91,6 +101,7 @@
       kpi('Tendência',td.txt,'últimos 3 meses fechados × 3 anteriores',td.ord===0?'canc':'')+
       kpi('Funções',mp?String(mp.nf):'—',mp&&mp.so.length?'só ela cobre: '+esc(mp.so.join(', ')):'titular ou executa em 12 meses',mp&&mp.so.length?'canc':'')+
       kpi('Dias ativos',p?String(p.da):'—',p?'de '+p.du+' dias úteis':'', '', {f:kConta(DIA_ATIVO_DEF,null,null,'VHL + Tri7 + senhas','Afastamento não pontua: só muda as horas disponíveis.')})+'</div>';
+    h+=paEvolHTML(A.V,k,A.fech);
     // funções
     if (mp){ h+='<div class="sub-h">Funções · '+esc(nomeMes(A.M.ini))+' a '+esc(nomeMes(A.M.ult))+'</div><div class="pend-chips" style="margin-bottom:10px">'+A.M.F.filter(function(f){ return A.M.nivel(mp,f); }).map(function(f){ var l=A.M.nivel(mp,f), n=mp.n[f]||0; return '<button type="button" class="chip pa-'+l+'"'+(n?goAttr(paGoExec(A.M,mp.k,f)):'')+'>'+esc(f)+' · '+NIV_TXT[l]+(n?' · '+n:'')+(A.M.COB[f].n===1&&A.M.COB[f].ks[0]===mp.k?' · só ela':'')+'</button>'; }).join('')+'</div>'; }
     // aprendizagem
