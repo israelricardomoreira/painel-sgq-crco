@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/configuracao.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/configuracao.js']='0.31.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/configuracao.js']='0.32.0';
   function compAto(a){ return a.mes||(a.fin||'').slice(0,7)||'9999-99'; }
   function cfgDef(key, comp){ var d=CFG_DEF[key]; if (d){ var v=null; d.def.forEach(function(e){ if (e[0]<=comp) v=e[1]; }); return v; }
     if (key.indexOf('serv.prazo|')===0){ var x=state.prazosServ[key.slice(11)]; return x==null||x===''?null:+x; }
@@ -61,6 +61,7 @@
     h+=popCfgHTML(); // 0.21.0
     h+='<div class="sub-h" style="margin-top:16px">Regras de apuração</div><div class="tbl-wrap"><table class="cfg-t"><thead><tr><th class="tleft">Regra</th><th class="tleft">Valor e vigência</th><th></th></tr></thead><tbody>'+
       cfgLinha('ri.retornoComprovado')+cfgLinha('ri.registroSelo')+cfgLinha('ri.cancelTri7')+cfgLinha('pend.marco')+cfgLinha('amostra.min')+'</tbody></table></div>';
+    h+='<div class="sub-h" style="margin-top:16px">Painel geral · metas de projeto</div><div class="tbl-wrap"><table class="cfg-t"><thead><tr><th class="tleft">Regra</th><th class="tleft">Valor</th><th></th></tr></thead><tbody>'+cfgLinha('geral.metaContratos')+'</tbody></table></div>';
     el.innerHTML=h;
     var eI=$('expIni'), eF=$('expFim'); if (eI&&document.activeElement!==eI) eI.value=state.cfg.expIni; if (eF&&document.activeElement!==eF) eF.value=state.cfg.expFim; renderFeriados();
     var H=state.apur.hist||[];

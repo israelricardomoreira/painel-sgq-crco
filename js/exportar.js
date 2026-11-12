@@ -2,7 +2,7 @@
  * Só leitura da tela: copia o que a tabela mostra (cabeçalho e linhas, com o que estiver escolhido nos campos) para uma planilha.
  * Não lê o banco, não grava nada e não muda nenhuma regra de cálculo. A planilha sai com o nome da página, da seção e do período do topo.
  * A biblioteca de planilhas é a mesma da memória de cálculo (precisaXLSX, em js/dados.js). */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/exportar.js']='0.31.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/exportar.js']='0.32.0';
   var EXP_RAIZES=['pgGeral','pgConteudo'], EXP_MIN_LINHAS=2;
   function expLimpo(s){ return String(s==null?'':s).replace(/ /g,' ').replace(/\s+/g,' ').trim(); }
   // texto de uma célula como a pessoa vê: opção escolhida no seletor, valor digitado no campo, sem o que está oculto e sem os botões de ajuda

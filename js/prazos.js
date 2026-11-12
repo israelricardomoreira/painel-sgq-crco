@@ -1,9 +1,12 @@
 /* Painel SGQ · CRCO — js/prazos.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/prazos.js']='0.31.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/prazos.js']='0.32.0';
   // 0.31.0: texto da comparação com o mês anterior (diferença entre os valores como aparecem na tela, com 1 casa; inteiro = contagem)
   function apoCmpTxt(atual, ant, un, inteiro, rotMes){ if (atual==null||ant==null||isNaN(atual)||isNaN(ant)) return '';
     var r1=function(x){ return Math.round(x*10)/10; }, d=inteiro?Math.round(atual-ant):r1(r1(atual)-r1(ant)), m=esc(rotMes), q=inteiro?String(Math.abs(d)):f1(Math.abs(d));
     return '<br><span class="mut">'+(d===0?'igual a '+m:q+(un?' '+un:'')+(d>0?' a mais que ':' a menos que ')+m)+'</span>'; }
+  // 0.32.0: contratos registrados dentro da meta do projeto (mesma conta de Capacidade e gargalo: GA_CONTRATO e GA_META, em js/gargalo.js)
+  function contratosMeta(L){ var R=L.filter(function(a){ return a.cat==='R'&&a.bruto!=null&&GA_CONTRATO.test(a.nat||''); }), ate=R.filter(function(a){ return a.bruto<=GA_META; });
+    return {R:R, n:R.length, ate:ate.length, p:R.length?ate.length/R.length*100:null, med:R.length?mediana(R.map(function(a){ return a.bruto; })):null}; }
   function pintarGeral(atos){
     var r=resumo(atos);
     // 0.13.0: indicadores oficiais em destaque (valor, meta, situação, linha do ano e selo de lançado); o apoio fica numa faixa
@@ -12,6 +15,7 @@
     // 0.31.0: comparação com o mês anterior nos cartões do prazo (só com um mês fechado escolhido e o anterior também fechado; segue o filtro de origem)
     var mA=mesSel&&!mesParcial(mesSel)&&state.docs[mesAnt(mesSel)]&&!mesParcial(mesAnt(mesSel))?mesAnt(mesSel):null, rA=mA?resumo(atosDoMes(mA)):null; if (rA&&!rA.n){ mA=null; rA=null; }
     function apoCmp(atual, ant, un, inteiro){ return mA?apoCmpTxt(atual, ant, un, inteiro, nomeMes(mA)):''; }
+    var cM=contratosMeta(atos), cMA=mA?contratosMeta(atosDoMes(mA)):null;
     var fo=r.R.filter(function(a){return a.dentro&&a.bruto!=null;}).map(function(a){return a.lim-a.bruto;}), ef=est(fo), apert=fo.filter(function(x){return x<=3;}).length, pa=ef.n?pct(apert/ef.n*100):'', alto=apert/Math.max(1,ef.n)>0.05;
     var X=cancSoTri7Periodo(), Nc=r.N+X.length, Tc=r.total+X.length;
     var tudo=[]; Object.keys(state.docs).forEach(function(m){ if (state.periodo==='todos'||state.periodo===m) tudo=tudo.concat(state.docs[m].atos.filter(function(a){ return a.cat==='R'||a.cat==='N'; })); });
@@ -39,6 +43,7 @@
       apoioHTML('Cancelamentos',pct(Tc?Nc/Tc*100:null).replace('%',''),'%',Nc+' de '+Tc+' · KPI-02 comp.'+(X.length?' · '+X.length+' só no Tri7':''),{go:goLista('Cancelamentos · '+PER,'atos',atos.filter(function(a){return a.cat==='N';}).concat(X)), f:kConta('cancelados ÷ (atos do período + cancelados só no Tri7)', Nc+' ÷ '+Tc, Tc?pct(Nc/Tc*100):null, FV+' + Relatório de andamentos do Tri7')})+
       apoioHTML('Volume',String(r.total),'atos',(pesquisaTotal()?'fora '+pesquisaTotal()+' pesquisa'+(pesquisaTotal()>1?'s':'')+' qualificada'+(pesquisaTotal()>1?'s':''):'atos RI do período')+apoCmp(r.total,rA&&rA.total,'atos',true),{go:goLista('Volume · todos os atos · '+PER,'atos',atos), f:kConta('atos RI finalizados no período (registrados, cancelados, em exigência e outros)', null, null, FV)})+
       apoioHTML('Pela central',tudo.length?pct(cO/tudo.length*100).replace('%',''):'—','%',cO+' de '+tudo.length+' registrados e cancelados'+(filtroOrig?' · filtro ativo':''),{go:goLista('Pela central (ONR) · '+(mesSel?nomeMes(mesSel):'período todo'),'atos',tudo.filter(function(a){ return origemAto(a)==='central'; })), f:kConta('atos com natureza ONR ÷ registrados e cancelados', cO+' ÷ '+tudo.length, tudo.length?pct(cO/tudo.length*100):null, FV+' · natureza que começa com "ONR"')})+
+      (cM.n&&cfgS('geral.metaContratos')?apoioHTML('Contratos em até '+GA_META+' d.u. · meta do projeto',pct(cM.p).replace('%',''),'%',cM.ate+' de '+cM.n+' contratos registrados · mediana '+f1(cM.med)+' d.u.'+apoCmp(cM.p,cMA&&cMA.p,'p.p.'),{go:goLista('Contratos registrados · '+PER,'atos',cM.R), f:kConta('contratos registrados em até '+GA_META+' d.u. ÷ contratos registrados', cM.ate+' ÷ '+cM.n, pct(cM.p), FV, 'Mesma conta de Capacidade e gargalo, com as naturezas de contrato. O prazo é o bruto, do ingresso ao registro.')}).replace('<div class="apo','<div style="grid-column:1/-1" class="apo'):'')+
       '</div>' + (r.aberto? '<div class="banner warn" style="grid-column:1/-1;margin:0">'+r.aberto+' ato(s) fora do prazo em aberto. Registre o motivo na aba <b>Fora do prazo</b> para levá-lo à curva normal.</div>':'') + (r.I? '<div class="banner warn" style="grid-column:1/-1;margin:0">'+r.I+' ato(s) sem histórico suficiente ficaram fora do cálculo. Reimporte o mês com a Produção por Etapa começando 2 meses antes.</div>':'');
     var SIT=[r.n?{c:'mute'}:null, k1&&k1.k!=null?(k1.k<=meta1?{c:'good'}:{c:'crit'}):null, v13!=null?(v13<=meta13?{c:'good'}:{c:'crit'}):null];
     renderGeralCab({at:SIT.filter(function(x){ return x&&x.c==='good'; }).length, na:SIT.filter(function(x){ return x&&x.c==='crit'; }).length, sd:SIT.filter(function(x){ return !x; }).length, bl:SIT.filter(function(x){ return x&&x.c==='mute'; }).length});
