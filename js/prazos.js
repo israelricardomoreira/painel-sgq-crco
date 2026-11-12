@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/prazos.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/prazos.js']='0.32.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/prazos.js']='0.33.0';
   // 0.31.0: texto da comparação com o mês anterior (diferença entre os valores como aparecem na tela, com 1 casa; inteiro = contagem)
   function apoCmpTxt(atual, ant, un, inteiro, rotMes){ if (atual==null||ant==null||isNaN(atual)||isNaN(ant)) return '';
     var r1=function(x){ return Math.round(x*10)/10; }, d=inteiro?Math.round(atual-ant):r1(r1(atual)-r1(ant)), m=esc(rotMes), q=inteiro?String(Math.abs(d)):f1(Math.abs(d));
