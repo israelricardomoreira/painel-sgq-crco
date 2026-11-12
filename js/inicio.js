@@ -146,6 +146,8 @@
   CFG_SIMPLES['apr.teto']={nome:'Aprendizagem · teto do mínimo', un:'atos', tipo:'num', def:30, ajuda:'Acima disso mais atos quase não mudam a confiança, então não precisa esperar.'};
   CFG_SIMPLES['apr.refMeses']={nome:'Aprendizagem · histórico para o mínimo', un:'meses', tipo:'num', def:12, ajuda:'Meses fechados usados para calcular o volume típico de cada POP.'};
   CFG_SIMPLES['apr.expMeses']={nome:'Aprendizagem · período do Apto por experiência', un:'meses', tipo:'num', def:6, ajuda:'Meses fechados avaliados na carga inicial (ISO 9001 7.2 b).'};
+  // 0.32.0: metas de projeto no Painel geral (liga e desliga; o cálculo continua em Capacidade e gargalo)
+  CFG_SIMPLES['geral.metaContratos']={nome:'Painel geral · mostrar a meta de contratos em 2 d.u.', tipo:'bool', def:false, ajuda:'Sim: o cartão "Contratos em até 2 d.u." aparece em Como o prazo do RI se formou. Não: só em Capacidade e gargalo. Ligue quando o projeto dos contratos começar.'};
   state.popsCfg={map:{}}; state.popsVer=0; state.popEd=null; state.popNovo=false; state.aprDraft={}; state.aprExp=null;
   var MARCO_RET='2026-10';
 

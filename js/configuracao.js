@@ -61,6 +61,7 @@
     h+=popCfgHTML(); // 0.21.0
     h+='<div class="sub-h" style="margin-top:16px">Regras de apuração</div><div class="tbl-wrap"><table class="cfg-t"><thead><tr><th class="tleft">Regra</th><th class="tleft">Valor e vigência</th><th></th></tr></thead><tbody>'+
       cfgLinha('ri.retornoComprovado')+cfgLinha('ri.registroSelo')+cfgLinha('ri.cancelTri7')+cfgLinha('pend.marco')+cfgLinha('amostra.min')+'</tbody></table></div>';
+    h+='<div class="sub-h" style="margin-top:16px">Painel geral · metas de projeto</div><div class="tbl-wrap"><table class="cfg-t"><thead><tr><th class="tleft">Regra</th><th class="tleft">Valor</th><th></th></tr></thead><tbody>'+cfgLinha('geral.metaContratos')+'</tbody></table></div>';
     el.innerHTML=h;
     var eI=$('expIni'), eF=$('expFim'); if (eI&&document.activeElement!==eI) eI.value=state.cfg.expIni; if (eF&&document.activeElement!==eF) eF.value=state.cfg.expFim; renderFeriados();
     var H=state.apur.hist||[];
