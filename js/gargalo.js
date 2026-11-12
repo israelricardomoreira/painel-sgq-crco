@@ -3,7 +3,7 @@
  * Tempo na etapa = espera na fila + trabalho. O trabalho vem do cronômetro (tempo-padrão do Desempenho Usuário).
  * Fila média = saídas por dia útil × tempo médio na etapa (lei de Little). Fila dia a dia = documentos que estavam na etapa em cada dia útil.
  * Pessoas-equivalentes = horas de trabalho que a etapa pediu por dia útil ÷ jornada. Base do Six Sigma dos contratos (meta: 2 dias úteis). */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/gargalo.js']='0.30.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/gargalo.js']='0.31.0';
   var GA_META=2, GA_MIN=30, GA_POS=/imprimir ficha|arquivamento|envio de registro|digitalizar selo/; // mesmas etapas de pós-registro do cálculo do prazo
   var GA_CONTRATO=/contrato|compra e venda|pmcmv|aliena[cç][aã]o fiduci|financiamento|c[eé]dula de cr[eé]dito|escritura p[uú]blica/i;
   function gaUtil(d, fer){ var w=((d%7)+7+4)%7; return w!==0&&w!==6&&!fer[d]; }
