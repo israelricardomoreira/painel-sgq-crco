@@ -5,7 +5,7 @@
  *   balcão (senhas) entram em horas. Retrabalho: cada inconformidade interna e cada exigência avaliada como não conforme desconta o
  *   tempo-padrão de refazer (Re-Análise da natureza). Nenhum peso é escolhido: o "peso" de cada linha é o tempo que a própria equipe leva.
  * Gráficos na frente; o clique numa pessoa abre a conta, linha por linha. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/visao.js']='0.29.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/visao.js']='0.30.0';
   var VG_PAD_OK=0.8;   // parte dos atos com tempo-padrão para a pessoa entrar na comparação
   var VG_MIN_H=80;     // horas disponíveis mínimas no período para sair de "pouco dado"
   function vgWmean(E){ var s=0, w=0; E.forEach(function(e){ s+=e.v*e.w; w+=e.w; }); return w?s/w:null; }
