@@ -2,7 +2,7 @@
  * Regras: compara só quem faz o mesmo serviço (faixa da função principal); critérios fixos, iguais para todos;
  * aprendizagem, mudança de função e afastamento são contexto e não pontuam; atestado e falta nunca entram.
  * O painel monta o caso; quem decide é a gestão, com motivo registrado (LGPD art. 20). Só administrador vê. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/areapessoas.js']='0.28.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/areapessoas.js']='0.29.0';
   var PA_ABAS={pfi:'renderFicha', pcm:'renderComparar', pmt:'renderMatriz', pcs:'renderCaso', pcf:'renderConferencia', fot:'renderFotos'};
   function paRender(k){ var f=PA_ABAS[k]; if (f&&typeof window[f]==='function') window[f](); }
   function paSemDados(el, txt){ el.innerHTML='<div class="empty"><b>Sem dados para esta tela</b>'+(txt||'Importe o relatório Desempenho Usuário do VHL (um arquivo por pessoa e mês) em Importar dados.')+'</div>'; }
