@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/graficos.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/graficos.js']='0.32.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/graficos.js']='0.33.0';
   function mesesGraficos(){
     var s={}; [state.docs,state.cert,state.senhas,state.k9,state.inconf,state.serv].forEach(function(o){ Object.keys(o||{}).forEach(function(m){ if (/^\d{4}-\d{2}$/.test(m)) s[m]=1; }); });
     Object.keys(HIST_SEMENTE).forEach(function(m){ s[m]=1; }); Object.keys(state.kp).forEach(function(m){ if (state.kp[m]&&state.kp[m].hist) s[m]=1; });
@@ -34,10 +34,17 @@
   }
   // 0.25.0: comparação do Painel geral com um mês escolhido — um ponto por dia útil; dia com poucos casos = ponto vazado; clique no dia lista os registros
   var GM_MIN_DIA=5, DSEM_C=['dom','seg','ter','qua','qui','sex','sáb'];
+  // 0.33.0: Dia a dia em dois modos — Por dia (um ponto por dia) e Acumulado no mês (do dia 1 até o dia; termina no total do mês, sem o zigue-zague dos dias com poucos casos)
+  function gmAcLer(){ try{ return localStorage.getItem('crco-gmac')==='1'; }catch(e){ return false; } }
+  function gmAcDef(on){ state.gmAc=!!on; try{ localStorage.setItem('crco-gmac',on?'1':'0'); }catch(e){} if (state.periodo&&state.periodo!=='todos') renderGraficosDia(state.periodo); }
+  // itens acumulados até cada dia (dias em ordem)
+  function gmAcumular(dias, G){ var acc=[], out=[]; dias.forEach(function(k){ acc=acc.concat(G[k]||[]); out.push(acc); }); return out; }
+  document.addEventListener('click',function(e){ var b=e.target&&e.target.closest?e.target.closest('[data-gmac]'):null; if (b) gmAcDef(b.dataset.gmac==='1'); });
   function renderGraficosDia(m){
     var el=$('graficos'), gt=$('gmTit'), gn=$('gmNota'), fer=Motor.feriadoSet(state.extras);
     if (gt) gt.textContent='Dia a dia · '+nomeMes(m);
-    if (gn) gn.textContent='Um ponto por dia útil · ponto vazado = menos de '+GM_MIN_DIA+' casos no dia (não leia como tendência) · clique no dia para ver os registros · KPI-09 e KPI-03 são mensais: veja em "Todos os meses"';
+    if (state.gmAc==null) state.gmAc=gmAcLer(); var AC=!!state.gmAc;
+    if (gn) gn.textContent=AC?'Acumulado no mês: cada ponto é o resultado do dia 1 até aquele dia; o último ponto é o total do mês · ponto vazado = menos de '+GM_MIN_DIA+' casos acumulados · clique no dia para ver os registros até ele':'Um ponto por dia útil · ponto vazado = menos de '+GM_MIN_DIA+' casos no dia (não leia como tendência) · clique no dia para ver os registros · KPI-09 e KPI-03 são mensais: veja em "Todos os meses"';
     var atos=atosDoMes(m), Rall=atos.filter(function(a){ return a.cat==='R'; }), Rlim=resumo(atos).R.filter(function(a){ return a.bruto!=null; });
     var nc={}; incTodos().forEach(function(r){ if (r.t==='RI') nc[r.c]=1; });
     var X=cancSoTri7Mes(m), C=state.cert[m]?certCalc(state.cert[m].recs).filter(function(x){ return !x.intim; }):[], S=state.senhas[m]?state.senhas[m].L.filter(function(x){ return x.c!=null&&x.e!=null; }):[];
@@ -59,17 +66,20 @@
     for (var d=1; d<=nd; d++){ var iso=m+'-'+(d<10?'0':'')+d; if (trDiaUtil(iso,fer)) dset[iso]=1; }
     cards.forEach(function(c){ c.G={}; c.it.forEach(function(x){ var k=c.dia(x); if (k.slice(0,7)!==m) return; (c.G[k]=c.G[k]||[]).push(x); dset[k]=1; }); });
     var dias=Object.keys(dset).sort(), parc=mesParcial(m);
-    el.innerHTML=cards.filter(function(c){ return c.it.length; }).map(function(c){
-      var vals=dias.map(function(k){ var L=c.G[k]||[]; return L.length?c.val(L):null; }), vz=dias.map(function(k){ var n=(c.G[k]||[]).length; return !c.semMin&&n>0&&n<GM_MIN_DIA; });
+    var seg='<div class="gm-modo" style="grid-column:1/-1"><div class="seg" role="group" aria-label="Como ver o dia a dia"><button type="button" class="segb" data-gmac="0" aria-pressed="'+!AC+'">Por dia</button><button type="button" class="segb" data-gmac="1" aria-pressed="'+AC+'">Acumulado no mês</button></div></div>';
+    var corpo=cards.filter(function(c){ return c.it.length; }).map(function(c){
+      var LL=AC?gmAcumular(dias,c.G):dias.map(function(k){ return c.G[k]||[]; });
+      var vals=LL.map(function(L){ return L.length?c.val(L):null; }), vz=LL.map(function(L){ var n=L.length; return !c.semMin&&n>0&&n<GM_MIN_DIA; });
       var tot=c.val(c.it.filter(function(x){ return c.dia(x).slice(0,7)===m; })), fora=c.meta!=null?vals.filter(function(v,i){ return v!=null&&!vz[i]&&(c.menor?v>c.meta:v<c.meta); }).length:0;
       return '<div class="gm-card"><div class="gm-h"><span class="gm-t">'+esc(c.t)+'</span><span class="gm-v">'+fmtG(tot,c.un)+'</span></div>'+
-        '<div class="gm-s">'+esc(nomeMes(m))+' · total do mês'+(parc?' · <span class="pill mute">'+parcTxt(m)+'</span>':'')+(c.meta!=null?' · '+(fora?fora+' dia(s) fora da meta':'nenhum dia fora da meta'):'')+'</div>'+
-        graficoLinha(dias,vals,{titulo:c.t,un:c.un,meta:c.meta,menor:c.menor,zero:c.zero,vazio:vz,vzTxt:'poucos casos no dia: não é tendência',passo:Math.ceil(dias.length/8),
+        '<div class="gm-s">'+esc(nomeMes(m))+' · total do mês'+(parc?' · <span class="pill mute">'+parcTxt(m)+'</span>':'')+(AC?' · acumulado':c.meta!=null?' · '+(fora?fora+' dia(s) fora da meta':'nenhum dia fora da meta'):'')+'</div>'+
+        graficoLinha(dias,vals,{titulo:c.t,un:c.un,meta:c.meta,menor:c.menor,zero:c.zero,vazio:vz,vzTxt:AC?'poucos casos acumulados: ainda não é tendência':'poucos casos no dia: não é tendência',passo:Math.ceil(dias.length/8),
           lbl:function(k){ return String(+k.slice(8)); }, tit:function(k){ var w=new Date(k+'T12:00:00Z').getUTCDay(); return DSEM_C[w]+' '+fmtData(k).slice(0,5); },
-          extra:dias.map(function(k){ var L=c.G[k]||[]; return L.length?c.ex(L):'sem registros'; }),
-          go:function(i){ return goLista(c.t+' · '+fmtData(dias[i]),c.tipo,c.G[dias[i]]||[]); }})+
+          extra:LL.map(function(L){ return L.length?c.ex(L)+(AC?' até este dia':''):'sem registros'; }),
+          go:function(i){ return goLista(c.t+' · '+(AC?'até ':'')+fmtData(dias[i]),c.tipo,LL[i]); }})+
         '<button type="button" class="lnk gm-ir" data-ir="'+c.ir+'">Ver detalhes</button></div>';
-    }).join('')||'<div class="empty">Sem registros em '+esc(nomeMes(m))+'.</div>';
+    }).join('');
+    el.innerHTML=corpo?seg+corpo:'<div class="empty">Sem registros em '+esc(nomeMes(m))+'.</div>';
   }
   function serieKPI(id, ms){ return ms.map(function(m){ var o=kpiValor(id,m); return o?(o.r!=null?o.r:o.n):null; }); }
   function renderGraficos(){
