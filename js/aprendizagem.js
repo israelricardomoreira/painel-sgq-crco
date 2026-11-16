@@ -12,7 +12,7 @@
  *   (o painel pergunta); "Incluir pessoa" e "Excluir" aviso em Quem precisa ser treinado (config/pops {revDisp}); emitir o registro ao salvar.
  * 0.21.4: antes de emitir, completar o registro (reg {mod, loc, cod, cont} + pessoa que treinou + ch, guardado nos registros da sessão);
  *   registro para assinatura digital (sem Função, sem linhas sobrando); avaliação pelo GQ; relatório de aptidão (feedback). */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/aprendizagem.js']='0.33.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/aprendizagem.js']='0.34.1';
   var APR_MOTIVOS={novo:'Colaborador novo na função', 'pop-novo':'POP novo', 'pop-rev':'POP revisado', funcao:'Mudança de função', reforco:'Reforço', experiencia:'Apto por experiência (ISO 9001 7.2 b)'};
   var APR_RES={apto:['good','Apto'], nao:['warn','Não apto']};
   function aprCfg(){ return {lim:+cfgS('apr.limite'), jan:+cfgS('apr.janela'), minMeses:+cfgS('apr.minMeses'), piso:+cfgS('apr.piso'), teto:+cfgS('apr.teto'), exp:+cfgS('apr.expMeses'), ref:+cfgS('apr.refMeses')}; }
@@ -83,12 +83,31 @@
     var p=popDe(a.pop)||{c:a.pop, t:a.popTit}, cf=aprCfg(), mede=popMede(p);
     var ini=a.treino||a.ini||aprHoje(), fimJ=a.fim||aprAddMes(ini,+(a.jan||cf.jan)), hoje=aprHoje(), ate=fimJ<hoje?fimJ:hoje;
     var r={mede:mede, de:ini, ate:ate, fimJ:fimJ, acabou:fimJ<=hoje, lim:cf.lim, min:popMinimo(p).v, n:0, inc:[], outras:[], nRel:0, taxa:null, sug:null};
-    if (!mede) return r;
+    if (!mede){ var ap=aprApoio(p,a.k,ini,ate); if (ap){ r.apoio=ap; r.n=ap.depois.n; r.nRel=ap.depois.x; r.taxa=ap.depois.taxa; r.sug=r.n<r.min?'pequena':(r.taxa<=r.lim?'apto':'nao'); } return r; }
     var M=aprMedir(p,a.k,ini,ate,a.aj); r.n=M.n; r.inc=M.inc; r.outras=M.outras; r.nRel=M.nRel; r.taxa=M.taxa;
     r.sug=r.n<r.min?'pequena':(r.taxa<=r.lim?'apto':'nao'); return r; }
-  function aprSugTxt(R){ if (!R.mede) return 'sem medição automática: avaliação por quem acompanhou';
-    return R.sug==='pequena'?'amostra pequena ('+R.n+' de '+R.min+' atos)':R.sug==='apto'?'Apto ('+aprPct(R.taxa)+' ≤ '+numBR(R.lim,1)+'%)':'Não apto ('+aprPct(R.taxa)+' > '+numBR(R.lim,1)+'%)'; }
-  function aprSugPill(R){ var c=!R.mede?'mute':R.sug==='apto'?'good':R.sug==='nao'?'warn':'mute'; return '<span class="pill '+c+'">'+esc(aprSugTxt(R))+'</span>'; }
+  // 0.34.0/0.34.1: documento sem medição automática ligado a tipos de erro (Configuração › POPs e escopo): apoio à avaliação.
+  // Conta as inconformidades internas da pessoa desses tipos no mesmo número de dias antes e depois do treinamento,
+  // sobre os documentos distintos que ela trabalhou em cada período. A sugestão Apto/Não apto (em aprAval) usa o período
+  // depois do treinamento com o mesmo limite (%) e o mesmo mínimo de amostra da avaliação por medição automática —
+  // aqui o mínimo conta documentos trabalhados, não atos no escopo, por não haver escopo medido para o documento.
+  function aprApoio(p, k, ini, ate){ var E=typeof popErros==='function'?popErros(p):[]; if (!E.length||!k||!ini||!ate||ate<ini) return null;
+    var dias=Math.max(1,Math.round((Date.parse(ate)-Date.parse(ini))/864e5)), de=new Date(Date.parse(ini)-dias*864e5).toISOString().slice(0,10), set={}; E.forEach(function(e){ set[e]=1; });
+    var X=aprExecs(), C=state._aprC=state._aprC||{}, kd='apoio|'+k+'|'+de+'|'+ini+'|'+ate, D=C[kd]; // aprExecs() zera o cache quando os dados mudam
+    if (!D){ var a0={}, d0={}; X.forEach(function(x){ if (x.k!==k) return; if (x.d>=de&&x.d<ini) a0[x.c]=1; else if (x.d>=ini&&x.d<=ate) d0[x.c]=1; }); D=C[kd]={a:Object.keys(a0).length, d:Object.keys(d0).length}; }
+    var I=(aprIncPorK()[k]||[]).filter(function(r){ return set[catDe(r)]&&r.d>=de&&r.d<=ate; }).sort(function(x,y){ return x.d<y.d?-1:1; });
+    function lado(L,n){ return {x:L.length, n:n, taxa:n?L.length/n*100:null}; }
+    return {erros:E, de:de, ini:ini, ate:ate, dias:dias, antes:lado(I.filter(function(r){ return r.d<ini; }),D.a), depois:lado(I.filter(function(r){ return r.d>=ini; }),D.d),
+      inc:I.map(function(r){ return {id:r.id, d:r.d, c:String(r.c), t:r.t, cat:catDe(r), o:r.o, dep:r.d>=ini}; })}; }
+  function aprApoioLado(L){ return L.x+' inconformidade(s) em '+L.n+' documento(s) trabalhado(s)'+(L.taxa==null?'':' = '+aprPct(L.taxa)); }
+  function aprApoioHTML(A, fim){ var h='<div class="sub-h">Apoio à avaliação · inconformidades do tipo '+esc(A.erros.join('; '))+'</div>'+
+      '<div class="kpis" style="margin-bottom:10px">'+kpi('Antes do treinamento',String(A.antes.x),'em '+A.antes.n+' documentos'+(A.antes.taxa==null?'':' · '+aprPct(A.antes.taxa))+' · desde '+fmtData(A.de))+kpi('Depois do treinamento',String(A.depois.x),'em '+A.depois.n+' documentos'+(A.depois.taxa==null?'':' · '+aprPct(A.depois.taxa))+' · até '+fmtData(A.ate))+'</div>';
+    h+=A.inc.length?'<div class="tbl-wrap"><table class="tleft"><thead><tr><th>Quando</th><th>Data</th><th>Documento</th><th>Tipo do erro</th>'+(fim?'':'<th>Observação</th>')+'</tr></thead><tbody>'+A.inc.map(function(x){ return '<tr><td>'+(x.dep?'<span class="pill warn">depois</span>':'<span class="pill mute">antes</span>')+'</td><td>'+fmtData(x.d)+'</td><td>'+protLink(x.c)+' <span class="mut">'+esc(x.t||'')+'</span></td><td>'+esc(x.cat)+'</td>'+(fim?'':'<td style="min-width:240px">'+esc(x.o||'')+'</td>')+'</tr>'; }).join('')+'</tbody></table></div>':'<p class="hint">Nenhuma inconformidade interna da pessoa desses tipos nos dois períodos.</p>';
+    return h+'<p class="hint">Mesmo número de dias antes e depois do treinamento ('+A.dias+'). Conta as inconformidades internas da pessoa dos tipos ligados ao documento em Configuração › POPs e escopo, sobre os documentos distintos que ela trabalhou no VHL/Tri7 em cada período. A sugestão abaixo usa só o período depois do treinamento; a decisão final é de quem avalia.</p>'; }
+  function aprSugTxt(R){ if (R.sug==null) return R.mede?'sem dados suficientes':'sem tipo de erro vinculado ao documento: avaliação por quem acompanhou';
+    var un=R.mede?'atos':'documentos trabalhados depois';
+    return R.sug==='pequena'?'amostra pequena ('+R.n+' de '+R.min+' '+un+')':R.sug==='apto'?'Apto ('+aprPct(R.taxa)+' ≤ '+numBR(R.lim,1)+'%)':'Não apto ('+aprPct(R.taxa)+' > '+numBR(R.lim,1)+'%)'; }
+  function aprSugPill(R){ var c=R.sug==='apto'?'good':R.sug==='nao'?'warn':'mute'; return '<span class="pill '+c+'">'+esc(aprSugTxt(R))+'</span>'; }
 
   // ——— registros ———
   function aprTodos(){ return Object.keys(state.apr||{}).map(function(id){ return state.apr[id]; }).filter(function(a){ return a&&a.v===2&&!a.arquivado; }); }
@@ -107,7 +126,7 @@
     var L=aprLista(), ab=L.filter(function(a){ return a.status!=='concluido'; }).sort(function(a,b){ return String(a.nome).localeCompare(String(b.nome),'pt-BR')||(a.pop<b.pop?-1:1); }),
         fe=L.filter(function(a){ return a.status==='concluido'; }).sort(function(a,b){ return String(b.avalEm||'')<String(a.avalEm||'')?-1:1; }), cf=aprCfg();
     var h='<div class="sec-h"><span class="note">Eficácia da capacitação em POP: você registra a pessoa, o documento e a data do treinamento; o painel acompanha os atos dela no escopo e as inconformidades nesses documentos. '+
-      'Regra: até <b>'+numBR(cf.lim,1)+'%</b> de inconformidade relacionada = sugere Apto; janela de referência de <b>'+cf.jan+' meses</b>; abaixo do mínimo do POP aparece "amostra pequena". '+
+      'Regra: até <b>'+numBR(cf.lim,1)+'%</b> de inconformidade relacionada = sugere Apto; janela de referência de <b>'+cf.jan+' meses</b>; abaixo do mínimo do POP aparece "amostra pequena". Documento sem medição automática, mas ligado a tipos de erro (Configuração › POPs e escopo), usa o mesmo limite sobre os documentos trabalhados depois do treinamento. '+
       'Quem decide é o Gestor da Qualidade (avaliação objetiva e independente), com a data do feedback (ISO 9001 7.2; NBR 15906 7.2.4; PQTA 27). A linha oficial fica na Matriz de Competências do SGQ; o painel só gera a evidência.</span></div>';
     h+='<div class="search apr-bt">'+(podeEscrever?'<button class="btn primary sm" type="button" data-aprnovo="1">Nova aprendizagem</button><button class="btn sm" type="button" data-aprgnovo="1">Treinamento em grupo</button>':'')+'<span class="spacer"></span>'+
       '<button class="btn sm" type="button" data-aprbranco="1">Registro de treinamento em branco</button>'+(L.length?'<button class="btn sm" type="button" data-aprcompet="1">Baixar linhas da COMPET</button><button class="btn sm" type="button" data-aprcons="1">Relatório consolidado</button>':'')+'</div>'+
@@ -208,7 +227,8 @@
       h+=aprIncTabela(a,R,fim);
       if (!fim&&R.outras.length) h+='<details class="apr-det"><summary>Outras inconformidades da pessoa no período ('+R.outras.length+', fora dos documentos avaliados)</summary><div class="tbl-wrap"><table class="tleft"><tbody>'+R.outras.map(function(x){ return '<tr><td><label class="lc-chk"><input type="checkbox" data-aprrel="'+esc(x.id)+'" data-aprpre="0"'+(podeEscrever?'':' disabled')+'> contar</label></td><td>'+fmtData(x.d)+'</td><td>'+protLink(x.c)+'</td><td>'+esc(x.cat)+'</td></tr>'; }).join('')+'</tbody></table></div></details>';
       h+='<p class="hint">Contam, já marcadas, as inconformidades internas da pessoa nos documentos do escopo feitos a partir do treinamento. Se ela fez outra fase no mesmo documento (ex.: qualificação e minuta), o tipo do erro decide a fase. Desmarcar pede o motivo.</p>'; }
-    else h+='<p class="hint">Sem medição automática: registre a avaliação de quem acompanhou na justificativa.</p>';
+    else if (R.apoio){ h+='<div class="kpis" style="margin-bottom:10px">'+kpi('Documentos trabalhados depois',String(R.n),'mínimo para avaliar: '+R.min,R.n<R.min?'':'')+kpi('Inconformidades do tipo depois',String(R.nRel),'em '+R.n+' documentos')+kpi('Taxa depois do treinamento',aprPct(R.taxa),'limite: '+numBR(R.lim,1)+'% · mesmo limite da avaliação medida')+kpi('Sugestão do painel',R.sug==='apto'?'Apto':R.sug==='nao'?'Não apto':'Amostra pequena',R.sug==='pequena'?'faltam '+(R.min-R.n)+' documentos para o mínimo':'a decisão é do Gestor da Qualidade')+'</div>'+aprApoioHTML(R.apoio, fim); }
+    else { h+='<p class="hint">Sem medição automática e sem tipo de erro vinculado ao documento (Configuração › POPs e escopo): registre a avaliação de quem acompanhou na justificativa.</p>'; }
     if (a.obs) h+='<p class="hint">Observação do cadastro: '+esc(a.obs)+'</p>';
     if (a.motivo!=='experiencia'){ h+='<div class="apr-res apr-ev">'+(podeEscrever?aprEvHTML('aprE_'+a.id,a.ev,a.evRef)+'<button class="btn sm" type="button" data-aprev="'+esc(a.id)+'">Atualizar evidência</button>':'<span class="hint">Evidência do treinamento: '+esc(aprEvTxt(a))+'</span>')+'<button class="btn sm" type="button" data-aprprint="'+esc(a.id)+'">Imprimir registro de treinamento</button></div>'; }
     if (fim){ h+='<p class="hint">Concluído em '+fmtData(String(a.avalEm||'').slice(0,10))+' por '+esc(a.avaliador||'—')+': <b>'+esc((APR_RES[a.res]||['','—'])[1])+'</b>'+(a.justif?' — '+esc(a.justif):'')+'. Feedback: '+(a.feedbackEm?fmtData(a.feedbackEm):'<b>pendente</b>')+'.</p>';
@@ -222,7 +242,7 @@
     h+='<div class="apr-res"><label>Resultado<select id="aprRes_'+esc(a.id)+'" data-aprdr="'+esc(a.id)+'"><option value="">—</option><option value="apto"'+((d.res||sugRes)==='apto'?' selected':'')+'>Apto</option><option value="nao"'+((d.res||sugRes)==='nao'?' selected':'')+'>Não apto</option></select></label>'+
       '<label>Avaliado por'+aprSelPessoa('aprAv_'+a.id,d.av!=null?d.av:aprEu(),false,' data-aprdr="'+esc(a.id)+'"')+'</label>'+
       '<label>Feedback dado em<input type="date" id="aprFbd_'+esc(a.id)+'" data-aprdr="'+esc(a.id)+'" value="'+esc(d.fb||'')+'"></label>'+
-      '<label class="apr-jus">Justificativa'+(R.mede&&R.sug!=='pequena'?' (obrigatória se for contra a sugestão)':' (obrigatória)')+'<input type="text" id="aprJus_'+esc(a.id)+'" data-aprdr="'+esc(a.id)+'" value="'+esc(d.jus||'')+'" placeholder="ex.: acompanhamento dos 10 primeiros títulos sem erro"></label></div>'+
+      '<label class="apr-jus">Justificativa'+(R.sug&&R.sug!=='pequena'?' (obrigatória se for contra a sugestão)':' (obrigatória)')+'<input type="text" id="aprJus_'+esc(a.id)+'" data-aprdr="'+esc(a.id)+'" value="'+esc(d.jus||'')+'" placeholder="ex.: acompanhamento dos 10 primeiros títulos sem erro"></label></div>'+
       '<div class="ctl apr-bt" style="margin-top:8px"><button class="btn primary sm" type="button" data-aprconcluir="'+esc(a.id)+'">Concluir avaliação</button><button class="btn sm" type="button" data-aprrel1="'+esc(a.id)+'">Baixar relatório parcial</button><button class="btn sm" type="button" data-apreditar="'+esc(a.id)+'">Editar</button></div>';
     return h+'</div>'; }
   // rascunhos do veredito (sobrevivem ao redesenho da página)
@@ -340,22 +360,23 @@
       renderApr(); return true; }
     if (d.aprprintf){ var f2=aprLerForm(); if (!(f2.pops||[]).length){ toast('Marque os documentos'); return true; } aprAbrirReg({treino:f2.treino, instrutor:f2.instrutor, pops:f2.pops, pessoas:f2.k?[aprNomes()[f2.k]]:[], cod:f2.evRef, ch:f2.ch, ids:[]}); return true; }
     if (d.apremitir){ if (d.apremitir==='sim') aprRegEmitir(); else { state.aprEmitir=null; renderApr(); } return true; }
-    if (d.aprarquivar){ if (!confirm('Arquivar este registro? Ele sai da lista (fica guardado no banco).')) return true; var id0=d.aprarquivar; if (dbPronto&&podeEscrever) db.doc('aprendiz/'+id0).delete(); var c=Object.assign({},state.apr); delete c[id0]; state.apr=c; state.aprForm=null; renderApr(); return true; }
+    if (d.aprarquivar){ var id0=d.aprarquivar; dlgConfirmar('Arquivar este registro? Ele sai da lista (fica guardado no banco).',{titulo:'Arquivar registro', ok:'Arquivar'}).then(function(ok){ if (!ok) return; if (dbPronto&&podeEscrever) db.doc('aprendiz/'+id0).delete(); var c=Object.assign({},state.apr); delete c[id0]; state.apr=c; state.aprForm=null; renderApr(); }); return true; }
     if (d.aprexcluir){ var ex=state.apr[d.aprexcluir]; if (!ex) return true; var filhos=aprLista().filter(function(x){ return x.pai===ex.id||x.grupo===ex.id; }).length;
-      if (!confirm('Excluir '+(ex.tipo==='grupo'?'o treinamento em grupo de '+ex.pop:'a aprendizagem de '+ex.nome+' em '+ex.pop)+'?'+(filhos?' Os '+filhos+' registro(s) ligados a ele continuam.':'')+' Ele sai da lista e fica guardado no banco (arquivado).')) return true;
-      if (dbPronto&&podeEscrever) db.doc('aprendiz/'+ex.id).delete(); var c3=Object.assign({},state.apr); delete c3[ex.id]; state.apr=c3; if (state.aprAberto===ex.id) state.aprAberto=null; delete state.aprDraft[ex.id]; toast('Registro excluído'); renderApr(); return true; }
-    if (d.aprgarq){ if (!confirm('Arquivar este treinamento em grupo?')) return true; if (dbPronto&&podeEscrever) db.doc('aprendiz/'+d.aprgarq).delete(); var c2=Object.assign({},state.apr); delete c2[d.aprgarq]; state.apr=c2; renderApr(); return true; }
+      dlgConfirmar('Excluir '+(ex.tipo==='grupo'?'o treinamento em grupo de '+ex.pop:'a aprendizagem de '+ex.nome+' em '+ex.pop)+'?'+(filhos?' Os '+filhos+' registro(s) ligados a ele continuam.':'')+' Ele sai da lista e fica guardado no banco (arquivado).',{titulo:'Excluir registro', ok:'Excluir', perigo:true}).then(function(ok){ if (!ok) return;
+      if (dbPronto&&podeEscrever) db.doc('aprendiz/'+ex.id).delete(); var c3=Object.assign({},state.apr); delete c3[ex.id]; state.apr=c3; if (state.aprAberto===ex.id) state.aprAberto=null; delete state.aprDraft[ex.id]; toast('Registro excluído'); renderApr(); }); return true; }
+    if (d.aprgarq){ dlgConfirmar('Arquivar este treinamento em grupo?',{titulo:'Arquivar treinamento', ok:'Arquivar'}).then(function(ok){ if (!ok) return; if (dbPronto&&podeEscrever) db.doc('aprendiz/'+d.aprgarq).delete(); var c2=Object.assign({},state.apr); delete c2[d.aprgarq]; state.apr=c2; renderApr(); }); return true; }
     if (d.aprabrir){ state.aprAberto=state.aprAberto===d.aprabrir?null:d.aprabrir; renderApr(); return true; }
     if (d.aprconcluir){ var a1=JSON.parse(JSON.stringify(state.apr[d.aprconcluir])); aprLerRascunhos(); var dr=state.aprDraft[a1.id]||{}, R=aprAval(a1);
       if (!dr.res){ toast('Escolha Apto ou Não apto'); return true; } if (!String(dr.av||'').trim()){ toast('Escolha quem avaliou'); return true; }
-      var contra=R.mede&&R.sug!=='pequena'&&dr.res!==R.sug, precisa=!R.mede||R.sug==='pequena'||contra;
+      var contra=R.sug&&R.sug!=='pequena'&&dr.res!==R.sug, precisa=!R.sug||R.sug==='pequena'||contra;
       if (precisa&&!String(dr.jus||'').trim()){ toast(contra?'Contra a sugestão do painel: escreva a justificativa':'Escreva a justificativa'); return true; }
       if (R.mede&&R.inc.some(function(x){ return x.pre&&!x.rel&&!x.mot; })){ toast('Escreva o motivo de cada inconformidade desmarcada'); return true; }
       a1.status='concluido'; a1.res=dr.res; a1.avaliador=String(dr.av).trim(); a1.avalEm=new Date().toISOString(); a1.feedbackEm=dr.fb||''; a1.justif=String(dr.jus||'').trim(); a1.avalPor=nomeUsuario();
       a1.snap=Object.assign({},R,{inc:R.inc.map(function(x){ return {id:x.id,d:x.d,c:x.c,t:x.t,cat:x.cat,pre:x.pre,no:x.no,rel:x.rel,mot:x.mot}; }), outras:[]});
+      if (R.apoio) a1.snap.apoio=Object.assign({},R.apoio,{inc:R.apoio.inc.map(function(x){ return {id:x.id,d:x.d,c:x.c,t:x.t,cat:x.cat,dep:x.dep}; })}); // o retrato guarda o apoio sem o texto da observação
       delete state.aprDraft[a1.id]; aprSalvar(a1).then(function(){ toast('Avaliação concluída'); }); renderApr(); return true; }
     if (d.aprfb){ var a2=JSON.parse(JSON.stringify(state.apr[d.aprfb])), v=($('aprFb_'+d.aprfb)||{}).value; if (!v){ toast('Informe a data'); return true; } a2.feedbackEm=v; aprSalvar(a2).then(function(){ toast('Feedback registrado'); }); renderApr(); return true; }
-    if (d.aprreabrir){ if (!confirm('Reabrir esta avaliação? O resultado salvo é descartado e os números voltam a ser calculados ao vivo.')) return true; var a3=JSON.parse(JSON.stringify(state.apr[d.aprreabrir])); a3.status='aberto'; delete a3.snap; delete a3.res; aprSalvar(a3); renderApr(); return true; }
+    if (d.aprreabrir){ dlgConfirmar('Reabrir esta avaliação? O resultado salvo é descartado e os números voltam a ser calculados ao vivo.',{titulo:'Reabrir avaliação', ok:'Reabrir', perigo:true}).then(function(ok){ if (!ok) return; var a3=JSON.parse(JSON.stringify(state.apr[d.aprreabrir])); a3.status='aberto'; delete a3.snap; delete a3.res; aprSalvar(a3); renderApr(); }); return true; }
     if (d.aprreforco){ var o=state.apr[d.aprreforco]; state.aprForm={k:o.k, pops:[o.pop], motivo:'reforco', treino:aprHoje(), pai:o.id, jan:o.jan}; state.aprGForm=null; renderApr(); var ff=$('aprTr'); if (ff&&ff.scrollIntoView) ff.scrollIntoView({block:'center'}); return true; }
     if (d.aprev){ var r0=JSON.parse(JSON.stringify(state.apr[d.aprev])), e=aprLerEv('aprE_'+r0.id); r0.ev=e.ev; r0.evRef=e.evRef; aprSalvar(r0); var np=0;
       if (r0.tipo==='grupo') aprLista().forEach(function(x){ if (x.grupo===r0.id){ var y=JSON.parse(JSON.stringify(x)); y.ev=e.ev; y.evRef=e.evRef; aprSalvar(y); np++; } });
@@ -426,7 +447,8 @@
     var h='<h1>'+(fim?'Relatório de aptidão · feedback da avaliação de eficácia':'Avaliação de eficácia · relatório parcial')+'</h1><p class="sub">'+esc(a.nome)+' · '+doc+' — '+esc(a.popTit||p.t||'')+'</p>'+
       '<table><tbody><tr><th>Motivo</th><td>'+esc(APR_MOTIVOS[a.motivo]||a.motivo||'')+'</td></tr>'+(a.treino?'<tr><th>Treinamento</th><td>'+fmtData(a.treino)+(a.instrutor?' · pessoa que treinou: '+esc(a.instrutor):'')+'</td></tr>':'')+
       '<tr><th>Evidência do treinamento</th><td>'+esc(aprEvTxt(a))+'</td></tr><tr><th>Objetivo</th><td>Executar o documento conforme o procedimento, com resultado Apto na avaliação de eficácia feita pelo Gestor da Qualidade (PCAP · Capacitação em POP)</td></tr>'+
-      '<tr><th>Critério</th><td>'+(R.mede?'Taxa de inconformidade relacionada ≤ '+numBR(R.lim,1)+'% dos atos no escopo; mínimo de '+R.min+' atos para a amostra; janela de referência de '+(+(a.jan||cf.jan))+' meses':'Sem medição automática: avaliação do Gestor da Qualidade com quem acompanhou')+'</td></tr>'+
+      '<tr><th>Critério</th><td>'+(R.mede?'Taxa de inconformidade relacionada ≤ '+numBR(R.lim,1)+'% dos atos no escopo; mínimo de '+R.min+' atos para a amostra; janela de referência de '+(+(a.jan||cf.jan))+' meses':R.apoio?'Apoio por inconformidades do tipo ligado ao documento: taxa ≤ '+numBR(R.lim,1)+'% dos documentos trabalhados depois do treinamento; mínimo de '+R.min+' documentos; avaliação do Gestor da Qualidade':'Sem medição automática e sem tipo de erro vinculado: avaliação do Gestor da Qualidade com quem acompanhou')+'</td></tr>'+
+      (R.apoio?'<tr><th>Apoio (inconformidades)</th><td>Tipo(s) de erro: '+esc(R.apoio.erros.join('; '))+'. Antes ('+fmtData(R.apoio.de)+' até o treinamento): '+esc(aprApoioLado(R.apoio.antes))+'. Depois (até '+fmtData(R.apoio.ate)+'): '+esc(aprApoioLado(R.apoio.depois))+'. Sugestão do painel: '+esc(aprSugTxt(R))+'.</td></tr>':'')+
       (R.mede?'<tr><th>Escopo</th><td>Etapas '+esc((p.ets||[]).join(', '))+' · naturezas '+esc((p.nats||[]).join(', '))+'</td></tr><tr><th>Período avaliado</th><td>'+fmtData(R.de)+' a '+fmtData(R.ate)+'</td></tr>'+
         '<tr><th>Resultado medido</th><td><b>'+R.n+'</b> atos · <b>'+R.nRel+'</b> inconformidade(s) relacionada(s) · taxa <b>'+aprPct(R.taxa)+'</b> · sugestão: '+esc(aprSugTxt(R))+'</td></tr>':'')+
       '<tr><th>Decisão</th><td>'+(fim?'<b>'+esc((APR_RES[a.res]||['','—'])[1])+'</b> · avaliado por '+esc(a.avaliador||'—')+' em '+fmtData(dAv)+(a.justif?' · '+esc(a.justif):''):'<b>em aprendizagem</b> (relatório parcial)')+'</td></tr>'+

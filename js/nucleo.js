@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/nucleo.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/nucleo.js']='0.33.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/nucleo.js']='0.34.1';
   // ——— tema (automático / claro / escuro) e barra lateral recolhida: preferências deste navegador
   function prefLer(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
   function prefGravar(k,v){ try{ if (v==null) localStorage.removeItem(k); else localStorage.setItem(k,v); }catch(e){} }
@@ -14,9 +14,75 @@
   function mediana(arr){ var a=arr.filter(function(x){return x!=null;}).sort(function(x,y){return x-y;}); if(!a.length) return null; var m=Math.floor(a.length/2); return a.length%2?a[m]:(a[m-1]+a[m])/2; }
   function media(arr){ var a=arr.filter(function(x){return x!=null;}); if(!a.length) return null; return a.reduce(function(s,x){return s+x;},0)/a.length; }
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
-  function toast(t){ var d=document.createElement('div'); d.className='toast'; d.textContent=t; document.body.appendChild(d); setTimeout(function(){ d.remove(); },2600); }
+  // 0.34.1: avisos empilhados numa caixa só (#toasts), com tempo proporcional ao texto, erro em destaque e clique para fechar.
+  // Com uma janela (dlg) aberta, a caixa vai para dentro dela, senão o aviso ficaria atrás do fundo escuro.
+  function toastCaixa(){ var c=document.getElementById('toasts'); if (!c){ c=document.createElement('div'); c.id='toasts'; c.className='toasts'; c.setAttribute('aria-live','polite'); }
+    var dl=document.querySelector('dialog.dlg[open]'), pai=dl||document.body; if (c.parentNode!==pai) pai.appendChild(c); return c; }
+  function toastTempo(t, erro){ return Math.max(erro?8000:4500, Math.min(12000, 1500+String(t||'').length*70)); }
+  function toastErro(t){ return /^(n[ãa]o consegui|n[ãa]o achei|n[ãa]o encontrei|erro|parei no meio|apurado, mas)/i.test(String(t||'').trim()); }
+  function toast(t, tipo){ var c=toastCaixa(), erro=tipo==='erro'||(tipo==null&&toastErro(t));
+    [].slice.call(c.children).forEach(function(x){ if (x.dataset.txt===String(t)&&!x.classList.contains('desf')) x.remove(); }); // o mesmo aviso não empilha
+    var d=document.createElement('div'); d.className='toast'+(erro?' erro':''); d.dataset.txt=String(t); d.setAttribute('role',erro?'alert':'status'); d.title='Clique para fechar';
+    d.textContent=t; d.addEventListener('click',function(){ d.remove(); }); c.appendChild(d); while (c.children.length>4) c.firstChild.remove();
+    setTimeout(function(){ d.remove(); }, toastTempo(t,erro)); return d; }
   // 0.25.0: aviso com Desfazer por 10 segundos
-  function toastDesfazer(t, fn){ var v=document.querySelector('.toast.desf'); if (v) v.remove(); var d=document.createElement('div'); d.className='toast desf'; d.setAttribute('role','status'); d.textContent=t; var b=document.createElement('button'); b.type='button'; b.className='lnk'; b.textContent='Desfazer'; b.addEventListener('click',function(){ d.remove(); fn(); }); d.appendChild(b); document.body.appendChild(d); setTimeout(function(){ d.remove(); },10000); }
+  function toastDesfazer(t, fn){ var v=document.querySelector('.toast.desf'); if (v) v.remove(); var d=document.createElement('div'); d.className='toast desf'; d.setAttribute('role','status'); d.textContent=t; var b=document.createElement('button'); b.type='button'; b.className='lnk'; b.textContent='Desfazer'; b.addEventListener('click',function(){ d.remove(); fn(); }); d.appendChild(b); toastCaixa().appendChild(d); setTimeout(function(){ d.remove(); },10000); }
+  // 0.34.1: janelas da própria página no lugar de prompt()/confirm()/alert() do navegador.
+  // dlgAbrir(o) devolve uma Promise: null se cancelou; true (sem campo) ou o texto/valor escolhido (com campo).
+  //   o = {titulo, msg, ok, cancelar, perigo, campo:{rotulo, valor, tipo, placeholder, obrig, valida(v)→erro|null}, opcoes:[[valor,rótulo]…]}
+  // Ids fixos para automação e leitor de tela: #dlg, #dlgTitulo, #dlgMsg, #dlgCampo, #dlgErro, #dlgOk, #dlgCancelar.
+  var dlgFila=Promise.resolve();
+  function dlgAbrir(o){ var p=dlgFila.then(function(){ return dlgMostrar(o||{}); }); dlgFila=p.catch(function(){}); return p; }
+  function dlgMostrar(o){ return new Promise(function(resolve){
+    var d=document.createElement('dialog'); d.id='dlg'; d.className='dlg'+(o.perigo?' perigo':''); d.setAttribute('aria-labelledby',o.titulo?'dlgTitulo':'dlgMsg');
+    var f=document.createElement('form'); f.method='dialog'; f.noValidate=true; d.appendChild(f);
+    function el(tag, cls, txt, id){ var x=document.createElement(tag); if (cls) x.className=cls; if (txt!=null) x.textContent=txt; if (id) x.id=id; return x; }
+    if (o.titulo) f.appendChild(el('h2','dlg-t',o.titulo,'dlgTitulo'));
+    if (o.msg) f.appendChild(el('p','dlg-m',o.msg,'dlgMsg'));
+    var campo=null, radios=null;
+    if (o.opcoes){ var fs=el('div','dlg-op'); fs.setAttribute('role','radiogroup'); fs.id='dlgOpcoes'; radios=[];
+      o.opcoes.forEach(function(op,i){ var l=el('label','dlg-opl'), r=document.createElement('input'); r.type='radio'; r.name='dlgOp'; r.value=String(op[0]); r.id='dlgOp'+i; if (i===0) r.checked=true; l.appendChild(r); l.appendChild(document.createTextNode(' '+op[1])); fs.appendChild(l); radios.push(r); }); f.appendChild(fs); }
+    else if (o.campo){ var c=o.campo, l2=el('label','dlg-c'); if (c.rotulo) l2.appendChild(el('span',null,c.rotulo));
+      campo=document.createElement(c.tipo==='textarea'?'textarea':'input'); if (c.tipo&&c.tipo!=='textarea') campo.type=c.tipo; else if (!c.tipo) campo.type='text';
+      campo.id='dlgCampo'; campo.value=c.valor==null?'':String(c.valor); if (c.placeholder) campo.placeholder=c.placeholder; if (c.max) campo.maxLength=c.max; campo.setAttribute('aria-label',c.rotulo||o.titulo||o.msg||'Valor'); campo.autocomplete='off';
+      l2.appendChild(campo); f.appendChild(l2); }
+    var erro=el('p','dlg-e','', 'dlgErro'); erro.setAttribute('role','alert'); erro.hidden=true; f.appendChild(erro);
+    var bts=el('div','dlg-b'), bc=el('button','btn',o.cancelar||'Cancelar','dlgCancelar'), bo=el('button','btn primary',o.ok||'OK','dlgOk'); bc.type='button'; bo.type='submit';
+    if (o.soOk) bc.hidden=true; bts.appendChild(bc); bts.appendChild(bo); f.appendChild(bts);
+    var feito=false;
+    function fim(v){ if (feito) return; feito=true; var tc=document.getElementById('toasts'); if (tc&&tc.parentNode===d) document.body.appendChild(tc); try{ if (d.open&&d.close) d.close(); }catch(e){} d.remove(); resolve(v); }
+    function confirmar(){ var v=true;
+      if (radios){ v=(radios.filter(function(r){ return r.checked; })[0]||{}).value; if (v==null) return; }
+      else if (campo){ v=String(campo.value).trim(); var c=o.campo, msg=(!v&&c.obrig)?(c.obrigMsg||'Preencha o campo'):(c.valida?c.valida(v):null);
+        if (msg){ erro.textContent=msg; erro.hidden=false; campo.setAttribute('aria-invalid','true'); campo.focus(); return; } }
+      fim(v); }
+    f.addEventListener('submit',function(e){ e.preventDefault(); confirmar(); });
+    bc.addEventListener('click',function(){ fim(null); });
+    d.addEventListener('cancel',function(e){ e.preventDefault(); fim(null); }); // Esc
+    d.addEventListener('keydown',function(e){ if (e.key==='Escape'){ e.preventDefault(); fim(null); } });
+    d.addEventListener('mousedown',function(e){ d._fora=e.target===d; });
+    d.addEventListener('click',function(e){ if (e.target===d&&d._fora) fim(null); }); // clique no fundo escuro
+    document.body.appendChild(d);
+    if (typeof d.showModal==='function') d.showModal(); else { d.setAttribute('open',''); d.classList.add('sem-modal'); }
+    var foco=campo||(radios&&radios[0])||(o.perigo?bc:bo); foco.focus(); if (campo&&campo.select&&campo.type!=='month'&&campo.type!=='date') campo.select();
+  }); }
+  function dlgConfirmar(msg, o){ return dlgAbrir(Object.assign({msg:msg, ok:'Confirmar'},o||{})).then(function(v){ return v===true; }); }
+  function dlgPedir(msg, padrao, o){ o=o||{}; return dlgAbrir(Object.assign({msg:msg},o,{campo:Object.assign({valor:padrao},o.campo||{})})); }
+  function dlgEscolher(msg, opcoes, o){ return dlgAbrir(Object.assign({msg:msg, opcoes:opcoes},o||{})); }
+  function dlgAviso(msg, o){ return dlgAbrir(Object.assign({msg:msg, soOk:true},o||{})); }
+  // guarda e devolve a rolagem da página e o foco em volta de um redesenho (innerHTML troca tudo e o navegador pula).
+  // Se o campo em uso continua existindo depois do redesenho, é ele que fica no mesmo lugar da tela; senão, volta a rolagem que estava.
+  function manterTela(raiz, fn, chave){ var y=window.scrollY, x=window.scrollX, a=document.activeElement, sel=null, ini=null, fimS=null, topo=null, r=typeof raiz==='string'?document.getElementById(raiz):raiz;
+    if (a&&r&&r.contains(a)&&chave){ sel=chave(a); if (sel){ topo=a.getBoundingClientRect().top; try{ ini=a.selectionStart; fimS=a.selectionEnd; }catch(e){} } }
+    var mh=r?r.style.minHeight:''; if (r){ r.style.minHeight=r.offsetHeight+'px'; r.style.overflowAnchor='none'; } // a página não encolhe no meio do redesenho; quem cuida da posição é esta função, não a âncora do navegador
+    fn();
+    if (r&&typeof expMarcar==='function') expMarcar(r); // a linha "Baixar em Excel" das tabelas também entra já agora
+    if (r&&typeof txtEncolher==='function') txtEncolher(r); // os textos longos viram "? Como ler" já agora, não um quadro depois (senão a tela mexe de novo)
+    if (r) r.style.minHeight=mh;
+    var n=sel&&r?r.querySelector(sel):null;
+    if (n){ if (n!==document.activeElement){ try{ n.focus({preventScroll:true}); if (ini!=null&&n.setSelectionRange) n.setSelectionRange(ini,fimS); }catch(e){} }
+      var d=n.getBoundingClientRect().top-topo; if (Math.abs(d)>0.5) window.scrollBy(0,d); }
+    else if (Math.abs(window.scrollY-y)>1||Math.abs(window.scrollX-x)>1) window.scrollTo(x,y); }
   function pctK(x){ if(x==null||isNaN(x)) return '—'; var t=Math.floor(x*100+1e-9)/100; return t.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%'; }
   function pillKpi(v){ if(v==null) return '<span class="pill mute">—</span>'; var c=v>=100?'good':v>=95?'warn':'crit'; return '<span class="pill '+c+'">'+pctK(v)+'</span>'; }
 
@@ -88,7 +154,7 @@
   function pagPendente(k){ var f=state.sujo&&state.sujo[k]; if (!f) return; delete state.sujo[k]; f(); }
   function render0(){
     renderAtrSelect(); renderSelect(); if (typeof renderGeralCab==='function') renderGeralCab(null); var atos=todosAtos();
-    if (atrAtual()!=='RI'){ if (SO_RI.indexOf(state.aba)>=0 || (svModo()==='todas'&&SO_SERV.indexOf(state.aba)>=0)) irAba('geral'); renderAtr(); pag('k1',function(){ renderK1([]); }); pag('at',renderAtend); pag('rel',function(){ if (!FOCO('#tabRel textarea')) renderRel(); }); pag('lanc',function(){ if (!FOCO('#tabLanc input[type=text],#tabLanc textarea')) renderLanc(); }); pag('met',renderMetodo); pag('sau',renderSau); pag('eqp',renderEqp); pag('apr',renderApr); pag('pn',function(){ state._pnC=null; if (!state.pnEd) renderPn(); }); return; }
+    if (atrAtual()!=='RI'){ if (SO_RI.indexOf(state.aba)>=0 || (svModo()==='todas'&&SO_SERV.indexOf(state.aba)>=0)) irAba('geral'); renderAtr(); pag('k1',function(){ renderK1([]); }); pag('at',renderAtend); pag('rel',function(){ if (!FOCO('#tabRel textarea')) renderRel(); }); pag('lanc',function(){ if (!FOCO('#tabLanc input[type=text],#tabLanc textarea')) renderLanc(); }); pag('met',renderMetodo); pag('sau',renderSau); pag('eqp',renderEqp); pag('apr',renderApr); pag('pn',function(){ state._pnC=null; if (!state.pnEd&&!state.pnNomeEd) renderPn(); }); return; }
     var vazio=!atos.length && !Object.keys(state.inconf).length && !Object.keys(state.cert).length && !Object.keys(state.senhas).length;
     $('secTendencia').hidden = Object.keys(state.docs).length<2 || state.periodo!=='todos'; // 0.25.0: com um mês escolhido, o dia a dia substitui a comparação por mês
     if (vazio){
@@ -98,5 +164,5 @@
     }
     pag('geral',function(){ pintarGeral(atos); });
     pag('nat',function(){ renderNat(atos); }); pag('eta',function(){ renderEta(atos); }); pag('nao',function(){ renderNao(atos); }); pag('fp',function(){ renderFp(atos); }); pag('ex',function(){ renderEx(atos); }); pag('k1',function(){ renderK1(atos); }); pag('cer',renderCer);
-    pag('rel',function(){ if (!FOCO('#tabRel textarea')) renderRel(); }); pag('lanc',function(){ if (!FOCO('#tabLanc input[type=text],#tabLanc textarea')) renderLanc(); }); pag('tri',function(){ if (!FOCO('#tabTri input')) renderTri(); }); pag('at',renderAtend); pag('met',renderMetodo); pag('sau',renderSau); pag('eqp',renderEqp); pag('apr',renderApr); pag('pn',function(){ state._pnC=null; if (!state.pnEd) renderPn(); });
+    pag('rel',function(){ if (!FOCO('#tabRel textarea')) renderRel(); }); pag('lanc',function(){ if (!FOCO('#tabLanc input[type=text],#tabLanc textarea')) renderLanc(); }); pag('tri',function(){ if (!FOCO('#tabTri input')) renderTri(); }); pag('at',renderAtend); pag('met',renderMetodo); pag('sau',renderSau); pag('eqp',renderEqp); pag('apr',renderApr); pag('pn',function(){ state._pnC=null; if (!state.pnEd&&!state.pnNomeEd) renderPn(); });
   }

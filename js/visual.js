@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/visual.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/visual.js']='0.33.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/visual.js']='0.34.1';
   // ═════════ modo visual: o painel em gráficos (segue Serventia e Período do topo) ═════════
   function renderVis(){
     var el=$('tabVis'); if (!el) return; var modo=svModo(), ms=mesesGraficos(), cards=[];
@@ -179,6 +179,7 @@
   function aplicarGrupos(){ var v=state.grVer, M=state._grM;
     Object.keys(state.docs).forEach(function(k){ var d=state.docs[k]; if (d._grV===v) return; d.atos.forEach(function(a){ if (a.natOrig===undefined) a.natOrig=a.nat; a.nat=M[a.natOrig]||a.natOrig; }); d._grV=v; });
     Object.keys(state.serv).forEach(function(k){ var L=state.serv[k]; if (L._grV===v) return; L.forEach(function(d){ if (d.natOrig===undefined) d.natOrig=d.nat; d.nat=M[d.natOrig]||d.natOrig; }); L._grV=v; }); }
+  function nxAlternar(gg){ gg.ativo=!gg.ativo; return grSalvar(gg.ativo?'"'+gg.nome+'" agora vale como uma natureza só':'"'+gg.nome+'" desfeito: os nomes originais voltaram'); }
   function grSalvar(msg){ grDefinir(state.natGr.grupos);
     if (dbPronto&&podeEscrever) db.doc('config/naturezas').set({grupos:state.natGr.grupos, em:new Date().toISOString()}).then(function(){ toast(msg||'Grupos salvos'); }).catch(function(){ toast('Não consegui salvar os grupos'); });
     else toast((msg||'Grupos alterados')+' (só nesta sessão)'); render(); }

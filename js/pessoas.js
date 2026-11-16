@@ -4,7 +4,7 @@
  * inconformidades (responsável) e folha. O painel inteiro passa a mostrar só o nome de exibição; os nomes de origem
  * ficam na trilha (dica do nome e nesta página). Guardado em config/pessoas = {p:{id:{nome, v:[nomes de origem], sit, ate, ign}}, em, por}.
  * A troca dos nomes acontece quando os dados são lidos (decodificação), por isso salvar o cadastro recarrega a página. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/pessoas.js']='0.33.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/pessoas.js']='0.34.1';
   var PES={p:{}, map:{}, carregado:false}, PES_VISTOS={};
   var PES_FONTES={vhl:'VHL', tri7:'Tri7', senhas:'Senhas', inc:'Inconformidades', trab:'Desempenho Usuário', folha:'Folha'};
   function pesNorm(s){ return semAc(s).replace(/\s+/g,' ').trim(); }
@@ -81,10 +81,12 @@
     if (d.pesaceitar==='todas'){ S.forEach(function(g){ criar(g, g.naoPessoa); }); return renderPes(), true; }
     if (d.pesaceitar!=null){ var g=S[+d.pesaceitar]; if (g) criar(g,false); return renderPes(), true; }
     if (d.pesign!=null){ var g2=S[+d.pesign]; if (g2) criar(g2,true); return renderPes(), true; }
-    if (d.pesdesl){ var pp=d.pesdesl.split('|'), id=pp[0], n=pp.slice(1).join('|'), p=PES.p[id]; if (!p) return true; if (p.v.length<=1&&!confirm('É o único nome ligado a '+p.nome+'. Desligar remove a pessoa do cadastro. Continuar?')) return true;
-      p.v=p.v.filter(function(x){ return x!==n; }); delete PES.map[pesNorm(n)]; if (!p.v.length){ delete PES.map[pesNorm(p.nome)]; delete PES.p[id]; } pesMud('Desligado: '+n+' de '+p.nome); return renderPes(), true; }
+    if (d.pesdesl){ var pp=d.pesdesl.split('|'), id=pp[0], n=pp.slice(1).join('|'), p=PES.p[id]; if (!p) return true;
+      var pesDesl=function(){ p.v=p.v.filter(function(x){ return x!==n; }); delete PES.map[pesNorm(n)]; if (!p.v.length){ delete PES.map[pesNorm(p.nome)]; delete PES.p[id]; } pesMud('Desligado: '+n+' de '+p.nome); renderPes(); };
+      if (p.v.length<=1){ dlgConfirmar('É o único nome ligado a '+p.nome+'. Desligar remove a pessoa do cadastro.',{titulo:'Desligar nome', ok:'Desligar', perigo:true}).then(function(ok){ if (ok) pesDesl(); }); return true; }
+      pesDesl(); return true; }
     if (d.pesrem){ var p3=PES.p[d.pesrem]; if (!p3) return true; if (p3.ign){ p3.ign=false; pesMud('Passa a ser pessoa: '+p3.nome); return renderPes(), true; }
-      if (!confirm('Remover '+p3.nome+' do cadastro? Os nomes de origem voltam para a lista sem vínculo.')) return true; p3.v.concat([p3.nome]).forEach(function(n){ delete PES.map[pesNorm(n)]; }); delete PES.p[d.pesrem]; pesMud('Removida do cadastro: '+p3.nome); return renderPes(), true; }
+      dlgConfirmar('Remover '+p3.nome+' do cadastro? Os nomes de origem voltam para a lista sem vínculo.',{titulo:'Remover pessoa', ok:'Remover', perigo:true}).then(function(ok){ if (!ok) return; p3.v.concat([p3.nome]).forEach(function(n){ delete PES.map[pesNorm(n)]; }); delete PES.p[d.pesrem]; pesMud('Removida do cadastro: '+p3.nome); renderPes(); }); return true; }
     if (t.id==='pesDescartar'){ state.pesMud=[]; state.pesEd={}; pesAplicarCfg(state.pesCfg||{}); return renderPes(), true; }
     if (t.id==='pesSalvar'){ var mot=($('pesMotivo')||{}).value; mot=String(mot||'').trim(); if (!mot){ toast('Escreva o motivo da mudança'); var mi=$('pesMotivo'); if (mi) mi.focus(); return true; }
       var ed=state.pesEd||{}, ocl=Object.assign({},state.eqOcl||{}), mudOc=false;

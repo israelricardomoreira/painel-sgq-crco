@@ -3,7 +3,7 @@
  * naturezas do VHL (a tabela "Natureza Principal" da IT de recepção do ato) + etapas da fase
  * (REC = Prenotação no Tri7 · QLF = Análise, Re-Análise e Revisão de exigência do Tri7 · MIN = Minuta · REV = Revisão Oficial).
  * Editável em Configuração › POPs e escopo, com motivo no histórico. Ajustes ficam em config/pops {map:{código:{…}}}. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/catalogo.js']='0.33.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/catalogo.js']='0.34.1';
   var POP_BASE=[{"c":"IT-PJ-AVB-ENT","t":"Averbação em PJ · Entrega (Reg. Civil de Pessoas Jurídicas)","sv":"RCPJ","v":"1.0.1","fase":"ENT","nats":["Associações em geral"],"ets":["Registrar pedido / Envio Cliente"],"med":1,"conf":0},
     {"c":"IT-PJ-AVB-REC","t":"Averbação em PJ · Recepção (Reg. Civil de Pessoas Jurídicas)","sv":"RCPJ","v":"1.0.0","fase":"REC","med":0},
     {"c":"IT-RC-CAS-HAB","t":"Casamento · Habilitação (Registro Civil)","sv":"RC","v":"1.0.0","fase":"HAB","med":0},
@@ -11,16 +11,16 @@
     {"c":"IT-RC-OBI-LAV","t":"Óbito · Lavratura (Registro Civil)","sv":"RC","v":"","fase":"LAV","med":0},
     {"c":"IT-RI-ABM-MIN","t":"Abertura de Matrícula · Minuta (Registro de Imóveis)","sv":"RI","v":"1.0.1","ato":"Abertura de Matrícula","fase":"MIN","nats":["Abertura de Matrícula","ONR - Abertura de Matrícula","Abertura de matrícula + Outros atos"],"ets":["Minuta"],"med":1,"conf":1},
     {"c":"IT-RI-ABM-REC","t":"Abertura de Matrícula · Recepção (Registro de Imóveis)","sv":"RI","v":"1.0.0","ato":"Abertura de Matrícula","fase":"REC","nats":["Abertura de Matrícula","ONR - Abertura de Matrícula","Abertura de matrícula + Outros atos"],"ets":["Prenotação (Tri7)"],"med":1,"conf":1},
-    {"c":"IT-RI-CADASTRO-REAL","t":"Saneamento da Ficha Real (Registro de Imóveis)","sv":"RI","v":"","fase":"REAL","med":0},
-    {"c":"IT-RI-COBRANCA","t":"Cobrança de Emolumentos e Baixa de Pagamentos (Registro de Imóveis)","sv":"RI","v":"","fase":"","med":0},
+    {"c":"IT-RI-CADASTRO-REAL","t":"Saneamento da Ficha Real (Registro de Imóveis)","sv":"RI","v":"","fase":"REAL","med":0,"erros":["Cadastro no sistema (partes, imóvel, ônus)"]},
+    {"c":"IT-RI-COBRANCA","t":"Cobrança de Emolumentos e Baixa de Pagamentos (Registro de Imóveis)","sv":"RI","v":"","fase":"","med":0,"erros":["Cobrança / OS / pagamento"]},
     {"c":"IT-RI-COP-MIN","t":"Consolidação de Propriedade · Minuta (Registro de Imóveis)","sv":"RI","v":"1.0.0","ato":"Consolidação de Propriedade","fase":"MIN","nats":["Consolidação","ONR - Consolidação"],"ets":["Minuta"],"med":1,"conf":1},
     {"c":"IT-RI-COP-REC","t":"Consolidação de Propriedade · Recepção (Registro de Imóveis)","sv":"RI","v":"1.0.0","ato":"Consolidação de Propriedade","fase":"REC","nats":["Consolidação","ONR - Consolidação"],"ets":["Prenotação (Tri7)"],"med":1,"conf":1},
     {"c":"IT-RI-CVA-MIN","t":"Compra e Venda c/ Alienação · Minuta (Registro de Imóveis)","sv":"RI","v":"1.0.0","ato":"Compra e Venda c/ Alienação","fase":"MIN","nats":["Escritura Pública - Compra e Venda/Alienação Fiduciária","ONR - Escritura Pública c/ Cláusulas","Contrato","Contrato - PMCMV","ONR - Contrato"],"ets":["Minuta"],"med":1,"conf":1},
     {"c":"IT-RI-CVA-REC","t":"Compra e Venda c/ Alienação · Recepção (Registro de Imóveis)","sv":"RI","v":"1.0.0","ato":"Compra e Venda c/ Alienação","fase":"REC","nats":["Escritura Pública - Compra e Venda/Alienação Fiduciária","ONR - Escritura Pública c/ Cláusulas","Contrato","Contrato - PMCMV","ONR - Contrato"],"ets":["Prenotação (Tri7)"],"med":1,"conf":1},
     {"c":"IT-RI-CVD-MIN","t":"Compra e Venda Simples · Minuta (Registro de Imóveis)","sv":"RI","v":"1.0.0","ato":"Compra e Venda Simples","fase":"MIN","nats":["Escritura Pública - Compra e Venda","ONR - Escritura Pública Simples","Contrato","ONR - Instrumento Particular"],"ets":["Minuta"],"med":1,"conf":1},
     {"c":"IT-RI-CVD-REC","t":"Compra e Venda Simples · Recepção (Registro de Imóveis)","sv":"RI","v":"1.0.0","ato":"Compra e Venda Simples","fase":"REC","nats":["Escritura Pública - Compra e Venda","ONR - Escritura Pública Simples","Contrato","ONR - Instrumento Particular"],"ets":["Prenotação (Tri7)"],"med":1,"conf":1},
-    {"c":"IT-RI-DOI-COAF","t":"Validação de DOI e Comunicação ao COAF (Registro de Imóveis)","sv":"RI","v":"1.0.0","fase":"COAF","med":0},
-    {"c":"IT-RI-GED","t":"Cadastro e Gestão de Documentos no GED 2.0 (Registro de Imóveis)","sv":"RI","v":"","fase":"","med":0},
+    {"c":"IT-RI-DOI-COAF","t":"Validação de DOI e Comunicação ao COAF (Registro de Imóveis)","sv":"RI","v":"1.0.0","fase":"COAF","med":0,"erros":["GO-REURB / DOI / SIG-RI"]},
+    {"c":"IT-RI-GED","t":"Cadastro e Gestão de Documentos no GED 2.0 (Registro de Imóveis)","sv":"RI","v":"","fase":"","med":0,"erros":["GED / acervo / anexos"]},
     {"c":"IT-RI-INC-MIN","t":"Inclusão e Modificação de Dados de Qualificação Pessoal · Minuta (Registro de Imóveis)","sv":"RI","v":"1.0.0","ato":"Inclusão/Modificação de Dados de Qualificação Pessoal","fase":"MIN","nats":["Requerimento Averbação Retificação","ONR - Requerimento de Averbação"],"ets":["Minuta"],"med":1,"conf":1},
     {"c":"IT-RI-INC-REC","t":"Inclusão e Modificação de Dados de Qualificação Pessoal · Recepção (Registro de Imóveis)","sv":"RI","v":"1.0.0","ato":"Inclusão/Modificação de Dados de Qualificação Pessoal","fase":"REC","nats":["Requerimento Averbação Retificação","ONR - Requerimento de Averbação"],"ets":["Prenotação (Tri7)"],"med":1,"conf":1},
     {"c":"IT-RI-LEN-MIN","t":"Leilão Negativo · Minuta (Registro de Imóveis)","sv":"RI","v":"","ato":"Leilão Negativo","fase":"MIN","nats":["Averbação de Leilão Extrajudicial","ONR - Leilão Negativo"],"ets":["Minuta"],"med":1,"conf":1},
@@ -79,6 +79,8 @@
     return out.sort(function(a,b){ var o=['RI','RC','RTD','RCPJ','SGQ']; return (o.indexOf(a.sv)-o.indexOf(b.sv)) || (a.c<b.c?-1:1); }); }
   function popDe(c){ var L=popsTodos(); for (var i=0;i<L.length;i++) if (L[i].c===c) return L[i]; return null; }
   function popMede(p){ return !!(p&&p.med&&(p.nats||[]).length&&(p.ets||[]).length); }
+  // 0.34.1: documento sem medição automática pode ser ligado a tipos de erro das inconformidades (apoio à avaliação na Aprendizagem)
+  function popErros(p){ if (!p||popMede(p)) return []; var ok={}; Motor.CATS_ERRO.forEach(function(c){ ok[c]=1; }); return (p.erros||[]).filter(function(e){ return ok[e]; }); }
   // 0.21.3: carga horária padrão do POP (h), cadastrada no Catálogo e sugerida na Aprendizagem
   function popCh(p){ var v=+((p&&p.ch)||0); return v>0?v:null; }
   function popChTxt(v){ return v==null?'':(numBR(v,v%1?1:0)+'h'); }
@@ -100,7 +102,7 @@
       return '<span class="pop-it'+(q?'':' falta')+'" title="'+esc(q?q+' execuções nos últimos 12 meses (no VHL: '+((campo==='nats'?C.nomeN:C.nomeE)[n]||x)+')':'Não encontrei este nome nos últimos 12 meses do VHL/Tri7')+'">'+esc(x)+' <span class="mut">'+(q||'não encontrada')+'</span></span>'; }).join(''); }
   function popCfgHTML(){
     var L=popsTodos(), C=popContagens(), med=L.filter(popMede), conf=med.filter(function(p){ return !p.conf; });
-    var h='<div class="sub-h" style="margin-top:16px">POPs e escopo (Aprendizagem)</div><details class="cfg-det"'+(state.popEd||state.popNovo?' open':'')+'><summary>'+L.length+' documentos · '+med.length+' com medição automática'+(conf.length?' · '+conf.length+' a conferir':'')+'</summary>'+
+    var h='<div class="sub-h" style="margin-top:16px">POPs e escopo (Aprendizagem)</div><details class="cfg-det" id="popDet"'+(state.popAberto||state.popEd||state.popNovo?' open':'')+'><summary>'+L.length+' documentos · '+med.length+' com medição automática'+(conf.length?' · '+conf.length+' a conferir':'')+'</summary>'+
       '<p class="hint" style="margin:6px 0">O escopo de cada documento é o que a Aprendizagem mede: naturezas do VHL (tabela da IT de recepção) e etapas da fase. Os nomes casam sem acento, maiúscula, "p/" e "de". O número ao lado é quantas execuções aparecem nos últimos 12 meses; <b>não encontrada</b> = conferir o nome. <b>A conferir</b> = escopo sugerido pelo painel e ainda não confirmado por você. Subir a <b>versão</b> abre a lista "Quem precisa ser treinado" na Aprendizagem.</p>'+
       (podeEscrever?'<div class="ctl" style="margin:6px 0 8px"><button type="button" class="btn sm" data-popnovo="1">Adicionar documento</button></div>':'')+(state.popNovo?popNovoHTML():'')+
       '<div class="tbl-wrap"><table class="cfg-t pop-t"><thead><tr><th class="tleft">Documento</th><th class="tleft">Escopo medido</th><th>Versão</th><th></th></tr></thead><tbody>';
@@ -108,7 +110,7 @@
     L.forEach(function(p){ if (p.sv!==sv){ sv=p.sv; h+='<tr class="pop-sv"><td colspan="4">'+esc(sv)+'</td></tr>'; }
       var m=popMede(p), ed=state.popEd===p.c;
       h+='<tr><td class="tleft"><b>'+esc(p.c)+'</b>'+(p.fase&&POP_FASE_NOME[p.fase]?' <span class="pill mute">'+esc(POP_FASE_NOME[p.fase])+'</span>':'')+(m&&!p.conf?' <span class="pill warn">a conferir</span>':'')+'<div class="hint" style="margin:2px 0 0">'+esc(p.t||'')+'</div></td>'+
-        '<td class="tleft">'+(m?'<div class="pop-l"><span class="mut">Naturezas:</span> '+popListaHTML(p.nats,'nats',C)+'</div><div class="pop-l"><span class="mut">Etapas:</span> '+popListaHTML(p.ets,'ets',C)+'</div>':'<span class="mut">Sem medição automática: a eficácia é avaliada por quem acompanhou (o painel registra e gera o relatório).</span>')+'</td>'+
+        '<td class="tleft">'+(m?'<div class="pop-l"><span class="mut">Naturezas:</span> '+popListaHTML(p.nats,'nats',C)+'</div><div class="pop-l"><span class="mut">Etapas:</span> '+popListaHTML(p.ets,'ets',C)+'</div>':'<span class="mut">Sem medição automática: a eficácia é avaliada por quem acompanhou (o painel registra e gera o relatório).</span>'+(popErros(p).length?'<div class="pop-l pop-vinc"><span class="mut">Apoio pelas inconformidades do tipo:</span> '+popErros(p).map(function(e){ return '<span class="pop-it">'+esc(e)+'</span>'; }).join('')+'</div>':''))+'</td>'+
         '<td>'+esc(p.v||'—')+(p.verDesde?'<div class="hint" style="margin:2px 0 0">desde '+fmtData(p.verDesde)+'</div>':'')+(popCh(p)!=null?'<div class="hint" style="margin:2px 0 0">carga: '+popChTxt(popCh(p))+'</div>':'')+'</td><td>'+(podeEscrever?'<button type="button" class="btn sm" data-poped="'+esc(p.c)+'">Alterar</button>':'')+'</td></tr>'+(ed?'<tr class="cfg-ed"><td colspan="4">'+popFormHTML(p)+'</td></tr>':''); });
     return h+'</tbody></table></div></details>'; }
   // 0.21.1: etapas e naturezas escolhidas numa lista (o que existe no VHL/Tri7), sem digitar
@@ -123,14 +125,16 @@
   function popFormHTML(p){ var C=popContagens();
     var E=popOpcoes(C.et,C.nomeE,p.ets,popEtNorm,true,3), N=popOpcoes(C.nat,C.nomeN,p.nats,popNorm,false,1);
     return '<div class="pop-f2"><label class="pop-tit">Título <input id="popT" type="text" class="mini" value="'+esc(p.t||'')+'"></label><label>Versão <input id="popV" type="text" class="mini" value="'+esc(p.v||'')+'" placeholder="ex.: 1.0.2"></label>'+
+      '<label>Vigente desde <input id="popVd" type="date" class="mini" value="'+esc(p.verDesde||'')+'" max="'+new Date().toISOString().slice(0,10)+'" aria-label="Data em que esta versão entrou em vigor"></label>'+
       '<label>Carga horária padrão (h) <input id="popCh" type="number" class="mini" min="0" step="0.5" value="'+esc(p.ch||'')+'" placeholder="ex.: 1"></label>'+
       '<label>Medição <select id="popMed" class="mini"><option value="1"'+(p.med?' selected':'')+'>Automática</option><option value="0"'+(p.med?'':' selected')+'>Sem medição automática</option></select></label>'+
       '<label class="pop-ck"><span><input type="checkbox" id="popConf"'+(p.conf?' checked':'')+'> Escopo conferido</span></label>'+
       popCaixaHTML('Etapas','et',E,'Etapas do VHL (sem o prazo no nome; "ONR - X" conta como X) e andamentos do Tri7. O número é de execuções nos últimos 12 meses.')+
       popCaixaHTML('Naturezas','nat',N,'Naturezas do VHL. As marcadas aparecem primeiro.')+
+      '<div class="pop-box"><div class="pop-bh"><b>Tipo de erro das inconformidades</b> <span class="mut" data-popcont="err">'+(p.erros||[]).length+' marcada(s)</span></div><p class="hint" style="margin:2px 0 6px">Para documento <b>sem medição automática</b> (ex.: cobrança, GED, DOI/COAF, cadastro): ligue aos tipos de erro que ele previne. Na Aprendizagem, a avaliação passa a mostrar as inconformidades da pessoa desses tipos antes e depois do treinamento. O painel não sugere Apto ou Não apto nesses casos: a decisão continua de quem avalia.</p><div class="apr-chk pop-lista" data-poplista="err">'+Motor.CATS_ERRO.map(function(e){ return '<label><input type="checkbox" data-poperr="'+esc(e)+'"'+((p.erros||[]).indexOf(e)>=0?' checked':'')+'> '+esc(e)+'</label>'; }).join('')+'</div></div>'+
       '<label class="pop-mot">Motivo (obrigatório) <input id="popMot" type="text" class="mini" maxlength="300" placeholder="ex.: POP revisado, nome da natureza no VHL"></label>'+
       '<span class="cfg-bt pop-acoes"><button type="button" class="btn sm primary" data-popsalvar="'+esc(p.c)+'">Salvar</button>'+(p.novo?'<button type="button" class="btn sm" data-poparq="'+esc(p.c)+'">Tirar do catálogo</button>':'')+'<button type="button" class="btn sm" data-popcancel="1">Cancelar</button></span>'+
-      '<p class="hint pop-nota">Subir a versão marca a data de hoje e lista quem executou esse escopo nos últimos 12 meses para treinar de novo. A carga horária padrão é sugerida ao cadastrar o treinamento na Aprendizagem (você pode confirmar ou trocar).</p></div>'; }
+      '<p class="hint pop-nota"><b>Vigente desde</b> é a data real em que a versão entrou em vigor: corrija quando precisar (ex.: versão 1.0.0 original). Se você subir a versão e não mexer na data, o painel grava a de hoje. A versão nova lista quem executou esse escopo nos últimos 12 meses para treinar de novo. A carga horária padrão é sugerida ao cadastrar o treinamento na Aprendizagem (você pode confirmar ou trocar).</p></div>'; }
   function popFiltrar(t){ var q=semAc(t.value||''), box=document.querySelector('[data-poplista="'+t.dataset.popbusca+'"]'); if (!box) return;
     box.querySelectorAll('label').forEach(function(l){ l.hidden=!!q&&l.dataset.popnome.indexOf(q)<0; }); }
   function popMarcados(campo){ return [].slice.call(document.querySelectorAll('[data-pop'+campo+']:checked')).map(function(x){ return x.getAttribute('data-pop'+campo); }); }
@@ -140,7 +144,12 @@
       '<label class="cfg-mot">Motivo (obrigatório) <input id="popNM" type="text" class="mini" maxlength="300" placeholder="ex.: POP publicado no M4"></label>'+
       '<span class="cfg-bt"><button type="button" class="btn sm" data-popcriar="1">Adicionar</button><button type="button" class="btn sm" data-popcancel="1">Cancelar</button></span>'+
       '<p class="hint" style="margin:6px 0 0">Na fase do RI (Recepção, Qualificação, Minuta, Revisão) as etapas já vêm preenchidas; depois é só informar as naturezas em "Alterar".</p></div>'; }
-  function popClique(t){ var d=t.dataset||{};
+  // 0.34.1: o bloco "N documentos" fica como o usuário deixou (aberto) e a tela não sai do lugar ao salvar, alterar ou cancelar
+  document.addEventListener('toggle',function(e){ if (e.target&&e.target.id==='popDet') state.popAberto=e.target.open; },true);
+  function popClique(t){ var d=t.dataset||{}; if (!(d.poped||d.popcancel||d.popnovo||d.popcriar||d.poparq||d.popsalvar)) return false;
+    if (d.popcriar||d.poparq||d.popsalvar||d.poped||d.popnovo) state.popAberto=true;
+    var r=false; manterTela('tabCfg',function(){ r=popClique0(t); },function(a){ return a.id?'#'+a.id:null; }); return r; }
+  function popClique0(t){ var d=t.dataset||{};
     if (d.poped){ state.popEd=state.popEd===d.poped?null:d.poped; state.popNovo=false; renderCfg(); return true; }
     if (d.popcancel){ state.popEd=null; state.popNovo=false; renderCfg(); return true; }
     if (d.popnovo){ state.popNovo=!state.popNovo; state.popEd=null; renderCfg(); return true; }
@@ -155,7 +164,13 @@
       var mud=[]; if (novo.t!==(p.t||'')) mud.push('título'); if (novo.v!==(p.v||'')) mud.push('versão '+(p.v||'—')+' → '+(novo.v||'—')); if (novo.med!==(p.med?1:0)) mud.push(novo.med?'medição automática':'sem medição');
       if (novo.ch!==(+p.ch||0)) mud.push('carga horária padrão '+(popChTxt(popCh(p))||'—')+' → '+(popChTxt(popCh({ch:novo.ch}))||'—'));
       if (novo.nats.join('|')!==(p.nats||[]).join('|')) mud.push('naturezas'); if (novo.ets.join('|')!==(p.ets||[]).join('|')) mud.push('etapas'); if (novo.conf!==(p.conf?1:0)) mud.push(novo.conf?'conferido':'a conferir');
+      // 0.34.1: tipos de erro ligados ao documento e data de vigência editável
+      novo.erros=popMarcados('err'); if (novo.erros.join('|')!==(p.erros||[]).join('|')) mud.push('tipos de erro: '+(novo.erros.join('; ')||'nenhum'));
+      var hojeP=new Date().toISOString().slice(0,10), vdAnt=p.verDesde||'', vd=String(($('popVd')||{}).value||'').trim(), mudouV=novo.v!==(p.v||'');
+      if (vd&&!/^\d{4}-\d{2}-\d{2}$/.test(vd)){ toast('Data de vigência inválida','erro'); return true; } if (vd>hojeP){ toast('A data de vigência não pode ser no futuro','erro'); var ve=$('popVd'); if (ve) ve.focus(); return true; }
+      if (mudouV&&vd===vdAnt) vd=hojeP; // subiu a versão sem informar a data: vale a de hoje (como antes)
+      if (vd!==vdAnt){ novo.verDesde=vd; mud.push('vigente desde '+(vdAnt?fmtData(vdAnt):'—')+' → '+(vd?fmtData(vd):'—')); }
       if (!mud.length){ toast('Nada mudou'); return true; }
-      if (novo.v!==(p.v||'')) novo.verDesde=new Date().toISOString().slice(0,10);
-      state.popsCfg.map[p.c]=Object.assign({},state.popsCfg.map[p.c]||{},novo); popSalvarCfg(); state.popEd=null; apurLog('Catálogo de POPs: '+p.c,'—',mud.join(', '),'imediato',mot2); apurSalvar(); return true; }
+      state.popsCfg.map[p.c]=Object.assign({},state.popsCfg.map[p.c]||{},novo); if (vd!==vdAnt&&!vd) delete state.popsCfg.map[p.c].verDesde;
+      popSalvarCfg(); state.popEd=null; state.popAberto=true; apurLog('Catálogo de POPs: '+p.c,'—',mud.join(', '),'imediato',mot2); apurSalvar(); toast(p.c+' salvo: '+mud.join(', ')); return true; }
     return false; }

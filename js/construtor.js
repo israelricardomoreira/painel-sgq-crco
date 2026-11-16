@@ -1,7 +1,7 @@
 /* Painel SGQ · CRCO — js/construtor.js (0.19.0: Meus painéis — construtor de cartões no estilo das ferramentas de BI)
  * Cada cartão é uma "pergunta": fonte → filtros → medida (ou taxa A ÷ B) → agrupar por (até 2) → formato.
  * Os painéis ficam no banco (coleção paineis): versões novas do painel não apagam nada, e entram no backup. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/construtor.js']='0.33.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/construtor.js']='0.34.1';
   var PN_DOW=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
   function pnDow(iso){ if (!iso) return null; var p=String(iso).slice(0,10).split('-').map(Number); return PN_DOW[new Date(Date.UTC(p[0],p[1]-1,p[2])).getUTCDay()]; }
   function pnMesIso(iso){ return iso?String(iso).slice(0,7):null; }
@@ -47,7 +47,7 @@
         ['dow','Dia da semana','cat',function(e){ return pnDow(Motor.isoMin(e.m)); }],['hora','Hora','cat',function(e){ return Motor.isoMin(e.m).slice(11,13)+'h'; }]]}
   };
   function pnCampo(f, id){ var F=PN_FONTES[f]; if (!F) return null; for (var i=0;i<F.campos.length;i++) if (F.campos[i][0]===id) return {id:id, nome:F.campos[i][1], tipo:F.campos[i][2], get:F.campos[i][3], un:F.campos[i][4]||''}; return null; }
-  var PN_MED={qtd:'Quantidade', distintos:'Documentos distintos', pct:'% que atende a condição', media:'Média de', mediana:'Mediana de', p90:'90% em até (P90)', min:'Mínimo de', max:'Máximo de', soma:'Soma de'};
+  var PN_MED={qtd:'Quantidade', distintos:'Documentos distintos (protocolos)', pct:'% que atende a condição', media:'Média de', mediana:'Mediana de', p90:'90% em até (P90)', min:'Mínimo de', max:'Máximo de', soma:'Soma de'};
   var PN_FMT=[
     ['numero','Cartão (número)','Um resultado só, com meta: o KPI do mês, a taxa do período.','Precisa mostrar evolução ou comparação.'],
     ['linha','Linha','Evolução no tempo: o mês a mês, tendência, antes e depois de uma ação (use os marcos).','O eixo não é tempo (agrupe por Mês).'],
@@ -72,9 +72,11 @@
         if (c.tipo==='num'){ if (v==null) return false; if (x.op==='>='&&!(v>=+x.v)) return false; if (x.op==='<='&&!(v<=+x.v)) return false; }
         else if ((x.vals||[]).length && x.vals.indexOf(v==null?'(vazio)':String(v))<0) return false; }
       return true; }); }
+  // código do documento de uma linha (protocolo): c nas fontes do VHL/Tri7, n nos andamentos; null = a fonte não tem documento (ex.: tempo de trabalho)
+  function pnDocChave(r){ var k=r.c!=null?r.c:r.p!=null?r.p:r.n; return k==null||k===''?null:String(k).toUpperCase(); }
   function pnMedir(f, rows, M){ M=M||{t:'qtd'};
     if (M.t==='qtd') return rows.length;
-    if (M.t==='distintos'){ var o={}; rows.forEach(function(r){ o[String(r.c!=null?r.c:r.p!=null?r.p:r.n)]=1; }); return Object.keys(o).length; }
+    if (M.t==='distintos'){ var o={}, tem=false; rows.forEach(function(r){ var k=pnDocChave(r); if (k==null) return; tem=true; o[k]=1; }); return tem||!rows.length?Object.keys(o).length:null; }
     if (M.t==='pct'){ var c=pnCampo(f,M.campo); if (!c) return null; var base=rows.filter(function(r){ return c.get(r)!=null; }); if (!base.length) return null; var alvo=M.valor||'Sim'; return base.filter(function(r){ return String(c.get(r))===alvo; }).length/base.length*100; }
     var c2=pnCampo(f,M.campo); if (!c2) return null; var v=rows.map(function(r){ return c2.get(r); }).filter(function(x){ return x!=null&&!isNaN(x); }); if (!v.length) return null;
     if (M.t==='media') return media(v); if (M.t==='mediana') return quant(v,.5); if (M.t==='p90') return quant(v,.9); if (M.t==='min') return Math.min.apply(null,v); if (M.t==='max') return Math.max.apply(null,v); if (M.t==='soma') return v.reduce(function(s,x){ return s+x; },0); return null; }
@@ -100,18 +102,34 @@
     if (+c.minN>0) k1=k1.filter(function(a){ return (GA.g[a]||[]).length>=+c.minN; });
     if (c.lim&&c.g1!=='mes') k1=k1.slice(0,+c.lim);
     var un=c.b&&!eixo?(c.bPct?'%':''):pnUn(c.f,c.m);
-    return {k1:k1, k2:k2, v:v, v1:v1, vB:vB, cel:cel, rows1:function(a){ return GA.g[a]||[]; }, rowsAll:A, total:razao(A,B||[]), un:un, nA:A.length, nB:B?B.length:null, per:per}; }
+    return {k1:k1, k2:k2, v:v, v1:v1, vB:vB, cel:cel, rows1:function(a){ return GA.g[a]||[]; }, rowsAll:A, total:razao(A,B||[]), totA:pnMedir(c.f,A,c.m), totB:B&&!eixo?pnMedir(c.b.f,B,c.b.m):null, un:un, nA:A.length, nB:B?B.length:null, per:per}; }
   function pnFmtV(v, un){ if (v==null||isNaN(v)) return '—'; var d=un==='%'||Math.abs(v)<10&&v%1?1:0; if (un==='d.u.'||un==='h'||un==='min') d=1; return numBR(v,d)+(un==='%'?'%':un?' '+un:''); }
   function pnMetaOk(c, v){ if (!c.meta||c.meta.v===''||c.meta.v==null||v==null) return null; var m=+c.meta.v; return c.meta.bom==='acima'?v>=m:v<=m; }
   // antes × depois de uma ação (mês da ação + nº de meses de cada lado)
-  function pnAntesDepois(c){ if (!c.ad||!c.ad.mes) return ''; var n=Math.max(1,+c.ad.n||3), ms=[], m=c.ad.mes, i;
+  // 0.34.1: pnAD devolve os números; o cartão mostra antes, depois, variação e uma frase pronta (verificação de eficácia da NC).
+  function pnAD(c){ if (!c.ad||!c.ad.mes||!/^\d{4}-\d{2}$/.test(c.ad.mes)) return null; var n=Math.max(1,Math.min(12,+c.ad.n||3)), m=c.ad.mes, i;
     var antes=[]; for (i=0;i<n;i++){ m=mesAnt(m); antes.unshift(m); } var dep=[c.ad.mes]; for (i=1;i<n;i++){ var p=dep[dep.length-1].split('-').map(Number); p[1]++; if (p[1]>12){ p[1]=1; p[0]++; } dep.push(p[0]+'-'+(p[1]<10?'0':'')+p[1]); }
     dep=dep.filter(function(x){ return x<=mesHoje(); });
-    function janela(L){ var fa=pnCampo(c.f,'mes'), A=pnFiltrar(c.f,c.filtros,'todos').filter(function(r){ return L.indexOf(fa.get(r))>=0; }), va=pnMedir(c.f,A,c.m);
-      if (!c.b||c.bModo==='eixo') return {v:va,n:A.length}; var fb=pnCampo(c.b.f,'mes'), B=pnFiltrar(c.b.f,c.b.filtros,'todos').filter(function(r){ return fb&&L.indexOf(fb.get(r))>=0; }), vb=pnMedir(c.b.f,B,c.b.m); return {v:vb?va/vb*(c.bPct?100:1):null,n:A.length,nb:B.length}; }
-    var a=janela(antes), d=janela(dep), un=c.b&&c.bModo!=='eixo'?(c.bPct?'%':''):pnUn(c.f,c.m), varr=a.v?(d.v-a.v)/a.v*100:null;
-    var poucos=a.n<20||d.n<20;
-    return '<div class="pn-ad"><div><span>Antes · '+esc(nomeMes(antes[0]))+' a '+esc(nomeMes(antes[antes.length-1]))+'</span><b>'+pnFmtV(a.v,un)+'</b><small>'+a.n+' casos</small></div><div><span>Depois · '+esc(nomeMes(dep[0]||c.ad.mes))+(dep.length>1?' a '+esc(nomeMes(dep[dep.length-1])):'')+'</span><b>'+pnFmtV(d.v,un)+'</b><small>'+d.n+' casos'+(dep.length<n?' · '+dep.length+' de '+n+' meses já passaram':'')+'</small></div><div><span>Variação</span><b>'+(varr==null?'—':(varr>0?'+':'')+numBR(varr,0)+'%')+'</b><small>'+(poucos?'poucos casos: conclua com cuidado':'')+'</small></div></div>'; }
+    function janela(L){ var fa=pnCampo(c.f,'mes'), A=pnFiltrar(c.f,c.filtros,'todos').filter(function(r){ return fa&&L.indexOf(fa.get(r))>=0; }), va=pnMedir(c.f,A,c.m);
+      if (!c.b||c.bModo==='eixo') return {v:va,n:A.length,base:A.length}; var fb=pnCampo(c.b.f,'mes'), B=pnFiltrar(c.b.f,c.b.filtros,'todos').filter(function(r){ return fb&&L.indexOf(fb.get(r))>=0; }), vb=pnMedir(c.b.f,B,c.b.m); return {v:vb?va/vb*(c.bPct?100:1):null,n:A.length,nb:B.length,base:B.length,va:va,vb:vb,taxa:true}; }
+    var a=janela(antes), d=dep.length?janela(dep):{v:null,n:0,base:0}, un=c.b&&c.bModo!=='eixo'?(c.bPct?'%':''):pnUn(c.f,c.m);
+    var tem=a.v!=null&&d.v!=null, dif=tem?d.v-a.v:null, varr=tem&&a.v?dif/a.v*100:null;
+    var bom=c.ad.bom!=null&&c.ad.bom!==''?c.ad.bom:(c.ad.bom==null&&c.meta&&c.meta.v!==''&&c.meta.v!=null?(c.meta.bom||'abaixo'):'');
+    var leitura=!tem||!bom||!dif?null:((bom==='acima'?dif>0:dif<0)?'melhorou':'piorou');
+    return {antes:antes, dep:dep, n:n, a:a, d:d, un:un, dif:dif, varr:varr, bom:bom, leitura:leitura, poucos:a.base<20||d.base<20, parcial:dep.length<n}; }
+  function pnADDet(j){ return j.taxa?pnFmtV(j.va,'')+' ÷ '+pnFmtV(j.vb,''):j.n+' casos'; }
+  function pnADDif(R){ if (R.dif==null) return '—'; var s=R.dif>0?'+':R.dif<0?'−':'', v=Math.abs(R.dif); return s+(R.un==='%'?numBR(v,1)+' p.p.':pnFmtV(v,R.un)); }
+  function pnADFrase(R){ if (R.a.v==null||R.d.v==null) return 'Ainda não há dados dos dois lados para comparar.';
+    var per=function(L){ return nomeMes(L[0])+(L.length>1?' a '+nomeMes(L[L.length-1]):''); };
+    var det=function(j){ return j.taxa?' ('+pnADDet(j)+')':' em '+j.n+' casos'; };
+    return 'Antes ('+per(R.antes)+'): '+pnFmtV(R.a.v,R.un)+det(R.a)+'. Depois ('+per(R.dep)+'): '+pnFmtV(R.d.v,R.un)+det(R.d)+'. '+
+      (R.dif?(R.dif>0?'Subiu ':'Caiu ')+pnADDif(R).replace(/^[+−]/,'')+(R.varr!=null?' ('+(R.varr>0?'+':'−')+numBR(Math.abs(R.varr),0)+'%)':'')+(R.leitura?': '+R.leitura:'')+'.':'Sem variação.')+
+      (R.parcial?' Parcial: '+R.dep.length+' de '+R.n+' meses depois da ação já passaram.':'')+(R.poucos?' Base pequena (menos de 20 de um dos lados): conclua com cuidado.':''); }
+  function pnAntesDepois(c){ var R=pnAD(c); if (!R) return ''; var cls=R.leitura==='melhorou'?' class="pn-ad-ok"':R.leitura==='piorou'?' class="pn-ad-ruim"':'';
+    return '<div class="pn-ad" data-pnad="1"><div><span>Antes · '+esc(nomeMes(R.antes[0]))+' a '+esc(nomeMes(R.antes[R.antes.length-1]))+'</span><b>'+pnFmtV(R.a.v,R.un)+'</b><small>'+pnADDet(R.a)+'</small></div>'+
+      '<div><span>Depois · '+esc(nomeMes(R.dep[0]||c.ad.mes))+(R.dep.length>1?' a '+esc(nomeMes(R.dep[R.dep.length-1])):'')+'</span><b>'+pnFmtV(R.d.v,R.un)+'</b><small>'+pnADDet(R.d)+(R.parcial?' · '+R.dep.length+' de '+R.n+' meses já passaram':'')+'</small></div>'+
+      '<div><span>Antes × depois</span><b'+cls+'>'+pnADDif(R)+'</b><small'+cls+'>'+(R.varr==null?'':(R.varr>0?'+':'−')+numBR(Math.abs(R.varr),0)+'%'+(R.leitura?' · '+R.leitura:''))+'</small></div>'+
+      '<p class="pn-ad-frase">'+esc(pnADFrase(R))+'</p></div>'; }
   function pnEmpilhadas(labels, series, un){ var W=560, H=230, pl=40, pr=8, pt=12, pb=26, tot=labels.map(function(l,i){ return series.reduce(function(s,se){ return s+(se.v[i]||0); },0); }), mx=Math.max.apply(null,tot.concat([1]));
     var bw=(W-pl-pr)/labels.length, y=function(v){ return pt+(H-pt-pb)*(1-v/mx); }, s='<svg viewBox="0 0 '+W+' '+H+'" class="gm-svg vz-svg" role="img" aria-label="Barras empilhadas">';
     [0,mx/2,mx].forEach(function(t){ s+='<line x1="'+pl+'" x2="'+(W-pr)+'" y1="'+y(t).toFixed(1)+'" y2="'+y(t).toFixed(1)+'" stroke="var(--line)"/><text x="'+(pl-5)+'" y="'+(y(t)+3.5).toFixed(1)+'" text-anchor="end" font-size="11" style="fill:var(--ink-3)">'+numBR(t,t%1?1:0)+'</text>'; });
@@ -133,7 +151,7 @@
     var F=PN_FONTES[c.f]; if (!F) return '<div class="gm-vazio">Fonte desconhecida</div>';
     var R=pnCalc(c), fmt=pnSugerir(c), un=R.un, h='';
     if (fmt==='numero'||!c.g1){ var ok=pnMetaOk(c,R.total);
-      h='<div class="pn-num"><b>'+pnFmtV(R.total,un)+'</b>'+(ok!=null?'<span class="pill '+(ok?'good':'crit')+'">'+(ok?'atende a meta':'fora da meta')+' ('+(c.meta.bom==='acima'?'≥ ':'≤ ')+pnFmtV(+c.meta.v,un)+')</span>':'')+'<small>'+R.nA.toLocaleString('pt-BR')+' casos'+(R.nB!=null?' · base '+R.nB.toLocaleString('pt-BR'):'')+'</small></div>'; }
+      h='<div class="pn-num"><b>'+pnFmtV(R.total,un)+'</b>'+(ok!=null?'<span class="pill '+(ok?'good':'crit')+'">'+(ok?'atende a meta':'fora da meta')+' ('+(c.meta.bom==='acima'?'≥ ':'≤ ')+pnFmtV(+c.meta.v,un)+')</span>':'')+'<small>'+(R.totB!=null?pnFmtV(R.totA,'')+' ÷ '+pnFmtV(R.totB,'')+' · '+R.nA.toLocaleString('pt-BR')+' registros em A, '+R.nB.toLocaleString('pt-BR')+' em B':R.nA.toLocaleString('pt-BR')+((c.m||{}).t==='distintos'?' registros':' casos')+(R.nB!=null?' · base '+R.nB.toLocaleString('pt-BR'):''))+'</small></div>'; }
     else if (fmt==='linha'){ var ms=R.k1.filter(function(k){ return /^\d{4}-\d{2}$/.test(k); }), ser=[];
       if (c.g2){ ser=R.k2.slice(0,6).map(function(b,i){ return {nome:pnRotulo(c.g2,b), cor:EQ_CORES[i], v:ms.map(function(m){ return R.v(m,b); })}; }); }
       else ser=[{nome:c.titulo||'valor', cor:'var(--serie)', v:ms.map(function(m){ return R.v1(m); }), alerta:ms.map(function(m){ return pnMetaOk(c,R.v1(m))===false; }), extra:ms.map(function(m){ return R.rows1(m).length+' casos'; })}];
@@ -158,20 +176,34 @@
     return esc(F.nome)+' · '+esc(med+b)+(c.g1?' · por '+esc((pnCampo(c.f,c.g1)||{}).nome||'')+(c.g2?' e '+esc((pnCampo(c.f,c.g2)||{}).nome||''):''):'')+(fl.length?' · filtro: '+esc(fl.join('; ')):'')+' · '+(c.periodo==='todos'||c.g1==='mes'&&c.periodo!=='topo'?'todos os meses carregados':'período do topo'); }
   // ——— página
   function pnLista0(){ return Object.keys(state.pn||{}).map(function(id){ return state.pn[id]; }).filter(function(p){ return p&&!p.arquivado; }).sort(function(a,b){ return (a.ordem||0)-(b.ordem||0) || String(a.nome).localeCompare(String(b.nome)); }); }
-  function pnSalvar(p){ state.pn=Object.assign({},state.pn); state.pn[p.id]=p; p.em=new Date().toISOString(); p.por=nomeUsuario(); if (dbPronto&&podeEscrever) db.doc('paineis/'+p.id).set(p).catch(function(){ toast('Não consegui salvar o painel'); }); }
-  function renderPn(){
-    var el=$('tabPn'); if (!el) return; var L=pnLista0();
+  function pnSalvar(p){ state.pn=Object.assign({},state.pn); state.pn[p.id]=p; p.em=new Date().toISOString(); p.por=nomeUsuario(); if (dbPronto&&podeEscrever) db.doc('paineis/'+p.id).set(p).catch(function(){ toast('Não consegui salvar o painel','erro'); }); }
+  function pnClone(o){ return JSON.parse(JSON.stringify(o)); }
+  // 0.34.1: o redesenho guarda a rolagem e o foco (antes a tela pulava a cada mudança no formulário)
+  function pnChave(a){ var d=a.dataset||{}; if (a.id) return '#'+a.id; if (d.pned) return '[data-pned="'+d.pned+'"]'+(a.type==='radio'?'[value="'+a.value+'"]':''); if (d.pnfcampo) return '[data-pnfcampo="'+d.pnfcampo+'"]'; if (d.pnfbusca) return '[data-pnfbusca="'+d.pnfbusca+'"]'; return null; }
+  function renderPn(){ if (!$('tabPn')) return; manterTela('tabPn', renderPn0, pnChave); }
+  function renderPn0(){
+    var el=$('tabPn'); if (!el) return; var L=pnLista0(); state.pnNomeEd=false;
     if (!state.pnSel||!state.pn[state.pnSel]||state.pn[state.pnSel].arquivado) state.pnSel=L.length?L[0].id:null;
     var P=state.pnSel?state.pn[state.pnSel]:null;
     var h='<div class="sec-h"><span class="note">Monte os seus cartões: escolha a fonte, a medida (ou uma taxa A ÷ B), como agrupar e o formato. Os painéis ficam salvos no banco e vão no backup; versões novas do painel não apagam nada.</span></div>'+
-      '<div class="pn-tabs">'+L.map(function(p){ return '<button type="button" class="chip'+(P&&p.id===P.id?' on':'')+'" data-pnsel="'+esc(p.id)+'">'+esc(p.nome)+' <span class="mut">'+(p.cards||[]).length+'</span></button>'; }).join('')+(podeEscrever?'<button type="button" class="btn sm" data-pnnovo="1">+ Novo painel</button>':'')+'</div>';
+      '<div class="pn-tabs" role="group" aria-label="Painéis">'+L.map(function(p){ return '<button type="button" class="chip'+(P&&p.id===P.id?' on':'')+'" data-pnsel="'+esc(p.id)+'"'+(P&&p.id===P.id?' aria-pressed="true"':'')+'>'+esc(p.nome)+' <span class="mut">'+(p.cards||[]).length+'</span></button>'; }).join('')+(podeEscrever?'<button type="button" class="btn sm" data-pnnovo="1" id="pnBtnNovo" aria-label="Novo painel">+ Novo painel</button>':'')+'</div>';
     if (!P){ el.innerHTML=h+'<div class="empty"><b>Nenhum painel ainda</b>Clique em "+ Novo painel" e depois em "+ Cartão".</div>'; return; }
-    h+='<div class="search"><b class="pn-nome">'+esc(P.nome)+'</b>'+(podeEscrever?'<button class="btn primary sm" type="button" data-pncard="1">+ Cartão</button><button class="btn sm" type="button" data-pnrenomear="1">Renomear</button><button class="btn sm" type="button" data-pnduppainel="1">Duplicar painel</button><button class="btn sm" type="button" data-pnexcluir="1">Excluir painel</button>':'')+'<span class="spacer"></span><span class="hint">Período do topo: '+esc(state.periodo==='todos'?'todos os meses':nomeMes(state.periodo))+'</span></div>';
+    h+='<div class="search">'+(podeEscrever?'<button type="button" class="pn-nome" id="pnNome" data-pnnomeed="1" title="Clique para renomear" aria-label="Painel '+esc(P.nome)+': clique para renomear">'+esc(P.nome)+'</button>':'<b class="pn-nome" id="pnNome">'+esc(P.nome)+'</b>')+
+      (podeEscrever?'<button class="btn primary sm" type="button" data-pncard="1" id="pnBtnCartao" aria-label="Novo cartão">+ Cartão</button><button class="btn sm" type="button" data-pnrenomear="1" id="pnBtnRenomear">Renomear</button><button class="btn sm" type="button" data-pnduppainel="1" id="pnBtnDuplicar">Duplicar painel</button><button class="btn sm" type="button" data-pnexcluir="1" id="pnBtnExcluir">Excluir painel</button>':'')+'<span class="spacer"></span><span class="hint">Período do topo: '+esc(state.periodo==='todos'?'todos os meses':nomeMes(state.periodo))+'</span></div>';
     if (state.pnEd) h+=pnEditorHTML(state.pnEd);
     var cards=P.cards||[];
     h+=cards.length?'<div class="pn-grid">'+cards.map(function(c,i){ var corpo; try{ corpo=pnDesenho(c); }catch(e){ corpo='<div class="gm-vazio">Não consegui montar este cartão: '+esc(e.message)+'</div>'; }
-      return '<div class="gm-card pn-card'+(c.largo?' largo':'')+'" data-pncardid="'+esc(c.id)+'"><div class="gm-h"><span class="gm-t">'+esc(c.titulo||'Sem título')+'</span>'+(podeEscrever?'<span class="pn-acoes"><button class="lnk" type="button" data-pnedit="'+i+'">editar</button><button class="lnk" type="button" data-pndup="'+i+'">duplicar</button><button class="lnk" type="button" data-pnmover="'+i+'|-1" aria-label="Mover para trás">←</button><button class="lnk" type="button" data-pnmover="'+i+'|1" aria-label="Mover para frente">→</button><button class="lnk" type="button" data-pndel="'+i+'">excluir</button></span>':'')+'</div>'+corpo+'<p class="pn-desc">'+pnDescr(c)+'</p>'+(c.nota?'<p class="pn-nota">'+esc(c.nota)+'</p>':'')+'</div>'; }).join('')+'</div>':'<div class="empty"><b>Painel vazio</b>Clique em "+ Cartão".</div>';
+      var tt=esc(c.titulo||'Sem título');
+      return '<div class="gm-card pn-card'+(c.largo?' largo':'')+'" data-pncardid="'+esc(c.id)+'"><div class="gm-h"><span class="gm-t">'+tt+'</span>'+(podeEscrever?'<span class="pn-acoes"><button class="lnk" type="button" data-pnedit="'+i+'" aria-label="Editar o cartão '+tt+'">editar</button><button class="lnk" type="button" data-pndup="'+i+'" aria-label="Duplicar o cartão '+tt+'">duplicar</button><button class="lnk" type="button" data-pnmover="'+i+'|-1" aria-label="Mover '+tt+' para trás">←</button><button class="lnk" type="button" data-pnmover="'+i+'|1" aria-label="Mover '+tt+' para frente">→</button><button class="lnk" type="button" data-pndel="'+i+'" aria-label="Excluir o cartão '+tt+'">excluir</button></span>':'')+'</div>'+corpo+'<p class="pn-desc">'+pnDescr(c)+'</p>'+(c.nota?'<p class="pn-nota">'+esc(c.nota)+'</p>':'')+'</div>'; }).join('')+'</div>':'<div class="empty"><b>Painel vazio</b>Clique em "+ Cartão".</div>';
     el.innerHTML=h; }
+  // 0.34.1: o título do painel vira campo no próprio lugar (Enter grava, Esc cancela)
+  function pnNomeEditar(){ var b=document.querySelector('#tabPn .pn-nome'), P=state.pnSel?state.pn[state.pnSel]:null; if (!b||!P||!podeEscrever||state.pnNomeEd) return;
+    var i=document.createElement('input'), feito=false; i.type='text'; i.className='pn-nome-in'; i.id='pnNomeIn'; i.value=P.nome; i.maxLength=80; i.setAttribute('aria-label','Nome do painel (Enter grava, Esc cancela)');
+    function fim(gravar){ if (feito) return; feito=true; state.pnNomeEd=false; var n=i.value.trim(), at=state.pn[P.id];
+      if (gravar&&n&&at&&n!==at.nome){ var Q=pnClone(at); Q.nome=n; pnSalvar(Q); toast('Painel renomeado para "'+n+'"'); } renderPn(); }
+    i.addEventListener('keydown',function(e){ if (e.key==='Enter'){ e.preventDefault(); fim(true); } else if (e.key==='Escape'){ e.preventDefault(); fim(false); } });
+    i.addEventListener('blur',function(){ fim(true); });
+    state.pnNomeEd=true; b.replaceWith(i); i.focus(); i.select(); }
   // ——— editor de cartão
   function pnOpcoes(f, tipos, sel, vazio){ var F=PN_FONTES[f]; return (vazio?'<option value="">'+esc(vazio)+'</option>':'')+F.campos.filter(function(x){ return tipos.indexOf(x[2])>=0; }).map(function(x){ return '<option value="'+x[0]+'"'+(x[0]===sel?' selected':'')+'>'+esc(x[1])+'</option>'; }).join(''); }
   function pnValores(f, campo){ var c=pnCampo(f,campo); if (!c) return []; var o={}; pnLinhas(f).forEach(function(r){ var v=c.get(r); v=v==null?'(vazio)':String(v); o[v]=(o[v]||0)+1; }); return Object.keys(o).sort(function(a,b){ return campo==='mes'?(a<b?1:-1):o[b]-o[a]; }).slice(0,300).map(function(v){ return [v,o[v]]; }); }
@@ -179,71 +211,106 @@
     return '<select data-pned="'+pref+'.m.t" aria-label="Medida '+pref.toUpperCase()+'">'+Object.keys(PN_MED).map(function(k){ return '<option value="'+k+'"'+(M.t===k?' selected':'')+'>'+PN_MED[k]+'</option>'; }).join('')+'</select>'+
       (M.t==='pct'?'<select data-pned="'+pref+'.m.campo" aria-label="Campo da condição">'+pnOpcoes(f,['bool','cat'],M.campo,'campo…')+'</select>'+(c?'<span>=</span><select data-pned="'+pref+'.m.valor" aria-label="Valor da condição">'+pnValores(f,M.campo).filter(function(v){ return v[0]!=='(vazio)'; }).map(function(v){ return '<option'+((M.valor||'Sim')===v[0]?' selected':'')+'>'+esc(v[0])+'</option>'; }).join('')+'</select>':''):
        (M.t!=='qtd'&&M.t!=='distintos'?'<select data-pned="'+pref+'.m.campo" aria-label="Campo da medida">'+pnOpcoes(f,['num'],M.campo,'campo…')+'</select>':'')); }
-  function pnFiltrosHTML(pref, f, L){ return (L||[]).map(function(x,i){ var c=pnCampo(f,x.campo); return '<div class="pn-fl"><b>'+esc(c?c.nome:x.campo)+'</b>'+(c&&c.tipo==='num'?' '+esc(x.op)+' '+esc(x.v):': '+esc((x.vals||[]).join(', ')))+' <button class="lnk" type="button" data-pnfdel="'+pref+'|'+i+'">remover</button></div>'; }).join('')+
-    '<div class="pn-fl add"><select data-pnfcampo="'+pref+'" aria-label="Filtrar por">'+pnOpcoes(f,['cat','bool','num'],state.pnFC&&state.pnFC[pref],'+ filtrar por…')+'</select>'+(function(){ var fc=state.pnFC&&state.pnFC[pref], c=fc?pnCampo(f,fc):null; if (!c) return '';
-      if (c.tipo==='num') return '<select data-pnfop="'+pref+'" aria-label="Operador"><option value=">=">≥</option><option value="<=">≤</option></select><input type="number" step="any" data-pnfv="'+pref+'" aria-label="Valor do filtro" style="width:90px"><button class="btn sm" type="button" data-pnfadd="'+pref+'">Adicionar</button>';
-      return '<select multiple size="5" data-pnfvals="'+pref+'" aria-label="Valores do filtro" style="min-width:220px">'+pnValores(f,fc).map(function(v){ return '<option value="'+esc(v[0])+'">'+esc(v[0])+' ('+v[1]+')</option>'; }).join('')+'</select><button class="btn sm" type="button" data-pnfadd="'+pref+'">Adicionar</button><span class="hint">Ctrl/Shift para marcar vários</span>'; })()+'</div>'; }
+  function pnFiltrosHTML(pref, f, L){ return (L||[]).map(function(x,i){ var c=pnCampo(f,x.campo); return '<div class="pn-fl"><b>'+esc(c?c.nome:x.campo)+'</b>'+(c&&c.tipo==='num'?' '+esc(x.op)+' '+esc(x.v):': '+esc((x.vals||[]).join(', ')))+' <button class="lnk" type="button" data-pnfdel="'+pref+'|'+i+'" aria-label="Remover o filtro '+esc(c?c.nome:x.campo)+'">remover</button></div>'; }).join('')+
+    '<div class="pn-fl add"><select data-pnfcampo="'+pref+'" id="pnFCampo_'+pref+'" aria-label="Filtrar '+(pref==='a'?'a medida':'a medida B')+' por">'+pnOpcoes(f,['cat','bool','num'],state.pnFC&&state.pnFC[pref],'+ filtrar por…')+'</select>'+(function(){ var fc=state.pnFC&&state.pnFC[pref], c=fc?pnCampo(f,fc):null; if (!c) return '';
+      if (c.tipo==='num') return '<select data-pnfop="'+pref+'" aria-label="Operador"><option value=">=">≥</option><option value="<=">≤</option></select><input type="number" step="any" data-pnfv="'+pref+'" aria-label="Valor do filtro" style="width:90px"><button class="btn sm" type="button" data-pnfadd="'+pref+'" id="pnFAdd_'+pref+'">Adicionar filtro</button>';
+      var V=pnValores(f,fc), S=(state.pnFSel&&state.pnFSel[pref])||{}, q=semAc((state.pnFBusca&&state.pnFBusca[pref])||''), nS=Object.keys(S).length;
+      return '<div class="pn-fv"><div class="pn-fv-h"><input type="search" data-pnfbusca="'+pref+'" id="pnFBusca_'+pref+'" value="'+esc((state.pnFBusca&&state.pnFBusca[pref])||'')+'" placeholder="buscar em '+V.length+' valores…" aria-label="Buscar valor de '+esc(c.nome)+'"><span class="mut" data-pnfcont="'+pref+'">'+nS+' marcado(s)</span><button class="lnk" type="button" data-pnfmarcar="'+pref+'|1">marcar os visíveis</button><button class="lnk" type="button" data-pnfmarcar="'+pref+'|0">limpar</button></div>'+
+        '<div class="pn-fv-l" data-pnfvals="'+pref+'" role="group" aria-label="Valores de '+esc(c.nome)+'">'+V.map(function(v){ var nn=semAc(v[0]); return '<label data-pnfnome="'+esc(nn)+'"'+(q&&nn.indexOf(q)<0?' hidden':'')+'><input type="checkbox" data-pnfval="'+pref+'" value="'+esc(v[0])+'"'+(S[v[0]]?' checked':'')+'> '+esc(v[0])+' <span class="mut">('+v[1]+')</span></label>'; }).join('')+'</div>'+
+        '<div class="pn-row"><button class="btn sm" type="button" data-pnfadd="'+pref+'" id="pnFAdd_'+pref+'">Adicionar filtro</button><span class="hint">Marque um ou mais valores e clique em Adicionar filtro.</span></div></div>'; })()+'</div>'; }
+  function pnFSelLer(pref){ var box=document.querySelector('#tabPn [data-pnfvals="'+pref+'"]'); state.pnFSel=state.pnFSel||{}; var S=state.pnFSel[pref]=state.pnFSel[pref]||{}; if (!box) return S;
+    [].forEach.call(box.querySelectorAll('input[data-pnfval]'),function(i){ if (i.checked) S[i.value]=1; else delete S[i.value]; });
+    var ct=document.querySelector('#tabPn [data-pnfcont="'+pref+'"]'); if (ct) ct.textContent=Object.keys(S).length+' marcado(s)'; return S; }
+  function pnFBuscar(t){ var pref=t.dataset.pnfbusca, q=semAc(t.value||''), box=document.querySelector('#tabPn [data-pnfvals="'+pref+'"]'); state.pnFBusca=state.pnFBusca||{}; state.pnFBusca[pref]=t.value; if (!box) return;
+    [].forEach.call(box.querySelectorAll('label'),function(l){ l.hidden=!!q&&l.dataset.pnfnome.indexOf(q)<0; }); }
   function pnEditorHTML(c){ var fmtS=pnSugerir(Object.assign({},c,{fmtAuto:true})), fmt=c.fmtAuto===false&&c.fmt?c.fmt:fmtS;
     var gOpts=function(sel,vazio){ var ids=PN_FONTES[c.f].campos.filter(function(x){ return x[2]!=='num' && (!c.b||pnCampo(c.b.f,x[0])); }); return '<option value="">'+vazio+'</option>'+ids.map(function(x){ return '<option value="'+x[0]+'"'+(x[0]===sel?' selected':'')+'>'+esc(x[1])+'</option>'; }).join(''); };
-    var h='<div class="panel pn-ed"><div class="sec-h"><h2>'+(c._novo?'Novo cartão':'Editar cartão')+'</h2><span class="spacer"></span><button class="btn primary sm" type="button" data-pnedsalvar="1">Salvar cartão</button><button class="btn sm" type="button" data-pnedcancelar="1">Cancelar</button></div>'+
-      '<div class="pn-ed-g"><label>Título<input type="text" data-pned="titulo" value="'+esc(c.titulo||'')+'" placeholder="ex.: Apuração NC-010"></label>'+
-      '<label>Fonte<select data-pned="f">'+Object.keys(PN_FONTES).map(function(k){ return '<option value="'+k+'"'+(c.f===k?' selected':'')+'>'+esc(PN_FONTES[k].nome)+'</option>'; }).join('')+'</select><small>'+esc(PN_FONTES[c.f].dica)+'</small></label>'+
+    var h='<div class="panel pn-ed" id="pnEditor"><div class="sec-h"><h2>'+(c._novo?'Novo cartão':'Editar cartão')+'</h2><span class="spacer"></span><button class="btn primary sm" type="button" data-pnedsalvar="1" id="pnBtnSalvar">Salvar cartão</button><button class="btn sm" type="button" data-pnedcancelar="1" id="pnBtnCancelar">Cancelar</button></div>'+
+      '<div class="pn-ed-g"><label>Título<input type="text" data-pned="titulo" id="pnTitulo" maxlength="120" value="'+esc(c.titulo||'')+'" placeholder="ex.: Apuração NC-010"></label>'+
+      '<label>Fonte<select data-pned="f" id="pnFonte">'+Object.keys(PN_FONTES).map(function(k){ return '<option value="'+k+'"'+(c.f===k?' selected':'')+'>'+esc(PN_FONTES[k].nome)+'</option>'; }).join('')+'</select><small>'+esc(PN_FONTES[c.f].dica)+'</small></label>'+
       '<div class="pn-ed-l"><span>Medida</span><div class="pn-row">'+pnMedHTML('a',c.f,c.m)+'</div></div>'+
       '<div class="pn-ed-l"><span>Filtros</span>'+pnFiltrosHTML('a',c.f,c.filtros)+'</div>'+
-      '<div class="pn-ed-l"><label class="lc-chk"><input type="checkbox" data-pned="usaB"'+(c.b?' checked':'')+'> Dividir por outra medida (taxa A ÷ B) ou usar como eixo Y da dispersão</label>'+
+      '<div class="pn-ed-l"><label class="lc-chk"><input type="checkbox" data-pned="usaB" id="pnUsaB"'+(c.b?' checked':'')+'> Dividir por outra medida (taxa A ÷ B) ou usar como eixo Y da dispersão</label>'+
       (c.b?'<div class="pn-b"><div class="pn-row"><select data-pned="b.f" aria-label="Fonte de B">'+Object.keys(PN_FONTES).map(function(k){ return '<option value="'+k+'"'+(c.b.f===k?' selected':'')+'>'+esc(PN_FONTES[k].nome)+'</option>'; }).join('')+'</select>'+pnMedHTML('b',c.b.f,c.b.m)+'</div>'+
         '<div class="pn-row"><label class="lc-chk"><input type="radio" name="pnbm" data-pned="bModo" value="razao"'+(c.bModo!=='eixo'?' checked':'')+'> A ÷ B</label><label class="lc-chk"><input type="checkbox" data-pned="bPct"'+(c.bPct?' checked':'')+'> × 100 (em %)</label><label class="lc-chk"><input type="radio" name="pnbm" data-pned="bModo" value="eixo"'+(c.bModo==='eixo'?' checked':'')+'> B como eixo Y (dispersão)</label></div>'+
         '<div><span class="hint">Filtros de B</span>'+pnFiltrosHTML('b',c.b.f,c.b.filtros)+'</div><p class="hint">Os agrupamentos usam campos que existem nas duas fontes (mês, natureza, pessoa…), para A e B casarem.</p></div>':'')+'</div>'+
-      '<label>Agrupar por<select data-pned="g1">'+gOpts(c.g1,'— sem agrupar (um número) —')+'</select></label>'+
-      '<label>E também por<select data-pned="g2"'+(c.g1?'':' disabled')+'>'+gOpts(c.g2,'— nada —')+'</select></label>'+
-      '<label>Período<select data-pned="periodo"><option value="auto"'+(!c.periodo||c.periodo==='auto'?' selected':'')+'>automático (mês a mês = todos os meses; senão, o do topo)</option><option value="topo"'+(c.periodo==='topo'?' selected':'')+'>sempre o período do topo</option><option value="todos"'+(c.periodo==='todos'?' selected':'')+'>sempre todos os meses carregados</option></select></label>'+
+      '<label>Agrupar por<select data-pned="g1" id="pnG1">'+gOpts(c.g1,'— sem agrupar (um número) —')+'</select></label>'+
+      '<label>E também por<select data-pned="g2" id="pnG2"'+(c.g1?'':' disabled')+'>'+gOpts(c.g2,'— nada —')+'</select></label>'+
+      '<label>Período<select data-pned="periodo" id="pnPeriodo"><option value="auto"'+(!c.periodo||c.periodo==='auto'?' selected':'')+'>automático (mês a mês = todos os meses; senão, o do topo)</option><option value="topo"'+(c.periodo==='topo'?' selected':'')+'>sempre o período do topo</option><option value="todos"'+(c.periodo==='todos'?' selected':'')+'>sempre todos os meses carregados</option></select></label>'+
       '<label>Mínimo de casos por grupo<input type="number" min="0" data-pned="minN" value="'+esc(c.minN||'')+'" placeholder="sem mínimo"><small>Esconde grupos pequenos (1 caso = 100%).</small></label>'+
       '<label>Mostrar só os maiores<input type="number" min="0" data-pned="lim" value="'+esc(c.lim||'')+'" placeholder="todos"></label>'+
       '<label>Meta<span class="pn-row"><input type="number" step="any" data-pned="meta.v" aria-label="Valor da meta" value="'+esc(c.meta&&c.meta.v!=null?c.meta.v:'')+'" style="width:100px"><select data-pned="meta.bom" aria-label="Sentido da meta"><option value="abaixo"'+(!c.meta||c.meta.bom!=='acima'?' selected':'')+'>bom quando abaixo</option><option value="acima"'+(c.meta&&c.meta.bom==='acima'?' selected':'')+'>bom quando acima</option></select></span></label>'+
       '<label class="lc-chk" style="align-self:end"><input type="checkbox" data-pned="largo"'+(c.largo?' checked':'')+'> cartão largo (ocupa a linha toda)</label></div>'+
       '<div class="pn-ed-l"><span>Formato</span><div class="pn-fmts">'+PN_FMT.map(function(x){ var on=fmt===x[0]; return '<label class="pn-fmt'+(on?' on':'')+'"><input type="radio" name="pnfmt" data-pned="fmt" value="'+x[0]+'"'+(on?' checked':'')+'><b>'+esc(x[1])+(x[0]===fmtS?' <span class="pill good">sugerido</span>':'')+'</b><small>Melhor para: '+esc(x[2])+'</small><small class="mut">Evite quando: '+esc(x[3])+'</small></label>'; }).join('')+'</div></div>'+
       '<div class="pn-ed-l"><span>Marcos no gráfico de linha</span>'+(c.marcos||[]).map(function(x,i){ return '<div class="pn-fl"><b>'+esc(nomeMes(x.mes))+'</b> '+esc(x.txt)+' <button class="lnk" type="button" data-pnmdel="'+i+'">remover</button></div>'; }).join('')+'<div class="pn-fl add"><input type="month" id="pnMMes" aria-label="Mês do marco"><input type="text" id="pnMTxt" aria-label="Texto do marco" placeholder="ex.: ação da NC-010 (treinamento)"><button class="btn sm" type="button" data-pnmadd="1">Adicionar marco</button></div></div>'+
-      '<div class="pn-ed-l"><span>Antes × depois de uma ação</span><div class="pn-row"><label>Mês da ação <input type="month" data-pned="ad.mes" value="'+esc(c.ad&&c.ad.mes||'')+'"></label><label>meses de cada lado <input type="number" min="1" max="12" data-pned="ad.n" value="'+esc(c.ad&&c.ad.n||3)+'" style="width:70px"></label><span class="hint">Compara a mesma medida nos meses antes e a partir da ação, ignorando o período do topo. Use taxa (A ÷ B) para não confundir com queda de volume.</span></div></div>'+
-      '<label class="pn-ed-l"><span>Nota (aparece embaixo do cartão)</span><input type="text" data-pned="nota" value="'+esc(c.nota||'')+'" placeholder="ex.: verificação de eficácia da NC-010 · KPI-05"></label>'+
-      '<div class="pn-prev"><div class="sub-h">Prévia</div><div class="gm-card">'+(function(){ try{ return pnDesenho(c); }catch(e){ return '<div class="gm-vazio">'+esc(e.message)+'</div>'; } })()+'<p class="pn-desc">'+pnDescr(c)+'</p></div></div></div>';
+      '<div class="pn-ed-l"><span>Antes × depois de uma ação</span><div class="pn-row"><label>Mês da ação <input type="month" data-pned="ad.mes" id="pnAdMes" value="'+esc(c.ad&&c.ad.mes||'')+'"></label><label>meses de cada lado <input type="number" min="1" max="12" data-pned="ad.n" id="pnAdN" value="'+esc(c.ad&&c.ad.n||3)+'" style="width:70px"></label><label>leitura <select data-pned="ad.bom" id="pnAdBom" aria-label="Como ler a variação">'+(function(){ var v=c.ad&&c.ad.bom!=null?c.ad.bom:(c.meta&&c.meta.v!==''&&c.meta.v!=null?(c.meta.bom||'abaixo'):''); return [['','só mostrar a variação'],['abaixo','bom quando cai'],['acima','bom quando sobe']].map(function(o){ return '<option value="'+o[0]+'"'+(v===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join(''); })()+'</select></label><span class="hint">Compara a mesma medida nos meses antes e a partir da ação, ignorando o período do topo. Use taxa (A ÷ B) para não confundir com queda de volume. O cartão mostra antes, depois, a diferença e uma frase pronta para a verificação de eficácia.</span></div></div>'+
+      '<label class="pn-ed-l"><span>Nota (aparece embaixo do cartão)</span><input type="text" data-pned="nota" id="pnNota" value="'+esc(c.nota||'')+'" placeholder="ex.: verificação de eficácia da NC-010 · KPI-05"></label>'+
+      '<div class="pn-prev"><div class="sub-h">Prévia</div><div class="gm-card" id="pnPrev">'+pnPreviaHTML(c)+'</div></div></div>';
     return h; }
+  function pnPreviaHTML(c){ var corpo; try{ corpo=pnDesenho(c); }catch(e){ corpo='<div class="gm-vazio">'+esc(e.message)+'</div>'; } return corpo+'<p class="pn-desc">'+pnDescr(c)+'</p>'; }
+  // só a prévia é refeita quando muda um campo de texto: o formulário não é redesenhado, então nada perde o foco nem sai do lugar
+  function pnPrevia(){ var el=$('pnPrev'); if (el&&state.pnEd) el.innerHTML=pnPreviaHTML(state.pnEd); }
   function pnSet(o, path, v){ var p=path.split('.'), x=o; for (var i=0;i<p.length-1;i++){ x[p[i]]=x[p[i]]||{}; x=x[p[i]]; } x[p[p.length-1]]=v; }
   function pnNovoCard(){ return {_novo:true, id:'c'+Date.now().toString(36), titulo:'', f:'atos', m:{t:'qtd'}, filtros:[], g1:'mes', g2:'', periodo:'auto', fmtAuto:true}; }
-  function pnEdMudou(t){ var c=state.pnEd; if (!c) return false;
-    if (t.dataset.pned){ var k=t.dataset.pned, v=t.type==='checkbox'?t.checked:t.value;
+  // campos "leves": mudam só o cartão (prévia), não a estrutura do formulário
+  var PN_LEVES={titulo:1, nota:1, minN:1, lim:1, 'meta.v':1, 'meta.bom':1, 'ad.mes':1, 'ad.n':1, 'ad.bom':1, largo:1, periodo:1};
+  // lê do formulário o que foi digitado e ainda não foi gravado no rascunho (ex.: título digitado sem sair do campo)
+  function pnEdLer(){ var c=state.pnEd, r=document.getElementById('pnEditor'); if (!c||!r) return;
+    [].forEach.call(r.querySelectorAll('[data-pned]'),function(e){ var k=e.dataset.pned; if (!PN_LEVES[k]) return; if (k==='ad.bom'&&!(c.ad&&c.ad.mes)&&!e.value) return; pnSet(c,k,e.type==='checkbox'?e.checked:e.value); }); }
+  function pnEdDigitou(t){ var c=state.pnEd, d=t.dataset||{}; if (d.pnfbusca!=null){ pnFBuscar(t); return true; } if (!c||!d.pned||!PN_LEVES[d.pned]||t.type==='checkbox') return false;
+    pnSet(c,d.pned,t.value); clearTimeout(state.pnPrevT); state.pnPrevT=setTimeout(pnPrevia,250); return true; }
+  function pnEdMudou(t){ var c=state.pnEd; if (!c) return false; var d=t.dataset||{};
+    if (d.pnfval!=null){ pnFSelLer(d.pnfval); return true; }
+    if (d.pnfbusca!=null) return true;
+    if (d.pned){ var k=d.pned, v=t.type==='checkbox'?t.checked:t.value;
+      if (PN_LEVES[k]){ pnSet(c,k,v); clearTimeout(state.pnPrevT); pnPrevia(); return true; }
+      pnEdLer(); // 0.34.1: o que estava digitado (título, nota, meta…) fica, qualquer que seja a mudança
       if (k==='usaB'){ c.b=v?{f:c.f, m:{t:'qtd'}, filtros:[]}:null; if (v){ c.bPct=true; c.bModo='razao'; } }
-      else if (k==='f'){ c.f=v; c.filtros=[]; c.m={t:'qtd'}; if (c.g1&&!pnCampo(v,c.g1)) c.g1=''; if (c.g2&&!pnCampo(v,c.g2)) c.g2=''; }
-      else if (k==='b.f'){ c.b.f=v; c.b.filtros=[]; c.b.m={t:'qtd'}; }
+      else if (k==='f'){ c.f=v; c.filtros=[]; c.m={t:'qtd'}; if (c.g1&&!pnCampo(v,c.g1)) c.g1=''; if (c.g2&&!pnCampo(v,c.g2)) c.g2=''; pnFLimpar('a'); }
+      else if (k==='b.f'){ c.b.f=v; c.b.filtros=[]; c.b.m={t:'qtd'}; pnFLimpar('b'); }
       else if (k==='a.m.t'){ c.m={t:v}; } else if (k==='b.m.t'){ c.b.m={t:v}; }
       else if (k==='a.m.campo'||k==='b.m.campo'){ var Mx=k[0]==='a'?c.m:c.b.m, fx=k[0]==='a'?c.f:c.b.f; Mx.campo=v; delete Mx.valor; if (Mx.t==='pct'){ var c0=pnCampo(fx,v); if (c0&&c0.tipo==='cat'){ var vs=pnValores(fx,v).filter(function(z){ return z[0]!=='(vazio)'; }); if (vs.length) Mx.valor=vs[0][0]; } } }
       else if (k==='a.m.valor'){ c.m.valor=v; } else if (k==='b.m.valor'){ c.b.m.valor=v; }
       else if (k==='fmt'){ c.fmt=v; c.fmtAuto=false; }
       else if (k==='g1'){ c.g1=v; if (!v) c.g2=''; } else if (k==='bModo'){ c.bModo=v; } else pnSet(c,k,v);
       renderPn(); return true; }
-    if (t.dataset.pnfcampo){ state.pnFC=Object.assign({},state.pnFC); state.pnFC[t.dataset.pnfcampo]=t.value; renderPn(); return true; }
+    if (d.pnfcampo){ pnEdLer(); var pf=d.pnfcampo; pnFLimpar(pf); state.pnFC[pf]=t.value; renderPn(); return true; }
     return false; }
+  function pnFLimpar(pref){ state.pnFC=Object.assign({},state.pnFC); state.pnFC[pref]=''; state.pnFSel=Object.assign({},state.pnFSel); state.pnFSel[pref]={}; state.pnFBusca=Object.assign({},state.pnFBusca); state.pnFBusca[pref]=''; }
+  function pnAbrirEditor(c, idx){ state.pnEd=c; state.pnEdIdx=idx; pnFLimpar('a'); pnFLimpar('b'); renderPn(); var ed=document.getElementById('pnEditor'); if (ed&&ed.scrollIntoView) ed.scrollIntoView({block:'start'}); var ti=$('pnTitulo'); if (ti) try{ ti.focus({preventScroll:true}); }catch(e){} }
   function pnClique(t){
+    var bt=t.closest&&t.closest('#tabPn button'); if (bt) t=bt; // clique no número dentro do botão também vale
     var P=state.pnSel?state.pn[state.pnSel]:null;
     if (t.dataset.pnsel){ state.pnSel=t.dataset.pnsel; state.pnEd=null; renderPn(); return true; }
-    if (t.dataset.pnnovo){ var nome=prompt('Nome do painel:','Meu painel'); if (!nome) return true; var id='p'+Date.now().toString(36); pnSalvar({id:id, nome:nome, ordem:pnLista0().length, cards:[]}); state.pnSel=id; renderPn(); return true; }
+    if (t.dataset.pnnovo){ dlgPedir('Dê um nome ao painel.','Meu painel',{titulo:'Novo painel', ok:'Criar painel', campo:{rotulo:'Nome do painel', obrig:true, obrigMsg:'Escreva o nome do painel', max:80}}).then(function(nome){ if (!nome) return;
+        var id='p'+Date.now().toString(36); pnSalvar({id:id, nome:nome, ordem:pnLista0().length, cards:[]}); state.pnSel=id; state.pnEd=null; renderPn(); toast('Painel "'+nome+'" criado'); }); return true; }
     if (!P) return false;
-    if (t.dataset.pnrenomear){ var n2=prompt('Novo nome:',P.nome); if (n2){ P=JSON.parse(JSON.stringify(P)); P.nome=n2; pnSalvar(P); renderPn(); } return true; }
-    if (t.dataset.pnduppainel){ var cp=JSON.parse(JSON.stringify(P)); cp.id='p'+Date.now().toString(36); cp.nome=P.nome+' (cópia)'; cp.ordem=pnLista0().length; pnSalvar(cp); state.pnSel=cp.id; renderPn(); return true; }
-    if (t.dataset.pnexcluir){ if (!confirm('Excluir o painel "'+P.nome+'"? Ele é arquivado no banco (o backup e o histórico de gravações trazem de volta).')) return true; if (dbPronto&&podeEscrever) db.doc('paineis/'+P.id).delete(); var c0=Object.assign({},state.pn); delete c0[P.id]; state.pn=c0; state.pnSel=null; renderPn(); return true; }
-    if (t.dataset.pncard){ state.pnEd=pnNovoCard(); renderPn(); window.scrollTo(0,0); return true; }
-    if (t.dataset.pnedit!=null){ state.pnEd=JSON.parse(JSON.stringify(P.cards[+t.dataset.pnedit])); state.pnEdIdx=+t.dataset.pnedit; renderPn(); window.scrollTo(0,0); return true; }
-    if (t.dataset.pndup!=null){ var P2=JSON.parse(JSON.stringify(P)), i=+t.dataset.pndup, cc=JSON.parse(JSON.stringify(P2.cards[i])); cc.id='c'+Date.now().toString(36); cc.titulo=(cc.titulo||'')+' (cópia)'; P2.cards.splice(i+1,0,cc); pnSalvar(P2); renderPn(); return true; }
-    if (t.dataset.pndel!=null){ if (!confirm('Excluir este cartão?')) return true; var P3=JSON.parse(JSON.stringify(P)); P3.cards.splice(+t.dataset.pndel,1); pnSalvar(P3); renderPn(); return true; }
-    if (t.dataset.pnmover){ var q=t.dataset.pnmover.split('|'), a=+q[0], b=a+(+q[1]), P4=JSON.parse(JSON.stringify(P)); if (b<0||b>=P4.cards.length) return true; var tmp=P4.cards[a]; P4.cards[a]=P4.cards[b]; P4.cards[b]=tmp; pnSalvar(P4); renderPn(); return true; }
+    if (t.dataset.pnrenomear||t.dataset.pnnomeed){ pnNomeEditar(); return true; }
+    if (t.dataset.pnduppainel){ var cp=pnClone(P); cp.id='p'+Date.now().toString(36); cp.nome=P.nome+' (cópia)'; cp.ordem=pnLista0().length; pnSalvar(cp); state.pnSel=cp.id; state.pnEd=null; renderPn(); toast('Painel duplicado: "'+cp.nome+'"'); return true; }
+    if (t.dataset.pnexcluir){ dlgConfirmar('Excluir o painel "'+P.nome+'"?\n\nEle é arquivado no banco (o backup e o histórico de gravações trazem de volta).',{titulo:'Excluir painel', ok:'Excluir', perigo:true}).then(function(ok){ if (!ok) return;
+        if (dbPronto&&podeEscrever) db.doc('paineis/'+P.id).delete(); var c0=Object.assign({},state.pn); delete c0[P.id]; state.pn=c0; if (state.pnSel===P.id){ state.pnSel=null; state.pnEd=null; } renderPn(); toast('Painel "'+P.nome+'" excluído'); }); return true; }
+    if (t.dataset.pncard){ pnAbrirEditor(pnNovoCard(), null); return true; }
+    if (t.dataset.pnedit!=null){ var ie=+t.dataset.pnedit; if (!P.cards[ie]) return true; pnAbrirEditor(pnClone(P.cards[ie]), ie); return true; }
+    if (t.dataset.pndup!=null){ var P2=pnClone(P), i=+t.dataset.pndup, cc=pnClone(P2.cards[i]); cc.id='c'+Date.now().toString(36); cc.titulo=(cc.titulo||'')+' (cópia)'; P2.cards.splice(i+1,0,cc); pnSalvar(P2); renderPn(); toast('Cartão duplicado'); return true; }
+    if (t.dataset.pndel!=null){ var cDel=P.cards[+t.dataset.pndel]; if (!cDel) return true;
+      dlgConfirmar('Excluir o cartão "'+(cDel.titulo||'Sem título')+'"?',{titulo:'Excluir cartão', ok:'Excluir', perigo:true}).then(function(ok){ if (!ok) return; var at=state.pn[P.id]; if (!at) return; var antes=pnClone(at), P3=pnClone(at);
+        P3.cards=(P3.cards||[]).filter(function(x){ return x.id!==cDel.id; }); pnSalvar(P3); if (state.pnEd&&state.pnEd.id===cDel.id) state.pnEd=null; renderPn();
+        toastDesfazer('Cartão "'+(cDel.titulo||'Sem título')+'" excluído', function(){ pnSalvar(antes); renderPn(); }); }); return true; }
+    if (t.dataset.pnmover){ var q=t.dataset.pnmover.split('|'), a=+q[0], b=a+(+q[1]), P4=pnClone(P); if (b<0||b>=P4.cards.length) return true; var tmp=P4.cards[a]; P4.cards[a]=P4.cards[b]; P4.cards[b]=tmp; pnSalvar(P4); renderPn(); return true; }
     var c=state.pnEd; if (!c) return false;
     if (t.dataset.pnedcancelar){ state.pnEd=null; renderPn(); return true; }
-    if (t.dataset.pnedsalvar){ var P5=JSON.parse(JSON.stringify(P)), cd=JSON.parse(JSON.stringify(c)); var novo=cd._novo; delete cd._novo; if (!cd.titulo) cd.titulo='Cartão '+(P5.cards.length+1); P5.cards=P5.cards||[];
-      if (novo) P5.cards.push(cd); else P5.cards[state.pnEdIdx]=cd; pnSalvar(P5); state.pnEd=null; renderPn(); toast('Cartão salvo'); return true; }
-    if (t.dataset.pnfadd){ var pref=t.dataset.pnfadd, fonte=pref==='a'?c.f:c.b.f, campo=state.pnFC&&state.pnFC[pref], cm=pnCampo(fonte,campo); if (!cm) return true; var Lf=pref==='a'?(c.filtros=c.filtros||[]):(c.b.filtros=c.b.filtros||[]);
-      if (cm.tipo==='num'){ var vv=(document.querySelector('[data-pnfv="'+pref+'"]')||{}).value; if (vv===''||vv==null) return true; Lf.push({campo:campo, op:(document.querySelector('[data-pnfop="'+pref+'"]')||{}).value||'>=', v:+vv}); }
-      else { var sel=[].slice.call((document.querySelector('[data-pnfvals="'+pref+'"]')||{}).selectedOptions||[]).map(function(o){ return o.value; }); if (!sel.length){ toast('Escolha ao menos um valor'); return true; } Lf.push({campo:campo, vals:sel}); }
-      state.pnFC[pref]=''; renderPn(); return true; }
-    if (t.dataset.pnfdel){ var z=t.dataset.pnfdel.split('|'), Lx=z[0]==='a'?c.filtros:c.b.filtros; Lx.splice(+z[1],1); renderPn(); return true; }
-    if (t.dataset.pnmadd){ var mm=($('pnMMes')||{}).value, tx=String(($('pnMTxt')||{}).value||'').trim(); if (!mm){ toast('Escolha o mês do marco'); return true; } (c.marcos=c.marcos||[]).push({mes:mm, txt:tx||'marco'}); renderPn(); return true; }
-    if (t.dataset.pnmdel!=null){ c.marcos.splice(+t.dataset.pnmdel,1); renderPn(); return true; }
+    if (t.dataset.pnedsalvar){ pnEdLer(); clearTimeout(state.pnPrevT); var P5=pnClone(P), cd=pnClone(c); delete cd._novo; P5.cards=P5.cards||[]; if (!String(cd.titulo||'').trim()) cd.titulo='Cartão '+(P5.cards.length+1); cd.titulo=String(cd.titulo).trim();
+      var ix=-1; P5.cards.forEach(function(x,j){ if (x.id===cd.id) ix=j; }); // pelo id: a posição pode ter mudado com o editor aberto
+      if (ix>=0) P5.cards[ix]=cd; else P5.cards.push(cd); pnSalvar(P5); state.pnEd=null; renderPn(); toast('Cartão "'+cd.titulo+'" salvo');
+      var novoEl=null; [].forEach.call(document.querySelectorAll('#tabPn [data-pncardid]'),function(e){ if (e.dataset.pncardid===cd.id) novoEl=e; }); if (novoEl&&novoEl.scrollIntoView) novoEl.scrollIntoView({block:'nearest'}); return true; }
+    if (t.dataset.pnfmarcar){ var zm=t.dataset.pnfmarcar.split('|'), bx=document.querySelector('#tabPn [data-pnfvals="'+zm[0]+'"]'); if (bx){ [].forEach.call(bx.querySelectorAll('label'),function(l){ var i2=l.querySelector('input'); if (zm[1]==='1'){ if (!l.hidden) i2.checked=true; } else i2.checked=false; }); } pnFSelLer(zm[0]); return true; }
+    if (t.dataset.pnfadd){ pnEdLer(); var pref=t.dataset.pnfadd, fonte=pref==='a'?c.f:c.b.f, campo=state.pnFC&&state.pnFC[pref], cm=pnCampo(fonte,campo); if (!cm) return true; var Lf=pref==='a'?(c.filtros=c.filtros||[]):(c.b.filtros=c.b.filtros||[]);
+      if (cm.tipo==='num'){ var vv=(document.querySelector('[data-pnfv="'+pref+'"]')||{}).value; if (vv===''||vv==null){ toast('Escreva o valor do filtro'); return true; } Lf.push({campo:campo, op:(document.querySelector('[data-pnfop="'+pref+'"]')||{}).value||'>=', v:+vv}); }
+      else { var sel=Object.keys(pnFSelLer(pref)); if (!sel.length){ toast('Marque ao menos um valor'); return true; } Lf.push({campo:campo, vals:sel}); }
+      pnFLimpar(pref); renderPn(); return true; }
+    if (t.dataset.pnfdel){ pnEdLer(); var z=t.dataset.pnfdel.split('|'), Lx=z[0]==='a'?c.filtros:c.b.filtros; Lx.splice(+z[1],1); renderPn(); return true; }
+    if (t.dataset.pnmadd){ pnEdLer(); var mm=($('pnMMes')||{}).value, tx=String(($('pnMTxt')||{}).value||'').trim(); if (!mm){ toast('Escolha o mês do marco'); return true; } (c.marcos=c.marcos||[]).push({mes:mm, txt:tx||'marco'}); renderPn(); return true; }
+    if (t.dataset.pnmdel!=null){ pnEdLer(); c.marcos.splice(+t.dataset.pnmdel,1); renderPn(); return true; }
     return false; }
+  // digitação: grava no rascunho e refaz só a prévia; busca na lista de valores do filtro
+  document.addEventListener('input',function(e){ var t=e.target; if (t&&t.closest&&t.closest('#tabPn')) pnEdDigitou(t); });
