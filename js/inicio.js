@@ -1,8 +1,8 @@
 /* Painel SGQ · CRCO — js/inicio.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inicio.js']='0.33.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inicio.js']='0.34.0';
   // 0.12.0: confere logo de saída se todos os arquivos do painel vieram da mesma entrega
   var ARQUIVOS_APP=["js/nucleo.js", "js/prazos.js", "js/inconformidades.js", "js/relatorios.js", "js/kpis.js", "js/atendimento.js", "js/ficha.js", "js/configuracao.js", "js/tri7.js", "js/serventias.js", "js/dados.js", "js/graficos.js", "js/desempenho.js", "js/trabalho.js", "js/visao.js", "js/pessoas.js", "js/pendencias.js", "js/areapessoas.js", "js/gargalo.js", "js/visual.js", "js/certidoes.js", "js/importar.js", "js/saude.js", "js/equipe.js", "js/catalogo.js", "js/aprendizagem.js", "js/construtor.js", "js/exportar.js", "js/navegacao.js", "js/inicio.js"];
-  try{ checarVersoes('0.33.0'); }catch(e){ var avv=document.getElementById('avisoVersao'); if (avv){ avv.hidden=false; avv.textContent='Faltam arquivos do painel ou eles são de versões diferentes. Suba de novo todos os arquivos da entrega e recarregue a página.'; } }
+  try{ checarVersoes('0.34.0'); }catch(e){ var avv=document.getElementById('avisoVersao'); if (avv){ avv.hidden=false; avv.textContent='Faltam arquivos do painel ou eles são de versões diferentes. Suba de novo todos os arquivos da entrega e recarregue a página.'; } }
   var $=function(id){ return document.getElementById(id); };
   var TEMAS={auto:['◐ Auto','Tema: automático (segue o computador)'],claro:['☀ Claro','Tema: claro'],escuro:['☾ Escuro','Tema: escuro']};
   var temaAtual=temaAplicar(prefLer('crco-tema')||'auto');
@@ -171,7 +171,7 @@
   var KPIS_PADRAO=null;
 
   // ——— versão, dados brutos, recálculo, backup e memória de cálculo (site no GitHub + Supabase)
-  var APP_VERSAO='0.33.0';
+  var APP_VERSAO='0.34.0';
   // 0.11.0: a biblioteca de planilhas (≈310 KB) só é baixada quando precisa — importar, recalcular ou baixar a memória de cálculo
   var XLSX_URL='xlsx.full.min.js?v=0.20.3', XLSX_SRI='sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT', xlsxProm=null;
   var BRUTO_COLS={prazo:['tipo de documento','codigo','natureza','ingresso','finalizacao','prazo','tempo'], etapa:['codigo','data execucao','etapa','responsavel','prazo'], demanda:['codigo','status']};
@@ -190,7 +190,7 @@
   var LISTA_COLS={
     atos:[['Código',function(a){ return protLink(a.c); }],['Natureza',function(a){ return esc(a.nat); },'tl'],['Ingresso',function(a){ return fmtData(a.ing); }],['Registro / saída',function(a){ return fmtData(a.reg||a.fin); }],['Dias úteis',function(a){ return a.bruto==null?'—':a.bruto; }],['Limite',function(a){ return a.cat==='R'?a.lim:'—'; }],['Exigências',function(a){ return a.nex||''; }],['Situação',sitAto]],
     docs:[['Código',function(d){ return protLink(d.c); }],['Tipo',function(d){ return esc(d.t); }],['Natureza',function(d){ return esc(d.nat); },'tl'],['Ingresso',function(d){ return fmtData(Motor.isoDeDia(d.ing)); }],['Finalização',function(d){ return fmtData(Motor.isoDeDia(d.fin)); }],['Dias úteis',function(d){ return servDu(d); }],['Prazo',function(d){ var p=servPrazo(d); return p==null?'—':p; }],['Situação',function(d){ var ok=servOk(d); return ok==null?'':ok?'<span class="pill good">no prazo</span>':'<span class="pill crit">acima</span>'; }]],
-    inc:[['Data',function(r){ return fmtData(r.d); }],['Documento',function(r){ return protLink(r.c)+' <span class="mut">'+esc(r.t)+'</span>'; }],['Pessoa',function(r){ return esc(r.r); },'tl'],['Tipo',function(r){ return grupoDe(r)==='E'?'<span class="pill crit">Externo</span>':'Interno'; }],['Erro',function(r){ return esc(catDe(r)); },'tl'],['Observação',function(r){ return esc(r.o); },'tl obs']],
+    inc:[['Data',function(r){ return fmtData(r.d); }],['Documento',function(r){ return protLink(r.c)+' <span class="mut">'+esc(r.t)+'</span>'; }],['Natureza',function(r){ return esc(r.n||''); },'tl'],['Pessoa',function(r){ return esc(r.r); },'tl'],['Tipo',function(r){ return grupoDe(r)==='E'?'<span class="pill crit">Externo</span>':'Interno'; }],['Erro',function(r){ return esc(catDe(r)); },'tl'],['Observação',function(r){ return esc(r.o); },'tl obs']],
     senhas:[['Dia',function(s){ return fmtData(s.dia); }],['Emissão',function(s){ return hhmm(s.g); }],['Chamada',function(s){ return hhmm(s.c); }],['Fila',function(s){ return esc(s.fila)+(s.pri?' <span class="pill warn">prioritária</span>':''); },'tl'],['Espera',function(s){ return fmtMS(s.e); }],['Atendimento',function(s){ return fmtMS(s.t); }],['Atendente',function(s){ return esc(s.at||'—'); },'tl']],
     cert:[['Pedido',function(c){ return esc(c.p); }],['Origem',function(c){ return esc(c.origem); }],['Tipo',function(c){ return esc(c.tipo); },'tl'],['Entrada',function(c){ return fmtMin(c.i); }],['Conclusão',function(c){ return fmtMin(c.f); }],['Horas úteis',function(c){ return fmtH(c.hu); }],['Prazo',function(c){ return c.intim?'<span class="mut">intimação</span>':fmtLim(c.lim)+' '+(c.ok?'<span class="pill good">ok</span>':'<span class="pill crit">acima</span>'); }],['Gerou o selo',function(c){ return esc(c.u||'—'); },'tl']],
     cods:[['Pedido',function(x){ return esc(x); }]],
@@ -290,11 +290,11 @@
     if (t.id==='kpiEdBtn'){ state.lancEdit=true; return renderLanc(true); }
     if (t.id==='kpiEdFechar'){ state.lancEdit=false; catAplicar(state.kpiCat); return renderLanc(); }
     if (t.id==='kpiEdSalvar'){ kpiEdLer(); catSalvar(); state.lancEdit=false; render(); return renderLanc(); }
-    if (t.id==='kpiEdPadrao'){ if (!confirm('Voltar todos os indicadores ao padrão? Os KPIs novos que você criou serão removidos da lista (os valores lançados continuam guardados).')) return; state.kpiCat={itens:{},novos:[],ordem:[]}; catSalvar(); return renderLanc(true); }
-    if (t.id==='kpiEdNovo'){ kpiEdLer(); var nid=prompt('Código do novo indicador (ex.: KPI-16):'); if (!nid) return; nid=nid.trim(); if (kpiDef(nid)){ toast('Já existe um indicador com esse código'); return; }
-      state.kpiCat.novos.push({id:nid, nome:nid, meta:'', tipo:'taxa', lab0:'Numerador', lab1:'Denominador'}); state.kpiCat.itens[nid]={sentido:'maior'}; catAplicar(state.kpiCat); return renderLanc(true); }
+    if (t.id==='kpiEdPadrao'){ dlgConfirmar('Voltar todos os indicadores ao padrão? Os KPIs novos que você criou serão removidos da lista (os valores lançados continuam guardados).',{titulo:'Voltar ao padrão', ok:'Voltar ao padrão', perigo:true}).then(function(ok){ if (!ok) return; state.kpiCat={itens:{},novos:[],ordem:[]}; catSalvar(); renderLanc(true); }); return; }
+    if (t.id==='kpiEdNovo'){ kpiEdLer(); dlgPedir('Informe o código do novo indicador.','',{titulo:'Novo indicador', ok:'Criar', campo:{rotulo:'Código', placeholder:'ex.: KPI-16', obrig:true, obrigMsg:'Escreva o código', max:20, valida:function(v){ return kpiDef(v)?'Já existe um indicador com esse código':null; }}}).then(function(nid){ if (!nid) return;
+      state.kpiCat.novos.push({id:nid, nome:nid, meta:'', tipo:'taxa', lab0:'Numerador', lab1:'Denominador'}); state.kpiCat.itens[nid]={sentido:'maior'}; catAplicar(state.kpiCat); renderLanc(true); }); return; }
     if (t.dataset && t.dataset.kpmov){ kpiEdLer(); var o=state.kpiCat.ordem, id=t.closest('tr').dataset.kped, i=o.indexOf(id), j=i+(+t.dataset.kpmov); if (i<0||j<0||j>=o.length) return; o.splice(i,1); o.splice(j,0,id); catAplicar(state.kpiCat); return renderLanc(true); }
-    if (t.dataset && t.dataset.kprm){ var rid=t.closest('tr').dataset.kped; if (!confirm('Remover '+rid+' da lista? Os valores já lançados continuam guardados.')) return; kpiEdLer(); state.kpiCat.novos=state.kpiCat.novos.filter(function(x){ return x.id!==rid; }); delete state.kpiCat.itens[rid]; catAplicar(state.kpiCat); return renderLanc(true); }
+    if (t.dataset && t.dataset.kprm){ var rid=t.closest('tr').dataset.kped; dlgConfirmar('Remover '+rid+' da lista? Os valores já lançados continuam guardados.',{titulo:'Remover indicador', ok:'Remover', perigo:true}).then(function(ok){ if (!ok) return; kpiEdLer(); state.kpiCat.novos=state.kpiCat.novos.filter(function(x){ return x.id!==rid; }); delete state.kpiCat.itens[rid]; catAplicar(state.kpiCat); renderLanc(true); }); return; }
     if (t.dataset && (t.dataset.justSalvar||t.dataset.justRm||t.dataset.avSalvar)){
       var row=t.closest('tr'), a=atoPorCod(row.dataset.cod); if(!a) return;
       if (t.dataset.justSalvar){ var mot=row.querySelector('select').value, obs=row.querySelector('input').value.trim();
@@ -342,8 +342,8 @@
     if (t.dataset && t.dataset.goSau){ return irAba('sau'); }
     if (t.dataset && t.dataset.permes){ var sm=$('selMes'); if (sm){ sm.value=t.dataset.permes; sm.dispatchEvent(new Event('change',{bubbles:true})); } return; } // 0.28.0: setas do mês no Painel geral
     if (t.dataset && t.dataset.carregarAnt){ t.disabled=true; t.textContent='Carregando…'; window.nuvem.carregarAnteriores().then(function(n){ toast(n?'Carreguei '+n+' registro(s) dos meses anteriores':'Não há meses anteriores no banco'); renderSau(); renderSelect(); }).catch(function(e){ toast('Não consegui carregar: '+e.message); renderSau(); }); return; }
-    if (t.dataset && t.dataset.incmais){ var sc=document.querySelector('#tabK1 .scroll[style*="480"]'), top=sc?sc.scrollTop:0; state.incLim=t.dataset.incmais==='todos'?1e9:(state.incLim||INC_PASSO)+INC_PASSO; renderK1(todosAtos()); var sc2=document.querySelector('#tabK1 .scroll[style*="480"]'); if (sc2) sc2.scrollTop=top; return; }
-    if (t.dataset && t.dataset.inclimpar){ state.incFiltroCat=null; state.incFiltroPessoa=null; return renderK1(todosAtos()); }
+    if (t.dataset && t.dataset.incmais){ var sc=document.querySelector('#tabK1 .scroll[style*="480"]'), top=sc?sc.scrollTop:0; state.incLim=t.dataset.incmais==='todos'?1e9:(state.incLim||INC_PASSO)+INC_PASSO; manterTela('tabK1',function(){ renderK1(todosAtos()); },function(a){ return a.id?'#'+a.id:null; }); var sc2=document.querySelector('#tabK1 .scroll[style*="480"]'); if (sc2) sc2.scrollTop=top; return; }
+    if (t.dataset && t.dataset.inclimpar){ state.incFiltroCat=null; state.incFiltroPessoa=null; state.incFiltroNat=null; return renderK1(todosAtos()); }
     var ic=t.closest&&t.closest('[data-inccat]'); if (ic){ state.incFiltroCat = state.incFiltroCat===ic.dataset.inccat?null:ic.dataset.inccat; return renderK1(todosAtos()); }
     var ip=t.closest&&t.closest('tr[data-incpessoa]'); if (ip){ state.incFiltroPessoa = state.incFiltroPessoa===ip.dataset.incpessoa?null:ip.dataset.incpessoa; return renderK1(todosAtos()); }
     if (t.dataset && t.dataset.fex){ state.filtroEx=t.dataset.fex; return renderEx(todosAtos()); }
@@ -353,9 +353,9 @@
     if (t.dataset && t.dataset.calano){ state.calAno+=+t.dataset.calano; return renderFeriados(); }
     if (t.dataset && (t.dataset.calloc||t.dataset.calnac)){ var iso=t.dataset.calloc||t.dataset.calnac, nac=!!t.dataset.calnac, tem=nac?state.extras.indexOf('!'+iso)>=0:state.extras.indexOf(iso)>=0;
       var txt=nac?(tem?'Voltar '+fmtData(iso)+' a ser feriado nacional':'Marcar que o cartório FUNCIONOU em '+fmtData(iso)+' (feriado nacional passa a contar como dia útil)'):(tem?'Tirar o feriado local de '+fmtData(iso):'Marcar '+fmtData(iso)+' como feriado local (dia sem expediente)');
-      var mot=window.prompt(txt+'\n\nMotivo (obrigatório — fica no histórico):',''); if (mot==null) return; mot=String(mot).trim(); if (!mot){ toast('Sem motivo, nada foi mudado'); return; }
+      dlgPedir(txt,'',{titulo:nac?'Feriado nacional':'Feriado local', ok:'Gravar', campo:{rotulo:'Motivo (obrigatório — fica no histórico)', obrig:true, obrigMsg:'Escreva o motivo: sem ele nada é mudado', max:300}}).then(function(mot){ if (!mot) return;
       var k=nac?'!'+iso:iso; if (tem) state.extras=state.extras.filter(function(x){ return x!==k; }); else state.extras.push(k);
-      apurLog(nac?'Feriado nacional (dia trabalhado)':'Feriado local', tem?(nac?'funcionou':'feriado'):(nac?'feriado':'dia útil'), tem?(nac?'feriado':'dia útil'):(nac?'funcionou':'feriado'), fmtData(iso), mot); apurSalvar(); return salvarFeriados(); }
+      apurLog(nac?'Feriado nacional (dia trabalhado)':'Feriado local', tem?(nac?'funcionou':'feriado'):(nac?'feriado':'dia útil'), tem?(nac?'feriado':'dia útil'):(nac?'funcionou':'feriado'), fmtData(iso), mot); apurSalvar(); salvarFeriados(); }); return; }
     if (t.dataset && t.dataset.fer){ var fx=t.dataset.fer; state.extras=state.extras.filter(function(d){return d!==fx;}); apurLog('Feriado local',fmtData(fx),'removido','imediato',''); apurSalvar(); return salvarFeriados(); }
     if (t.dataset && t.dataset.nxnat!=null){ var nn=t.dataset.nxnat, ix=state.nx.sel.indexOf(nn); if (ix>=0) state.nx.sel.splice(ix,1); else state.nx.sel.push(nn); return render(); }
     if (t.dataset && t.dataset.nxrm!=null){ state.nx.sel=state.nx.sel.filter(function(x){ return x!==t.dataset.nxrm; }); return render(); }
@@ -370,9 +370,9 @@
       G.push({id:'g'+Date.now().toString(36), nome:nm, nats:state.nx.sel.slice(), ativo:false, em:new Date().toISOString()}); state.natGr.grupos=G; return grSalvar('Grupo "'+nm+'" salvo'); }
     if (t.dataset && t.dataset.nxativar){ var gg=(state.natGr.grupos||[]).filter(function(g){ return g.id===t.dataset.nxativar; })[0]; if (!gg) return;
       if (!gg.ativo){ var conf=(state.natGr.grupos||[]).filter(function(g){ return g.ativo&&g.id!==gg.id&&g.nats.some(function(n){ return gg.nats.indexOf(n)>=0; }); })[0]; if (conf){ toast('Uma das naturezas já está no grupo ativo "'+conf.nome+'"'); return; }
-        if (!confirm('Usar "'+gg.nome+'" como uma natureza só nas outras páginas?\n\n'+gg.nats.join(' + ')+'\n\nOs KPIs lançados não mudam. Dá para desfazer a qualquer momento.')) return; }
-      gg.ativo=!gg.ativo; return grSalvar(gg.ativo?'"'+gg.nome+'" agora vale como uma natureza só':'"'+gg.nome+'" desfeito: os nomes originais voltaram'); }
-    if (t.dataset && t.dataset.nxexcluir){ var ge=(state.natGr.grupos||[]).filter(function(g){ return g.id===t.dataset.nxexcluir; })[0]; if (!ge||!confirm('Excluir o grupo "'+ge.nome+'"? As naturezas originais não mudam.')) return; state.natGr.grupos=state.natGr.grupos.filter(function(g){ return g!==ge; }); return grSalvar('Grupo excluído'); }
+        dlgConfirmar('Usar "'+gg.nome+'" como uma natureza só nas outras páginas?\n\n'+gg.nats.join(' + ')+'\n\nOs KPIs lançados não mudam. Dá para desfazer a qualquer momento.',{titulo:'Juntar naturezas', ok:'Usar como uma só'}).then(function(ok){ if (ok) nxAlternar(gg); }); return; }
+      return nxAlternar(gg); }
+    if (t.dataset && t.dataset.nxexcluir){ var ge=(state.natGr.grupos||[]).filter(function(g){ return g.id===t.dataset.nxexcluir; })[0]; if (!ge) return; dlgConfirmar('Excluir o grupo "'+ge.nome+'"? As naturezas originais não mudam.',{titulo:'Excluir grupo', ok:'Excluir', perigo:true}).then(function(ok){ if (!ok) return; state.natGr.grupos=state.natGr.grupos.filter(function(g){ return g!==ge; }); grSalvar('Grupo excluído'); }); return; }
     var seg=t.closest&&t.closest('.segb');
     if (seg){ state.natTodas=seg.dataset.todas==='1'; return renderNat(todosAtos()); }
     var th=t.closest&&t.closest('#tabNat th');
@@ -416,7 +416,9 @@
     if (t.id==='restIn'){ if (t.files.length) restaurarBackup(t.files[0]); t.value=''; return; }
     if (t.dataset && t.dataset.lanc){ var cdl=t.closest('.lc-card'), dl=lancDoc(state.lancMes), kid=cdl.dataset.kpi, Kl=kpiDef(kid);
       if (t.checked) dl.lanc[kid]=kpiTravar(Kl,state.lancMes);
-      else { if (kpiTravado(state.lancMes,kid) && !confirm('Destravar '+kid+' de '+compLabel(state.lancMes)+'?\n\nO valor guardado será descartado e o card volta a mostrar o cálculo de hoje. Faça isso só se for corrigir o valor no ANOREG+.')){ t.checked=true; return; } delete dl.lanc[kid]; }
+      else { if (kpiTravado(state.lancMes,kid)){ var mesL=state.lancMes; t.checked=true; // 0.34.0: continua travado até confirmar na janela da página
+          dlgConfirmar('Destravar '+kid+' de '+compLabel(mesL)+'?\n\nO valor guardado será descartado e o card volta a mostrar o cálculo de hoje. Faça isso só se for corrigir o valor no ANOREG+.',{titulo:'Destravar indicador', ok:'Destravar', perigo:true}).then(function(ok){ if (!ok) return; delete lancDoc(mesL).lanc[kid]; lancSalvar(mesL); renderLanc(); }); return; }
+        delete dl.lanc[kid]; }
       lancSalvar(state.lancMes); return renderLanc(); }
     if (t.id==='expIni'||t.id==='expFim'){ var a=Math.max(0,Math.min(23,parseInt($('expIni').value,10)||8)), b=Math.max(a+1,Math.min(24,parseInt($('expFim').value,10)||17)); var ant=state.cfg.expIni+'h–'+state.cfg.expFim+'h'; state.cfg.expIni=a; state.cfg.expFim=b; if (ant!==a+'h–'+b+'h'){ apurLog('Expediente das certidões',ant,a+'h–'+b+'h','imediato',''); apurSalvar(); } salvarCfg(); return renderCer(); } if (!(t.dataset && (t.dataset.inccatsel||t.dataset.incgsel))) return;
     var id=t.closest('tr').dataset.incid, rec=null;
@@ -497,7 +499,7 @@
     db.collection('kpi09').onSnapshot(function(snap){ snap.docs.forEach(function(d){ var x=d.data(); if (x&&x.pessoas) state.k9[d.id]=x; }); if (state.aba==='lanc') agendarRender(); }, function(){});
     db.collection('feedback').onSnapshot(function(snap){ var m={}; snap.docs.forEach(function(d){ m[d.id]=d.data(); }); Object.assign(state.feedback,m); if (state.aba==='rel' && !document.activeElement.matches('#tabRel textarea')) renderRel(); }, function(){});
     db.doc('config/usuarios').get().then(function(s){ if (s.exists){ var u=s.data(); state.usr=Object.assign({},u.map||{}); if (state.aba==='tri') renderTri(); } }).catch(function(){});
-    db.collection('paineis').onSnapshot(function(snap){ var m={}; snap.docs.forEach(function(d){ var x=d.data(); if (x&&x.id) m[d.id]=x; }); state.pn=m; if (state.aba==='pn' && !state.pnEd) renderPn(); }, function(){});
+    db.collection('paineis').onSnapshot(function(snap){ var m={}; snap.docs.forEach(function(d){ var x=d.data(); if (x&&x.id) m[d.id]=x; }); state.pn=m; if (state.aba==='pn' && !state.pnEd && !state.pnNomeEd) renderPn(); }, function(){});
     db.collection('aprendiz').onSnapshot(function(snap){ var m={}; snap.docs.forEach(function(d){ var x=d.data(); if (x&&x.id) m[d.id]=x; }); state.apr=m; if (state.aba==='apr') renderApr(); }, function(){});
     db.doc('config/pops').get().then(function(s){ if (s.exists){ var c=s.data()||{}; state.popsCfg={map:c.map||{}}; state.popsVer++; state._popEsc=null; state._aprC=null; if (state.aba==='apr') renderApr(); if (state.aba==='cfg') renderCfg(); } }).catch(function(){});
     db.doc('config/funcoes').get().then(function(s){ if (s.exists){ var c=s.data()||{}; state.fnCfg={map:c.map||{}, setor:c.setor||{}}; state.fnVer=(state.fnVer||0)+1; state._eqX=null; if (state.aba==='eqp') renderEqp(); if (state.aba==='cfg') renderCfg(); } }).catch(function(){});

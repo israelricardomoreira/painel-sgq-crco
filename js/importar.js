@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/importar.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/importar.js']='0.33.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/importar.js']='0.34.0';
   function salvarCfg(){ if (dbPronto&&podeEscrever) db.doc('config/geral').set({feriadosExtras:state.extras, expIni:state.cfg.expIni, expFim:state.cfg.expFim, intim:null}).catch(function(){ toast('Não consegui salvar a configuração'); }); }
 
   function avDoc(a,res,ob){ return res?{codigo:a.c,mes:a.mes,natureza:a.natOrig||a.nat,exigencias:a.nex,resultado:res,obs:ob,em:new Date().toISOString()}:null; }
@@ -14,9 +14,10 @@
   }
   // quem redigiu as exigências do título (Revisão de Exigência que virou Nota de Exigência no Tri7)
   function exAutores(a){ var L=andIndice()[a.c]||[], out=[]; L.forEach(function(e,i){ if (e.s==='RE' && reVirouNota(L,i) && out.indexOf(e.u)<0 && !/^tri7$/i.test(e.u)) out.push(e.u); }); return out; }
-  function irFeedback(a){
-    var aut=exAutores(a), login=aut[0];
-    if (aut.length>1){ var ip=prompt('Quem redigiu as exigências deste título?\n'+aut.map(function(l,i){ return (i+1)+' – '+nomeLogin(l); }).join('\n')+'\n\nDigite o número:','1'); var n=parseInt(ip,10); if (!n||n<1||n>aut.length) return; login=aut[n-1]; }
+  function irFeedback(a, escolhido){
+    var aut=exAutores(a), login=escolhido||aut[0];
+    // 0.34.0: mais de um redator → janela da página com a lista (antes: prompt() pedindo o número)
+    if (aut.length>1&&!escolhido){ dlgEscolher('Quem redigiu as exigências deste título?', aut.map(function(l){ return [l, nomeLogin(l)]; }), {titulo:'Relatório de quem?', ok:'Abrir relatório'}).then(function(v){ if (v) irFeedback(a, v); }); return; }
     var mA=a.mes||(atoDe(a.c)||{}).mes; if (mA && state.periodo!==mA){ state.periodo=mA; render(); }
     var D=relDados(), k=login?semAc(nomeLogin(login)):null;
     if (!k || !D.pessoas[k]){ state.relSel='__geral'; irAba('rel'); toast(login?'Não achei '+nomeLogin(login)+' nos relatórios deste período. Escolha a pessoa na lista':'Sem Tri7 para este título: escolha na lista quem redigiu'); return; }
@@ -87,7 +88,7 @@
     });
   }
   function k9Guardar(r){
-    if (!r.mes){ var v=prompt('Não achei o período no arquivo '+r.arquivo+'. Competência (AAAA-MM):', state.lancMes||mesAnt(mesHoje())); if (!v||!/^\d{4}-\d{2}$/.test(v)) return; r.mes=v; }
+    if (!r.mes){ dlgPedir('Não achei o período no arquivo '+r.arquivo+'. Informe a competência.', state.lancMes||mesAnt(mesHoje()), {titulo:'Competência do KPI-09', campo:{rotulo:'Competência (AAAA-MM)', tipo:'month', obrig:true, valida:function(v){ return /^\d{4}-\d{2}$/.test(v)?null:'Use o formato AAAA-MM (ex.: 2026-10)'; }}}).then(function(v){ if (!v) return; r.mes=v; k9Guardar(r); }); return; }
     state.k9[r.mes]=r; state.lancMes=r.mes; state.impFeito.k9=(state.impFeito.k9||0)+1;
     toast('KPI-09 de '+compLabel(r.mes)+' apurado ('+r.headcount+' colaboradores)');
     if (dbPronto&&podeEscrever) db.doc('kpi09/'+r.mes).set(r).catch(function(){ toast('Apurado, mas não consegui salvar'); });
@@ -216,7 +217,7 @@
     var m=$('excMes').value; if (!m||!dbPronto||!podeEscrever) return;
     var marc=Array.prototype.map.call(document.querySelectorAll('#excPrevia input[data-exc]:checked'),function(i){ return i.dataset.exc; }); if (!marc.length){ toast('Marque o que excluir'); return; }
     var nomes=EXC_GRUPOS.filter(function(g){ return marc.indexOf(g[0])>=0; }).map(function(g){ return '• '+g[1].split(' — ')[0]; });
-    if (!confirm('Excluir de '+nomeMes(m)+':\n\n'+nomes.join('\n')+'\n\nOs registros ficam arquivados no banco (um backup anterior traz de volta). Continuar?')) return;
+    dlgConfirmar('Excluir de '+nomeMes(m)+':\n\n'+nomes.join('\n')+'\n\nOs registros ficam arquivados no banco (um backup anterior traz de volta).',{titulo:'Excluir dados de '+nomeMes(m), ok:'Excluir', perigo:true}).then(function(ok){ if (!ok) return;
     var alvos=[]; EXC_GRUPOS.forEach(function(g){ if (marc.indexOf(g[0])<0) return; g[3].forEach(function(c){ alvos.push(c[0]+'/'+(c[1]||'')+m); }); });
     var b=$('btnExcluirMes'); b.disabled=true; b.textContent='Excluindo…'; var p=Promise.resolve();
     alvos.forEach(function(a){ p=p.then(function(){ return db.doc(a).delete().catch(function(){}); }); });
@@ -233,6 +234,7 @@
       if (state.periodo===m) state.periodo='todos';
       $('excMes').value=''; render(); renderExcluir(); toast('Dados de '+nomeMes(m)+' excluídos'); })
      .catch(function(){ toast('Não consegui excluir tudo — tente de novo'); b.disabled=false; });
+    });
   }
   function renderFeriados(){
     var el=$('ferLista'); if (!el) return; var A=state.calAno, nac={}; Motor.feriadosNomeados(A).forEach(function(x){ nac[x.d]=x.nome; });

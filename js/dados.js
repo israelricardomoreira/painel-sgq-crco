@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/dados.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/dados.js']='0.33.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/dados.js']='0.34.0';
  // 0.x = em validação; vira 1.0.0 depois da apresentação ao Oficial
   // 0.11.0: proteção de versão — index.html, motor.js e nuvem.js levam a versão; se algum arquivo ficou de outra entrega, avisa no topo
   function checarVersoes(ver){ ver=ver||APP_VERSAO; var el=document.getElementById('avisoVersao'); if (!el) return; var meta=document.querySelector('meta[name="painel-versao"]'), dif=[];
@@ -39,7 +39,7 @@
   }
   function recalcularTudo(){
     if (!window.nuvem) return;
-    if (!confirm('Recalcular todos os meses com a regra atual do painel, a partir dos dados brutos guardados?\n\nOs resultados salvos serão substituídos pelos recalculados. Justificativas, avaliações e lançamentos continuam como estão.')) return;
+    dlgConfirmar('Recalcular todos os meses com a regra atual do painel, a partir dos dados brutos guardados?\n\nOs resultados salvos serão substituídos pelos recalculados. Justificativas, avaliações e lançamentos continuam como estão.',{titulo:'Recalcular tudo', ok:'Recalcular'}).then(function(ok){ if (!ok) return;
     var b=$('btnRecalc'); b.disabled=true; b.textContent='Recalculando…';
     precisaXLSX().then(function(){ return window.nuvem.lerColecao('brutos'); }).then(function(rows){
       var P=[], E=[], D=[]; rows.forEach(function(x){ var d=brutoDecod(x.dados); if (x.id.indexOf('prazo-')===0) P=P.concat(d); else if (x.id.indexOf('etapa-')===0) E=E.concat(d); else if (x.id==='demanda') D=D.concat(d); });
@@ -47,6 +47,7 @@
       return recalcDeBrutos(function(t){ b.textContent=t; }).then(function(r){ return r.ri; });
     }).then(function(n){ toast(n+' mês(es) recalculado(s) com a versão '+APP_VERSAO); render(); }).catch(function(e){ toast(e.message||'Não consegui recalcular'); })
       .then(function(){ b.disabled=false; b.textContent='Recalcular tudo com a regra atual'; });
+    });
   }
   function exportarBackup(){
     if (!window.nuvem) return; var b=$('btnBackup'); b.disabled=true; b.textContent='Gerando…';
@@ -59,10 +60,11 @@
     file.text().then(function(txt){ var o=JSON.parse(txt);
       if (!o || o.app!=='painel-sgq-crco' || !Array.isArray(o.docs)) throw new Error('Este arquivo não é um backup do painel.');
       var cont={}; o.docs.forEach(function(d){ cont[d.colecao]=(cont[d.colecao]||0)+1; });
-      if (!confirm('Restaurar backup de '+(o.geradoEm||'').slice(0,10)+' com '+o.docs.length+' registros?\n\n'+Object.keys(cont).map(function(k){return k+': '+cont[k];}).join(', ')+'\n\nRegistros com o mesmo nome serão substituídos pelos do backup; os demais continuam.')) return;
+      return dlgConfirmar('Restaurar backup de '+(o.geradoEm||'').slice(0,10)+' com '+o.docs.length+' registros?\n\n'+Object.keys(cont).map(function(k){return k+': '+cont[k];}).join(', ')+'\n\nRegistros com o mesmo nome serão substituídos pelos do backup; os demais continuam.',{titulo:'Restaurar backup', ok:'Restaurar', perigo:true}).then(function(ok){ if (!ok) return;
       var b=$('btnRestaurar'); b.disabled=true; var i=0, p=Promise.resolve();
       o.docs.forEach(function(d){ p=p.then(function(){ i++; b.textContent='Restaurando '+i+'/'+o.docs.length+'…'; return window.nuvem.gravar(d.colecao,d.id,d.dados); }); });
       return p.then(function(){ toast('Backup restaurado. Recarregando…'); setTimeout(function(){ location.reload(); },1200); });
+      });
     }).catch(function(e){ toast(e.message||'Não consegui restaurar'); var b=$('btnRestaurar'); b.disabled=false; b.textContent='Restaurar backup'; });
   }
   function renderBackupInfo(){
@@ -164,10 +166,11 @@
   function hvDesfazer(i){
     var g=(state.hvG||[])[i]; if (!g) return;
     var txt='Desfazer a gravação de '+hvData(g.tMax)+'?\n\n'+g.docs.map(function(v){ return '• '+hvRotulo(v)+(v.acao==='criou'?' (será arquivado)':' (volta como era antes)'); }).join('\n')+(g.depois?'\n\nAtenção: '+g.depois+' registro(s) foram gravados de novo depois e também voltam.':'')+'\n\nO estado de agora também fica guardado no histórico, então dá para refazer.';
-    if (!confirm(txt)) return;
+    dlgConfirmar(txt,{titulo:'Desfazer gravação', ok:'Desfazer', perigo:true}).then(function(ok){ if (!ok) return;
     var b=document.querySelector('[data-hvdesfazer="'+i+'"]'); if (b){ b.disabled=true; b.textContent='Desfazendo…'; }
     var p=Promise.resolve(), n=0, recalc=g.docs.some(function(v){ return v.colecao==='brutos'; });
     g.docs.forEach(function(v){ p=p.then(function(){ return window.nuvem.versaoDados(v.id); }).then(function(x){ if (!x) throw new Error('versão '+v.id+' não encontrada'); n++; if (b) b.textContent='Desfazendo '+n+'/'+g.docs.length+'…'; return window.nuvem.voltarVersao(x); }); });
     p.then(function(){ toast('Gravação desfeita: '+n+' registro(s) voltaram'+(recalc?'. Os dados brutos voltaram também; use Recalcular só se quiser refazer os meses com a versão atual do painel':'')); render(); renderExcluir(); renderHist(); })
      .catch(function(e){ toast('Parei no meio ('+n+' de '+g.docs.length+'): '+(e&&e.message||'erro')+'. Confira e tente de novo'); renderHist(); });
+    });
   }
