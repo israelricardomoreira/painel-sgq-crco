@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/inconformidades.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inconformidades.js']='0.34.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/inconformidades.js']='0.34.1';
   var INC_PASSO=50;
   function incRecs(){ var out=[]; Object.keys(state.inconf).sort().forEach(function(m){ if (state.periodo==='todos'||state.periodo===m) out=out.concat(state.inconf[m]); }); return out; }
   function incTodos(){ var out=[]; Object.keys(state.inconf).forEach(function(m){ out=out.concat(state.inconf[m]); }); return out; }
@@ -63,7 +63,7 @@
       pessoas.map(function(x){ return '<tr class="click'+(state.incFiltroPessoa===x.p?' sel':'')+'" tabindex="0" data-incpessoa="'+esc(x.p)+'"><td class="tl">'+esc(x.p)+'</td><td>'+(x.prod||'—')+'</td><td'+(x.n?' class="click"'+goAttr(goLista('Internas · '+x.p,'inc',comProd.filter(function(r){ return r.r===x.p&&grupoDe(r)!=='E'; }))):'')+'>'+x.n+'</td><td>'+(x.taxa==null?'<span class="mut" title="Pouca produção registrada no VHL para calcular taxa">—</span>':'<b>'+pct(x.taxa)+'</b>')+'</td><td>'+(x.lt?'≈ '+Math.round(x.lt.esp)+' <span class="mut">(normal até '+x.lt.hi+')</span>':'—')+'</td><td>'+(x.lt?'<span class="pill '+(x.lt.sig==='acima'?'crit':x.lt.sig==='abaixo'?'good':'mute')+'">'+x.lt.txt+'</span>':'')+'</td><td'+(x.e?' class="click"'+goAttr(goLista('Externas · '+x.p,'inc',comProd.filter(function(r){ return r.r===x.p&&grupoDe(r)==='E'; }))):'')+'>'+(x.e||'')+'</td><td class="tl">'+esc(x.top||'')+'</td></tr>'; }).join('')+
       '</tbody></table></div><p class="hint">Considera só meses com produção carregada ('+comProd.length+' de '+recs.length+' registros). Taxa só aparece com '+MIN_PROD+'+ documentos no período; quem trabalha fora do fluxo do VHL (recepção, caixa) fica sem taxa. <b>Esperado pelo volume</b> = faixa normal de inconformidades para a quantidade de documentos da pessoa, já contando a variação natural entre funções diferentes. <b>Leitura</b> só sai de "dentro do esperado" quando a pessoa foge dessa faixa com 95% de confiança.</p></div></div>';
     // lista
-    // 0.34.0: filtro por Natureza na tabela de registros (as opções vêm dos registros do período, já com os outros filtros)
+    // 0.34.1: filtro por Natureza na tabela de registros (as opções vêm dos registros do período, já com os outros filtros)
     var base=recs.filter(function(r){ return (!state.incFiltroCat||catDe(r)===state.incFiltroCat) && (!state.incFiltroPessoa||r.r===state.incFiltroPessoa); });
     var natQ={}; base.forEach(function(r){ var n=incNat(r); natQ[n]=(natQ[n]||0)+1; }); if (state.incFiltroNat&&!natQ[state.incFiltroNat]) state.incFiltroNat=null;
     var lista=base.filter(function(r){ return !state.incFiltroNat||incNat(r)===state.incFiltroNat; })
@@ -85,5 +85,5 @@
     $('tabK1').innerHTML=h;
   }
   function incNat(r){ return String(r.n||'').trim()||'(sem natureza)'; }
-  // 0.34.0: filtro por Natureza da tabela de registros; o redesenho mantém a tela no lugar
+  // 0.34.1: filtro por Natureza da tabela de registros; o redesenho mantém a tela no lugar
   document.addEventListener('change',function(e){ var t=e.target; if (!t||t.id!=='incNat') return; state.incFiltroNat=t.value||null; manterTela('tabK1',function(){ renderK1(todosAtos()); },function(a){ return a.id?'#'+a.id:null; }); });

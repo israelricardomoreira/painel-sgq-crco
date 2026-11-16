@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/nucleo.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/nucleo.js']='0.34.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/nucleo.js']='0.34.1';
   // ——— tema (automático / claro / escuro) e barra lateral recolhida: preferências deste navegador
   function prefLer(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
   function prefGravar(k,v){ try{ if (v==null) localStorage.removeItem(k); else localStorage.setItem(k,v); }catch(e){} }
@@ -14,7 +14,7 @@
   function mediana(arr){ var a=arr.filter(function(x){return x!=null;}).sort(function(x,y){return x-y;}); if(!a.length) return null; var m=Math.floor(a.length/2); return a.length%2?a[m]:(a[m-1]+a[m])/2; }
   function media(arr){ var a=arr.filter(function(x){return x!=null;}); if(!a.length) return null; return a.reduce(function(s,x){return s+x;},0)/a.length; }
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
-  // 0.34.0: avisos empilhados numa caixa só (#toasts), com tempo proporcional ao texto, erro em destaque e clique para fechar.
+  // 0.34.1: avisos empilhados numa caixa só (#toasts), com tempo proporcional ao texto, erro em destaque e clique para fechar.
   // Com uma janela (dlg) aberta, a caixa vai para dentro dela, senão o aviso ficaria atrás do fundo escuro.
   function toastCaixa(){ var c=document.getElementById('toasts'); if (!c){ c=document.createElement('div'); c.id='toasts'; c.className='toasts'; c.setAttribute('aria-live','polite'); }
     var dl=document.querySelector('dialog.dlg[open]'), pai=dl||document.body; if (c.parentNode!==pai) pai.appendChild(c); return c; }
@@ -27,7 +27,7 @@
     setTimeout(function(){ d.remove(); }, toastTempo(t,erro)); return d; }
   // 0.25.0: aviso com Desfazer por 10 segundos
   function toastDesfazer(t, fn){ var v=document.querySelector('.toast.desf'); if (v) v.remove(); var d=document.createElement('div'); d.className='toast desf'; d.setAttribute('role','status'); d.textContent=t; var b=document.createElement('button'); b.type='button'; b.className='lnk'; b.textContent='Desfazer'; b.addEventListener('click',function(){ d.remove(); fn(); }); d.appendChild(b); toastCaixa().appendChild(d); setTimeout(function(){ d.remove(); },10000); }
-  // 0.34.0: janelas da própria página no lugar de prompt()/confirm()/alert() do navegador.
+  // 0.34.1: janelas da própria página no lugar de prompt()/confirm()/alert() do navegador.
   // dlgAbrir(o) devolve uma Promise: null se cancelou; true (sem campo) ou o texto/valor escolhido (com campo).
   //   o = {titulo, msg, ok, cancelar, perigo, campo:{rotulo, valor, tipo, placeholder, obrig, valida(v)→erro|null}, opcoes:[[valor,rótulo]…]}
   // Ids fixos para automação e leitor de tela: #dlg, #dlgTitulo, #dlgMsg, #dlgCampo, #dlgErro, #dlgOk, #dlgCancelar.

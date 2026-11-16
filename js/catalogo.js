@@ -3,7 +3,7 @@
  * naturezas do VHL (a tabela "Natureza Principal" da IT de recepção do ato) + etapas da fase
  * (REC = Prenotação no Tri7 · QLF = Análise, Re-Análise e Revisão de exigência do Tri7 · MIN = Minuta · REV = Revisão Oficial).
  * Editável em Configuração › POPs e escopo, com motivo no histórico. Ajustes ficam em config/pops {map:{código:{…}}}. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/catalogo.js']='0.34.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/catalogo.js']='0.34.1';
   var POP_BASE=[{"c":"IT-PJ-AVB-ENT","t":"Averbação em PJ · Entrega (Reg. Civil de Pessoas Jurídicas)","sv":"RCPJ","v":"1.0.1","fase":"ENT","nats":["Associações em geral"],"ets":["Registrar pedido / Envio Cliente"],"med":1,"conf":0},
     {"c":"IT-PJ-AVB-REC","t":"Averbação em PJ · Recepção (Reg. Civil de Pessoas Jurídicas)","sv":"RCPJ","v":"1.0.0","fase":"REC","med":0},
     {"c":"IT-RC-CAS-HAB","t":"Casamento · Habilitação (Registro Civil)","sv":"RC","v":"1.0.0","fase":"HAB","med":0},
@@ -79,7 +79,7 @@
     return out.sort(function(a,b){ var o=['RI','RC','RTD','RCPJ','SGQ']; return (o.indexOf(a.sv)-o.indexOf(b.sv)) || (a.c<b.c?-1:1); }); }
   function popDe(c){ var L=popsTodos(); for (var i=0;i<L.length;i++) if (L[i].c===c) return L[i]; return null; }
   function popMede(p){ return !!(p&&p.med&&(p.nats||[]).length&&(p.ets||[]).length); }
-  // 0.34.0: documento sem medição automática pode ser ligado a tipos de erro das inconformidades (apoio à avaliação na Aprendizagem)
+  // 0.34.1: documento sem medição automática pode ser ligado a tipos de erro das inconformidades (apoio à avaliação na Aprendizagem)
   function popErros(p){ if (!p||popMede(p)) return []; var ok={}; Motor.CATS_ERRO.forEach(function(c){ ok[c]=1; }); return (p.erros||[]).filter(function(e){ return ok[e]; }); }
   // 0.21.3: carga horária padrão do POP (h), cadastrada no Catálogo e sugerida na Aprendizagem
   function popCh(p){ var v=+((p&&p.ch)||0); return v>0?v:null; }
@@ -144,7 +144,7 @@
       '<label class="cfg-mot">Motivo (obrigatório) <input id="popNM" type="text" class="mini" maxlength="300" placeholder="ex.: POP publicado no M4"></label>'+
       '<span class="cfg-bt"><button type="button" class="btn sm" data-popcriar="1">Adicionar</button><button type="button" class="btn sm" data-popcancel="1">Cancelar</button></span>'+
       '<p class="hint" style="margin:6px 0 0">Na fase do RI (Recepção, Qualificação, Minuta, Revisão) as etapas já vêm preenchidas; depois é só informar as naturezas em "Alterar".</p></div>'; }
-  // 0.34.0: o bloco "N documentos" fica como o usuário deixou (aberto) e a tela não sai do lugar ao salvar, alterar ou cancelar
+  // 0.34.1: o bloco "N documentos" fica como o usuário deixou (aberto) e a tela não sai do lugar ao salvar, alterar ou cancelar
   document.addEventListener('toggle',function(e){ if (e.target&&e.target.id==='popDet') state.popAberto=e.target.open; },true);
   function popClique(t){ var d=t.dataset||{}; if (!(d.poped||d.popcancel||d.popnovo||d.popcriar||d.poparq||d.popsalvar)) return false;
     if (d.popcriar||d.poparq||d.popsalvar||d.poped||d.popnovo) state.popAberto=true;
@@ -164,7 +164,7 @@
       var mud=[]; if (novo.t!==(p.t||'')) mud.push('título'); if (novo.v!==(p.v||'')) mud.push('versão '+(p.v||'—')+' → '+(novo.v||'—')); if (novo.med!==(p.med?1:0)) mud.push(novo.med?'medição automática':'sem medição');
       if (novo.ch!==(+p.ch||0)) mud.push('carga horária padrão '+(popChTxt(popCh(p))||'—')+' → '+(popChTxt(popCh({ch:novo.ch}))||'—'));
       if (novo.nats.join('|')!==(p.nats||[]).join('|')) mud.push('naturezas'); if (novo.ets.join('|')!==(p.ets||[]).join('|')) mud.push('etapas'); if (novo.conf!==(p.conf?1:0)) mud.push(novo.conf?'conferido':'a conferir');
-      // 0.34.0: tipos de erro ligados ao documento e data de vigência editável
+      // 0.34.1: tipos de erro ligados ao documento e data de vigência editável
       novo.erros=popMarcados('err'); if (novo.erros.join('|')!==(p.erros||[]).join('|')) mud.push('tipos de erro: '+(novo.erros.join('; ')||'nenhum'));
       var hojeP=new Date().toISOString().slice(0,10), vdAnt=p.verDesde||'', vd=String(($('popVd')||{}).value||'').trim(), mudouV=novo.v!==(p.v||'');
       if (vd&&!/^\d{4}-\d{2}-\d{2}$/.test(vd)){ toast('Data de vigência inválida','erro'); return true; } if (vd>hojeP){ toast('A data de vigência não pode ser no futuro','erro'); var ve=$('popVd'); if (ve) ve.focus(); return true; }

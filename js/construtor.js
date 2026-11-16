@@ -1,7 +1,7 @@
 /* Painel SGQ · CRCO — js/construtor.js (0.19.0: Meus painéis — construtor de cartões no estilo das ferramentas de BI)
  * Cada cartão é uma "pergunta": fonte → filtros → medida (ou taxa A ÷ B) → agrupar por (até 2) → formato.
  * Os painéis ficam no banco (coleção paineis): versões novas do painel não apagam nada, e entram no backup. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/construtor.js']='0.34.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/construtor.js']='0.34.1';
   var PN_DOW=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
   function pnDow(iso){ if (!iso) return null; var p=String(iso).slice(0,10).split('-').map(Number); return PN_DOW[new Date(Date.UTC(p[0],p[1]-1,p[2])).getUTCDay()]; }
   function pnMesIso(iso){ return iso?String(iso).slice(0,7):null; }
@@ -106,7 +106,7 @@
   function pnFmtV(v, un){ if (v==null||isNaN(v)) return '—'; var d=un==='%'||Math.abs(v)<10&&v%1?1:0; if (un==='d.u.'||un==='h'||un==='min') d=1; return numBR(v,d)+(un==='%'?'%':un?' '+un:''); }
   function pnMetaOk(c, v){ if (!c.meta||c.meta.v===''||c.meta.v==null||v==null) return null; var m=+c.meta.v; return c.meta.bom==='acima'?v>=m:v<=m; }
   // antes × depois de uma ação (mês da ação + nº de meses de cada lado)
-  // 0.34.0: pnAD devolve os números; o cartão mostra antes, depois, variação e uma frase pronta (verificação de eficácia da NC).
+  // 0.34.1: pnAD devolve os números; o cartão mostra antes, depois, variação e uma frase pronta (verificação de eficácia da NC).
   function pnAD(c){ if (!c.ad||!c.ad.mes||!/^\d{4}-\d{2}$/.test(c.ad.mes)) return null; var n=Math.max(1,Math.min(12,+c.ad.n||3)), m=c.ad.mes, i;
     var antes=[]; for (i=0;i<n;i++){ m=mesAnt(m); antes.unshift(m); } var dep=[c.ad.mes]; for (i=1;i<n;i++){ var p=dep[dep.length-1].split('-').map(Number); p[1]++; if (p[1]>12){ p[1]=1; p[0]++; } dep.push(p[0]+'-'+(p[1]<10?'0':'')+p[1]); }
     dep=dep.filter(function(x){ return x<=mesHoje(); });
@@ -178,7 +178,7 @@
   function pnLista0(){ return Object.keys(state.pn||{}).map(function(id){ return state.pn[id]; }).filter(function(p){ return p&&!p.arquivado; }).sort(function(a,b){ return (a.ordem||0)-(b.ordem||0) || String(a.nome).localeCompare(String(b.nome)); }); }
   function pnSalvar(p){ state.pn=Object.assign({},state.pn); state.pn[p.id]=p; p.em=new Date().toISOString(); p.por=nomeUsuario(); if (dbPronto&&podeEscrever) db.doc('paineis/'+p.id).set(p).catch(function(){ toast('Não consegui salvar o painel','erro'); }); }
   function pnClone(o){ return JSON.parse(JSON.stringify(o)); }
-  // 0.34.0: o redesenho guarda a rolagem e o foco (antes a tela pulava a cada mudança no formulário)
+  // 0.34.1: o redesenho guarda a rolagem e o foco (antes a tela pulava a cada mudança no formulário)
   function pnChave(a){ var d=a.dataset||{}; if (a.id) return '#'+a.id; if (d.pned) return '[data-pned="'+d.pned+'"]'+(a.type==='radio'?'[value="'+a.value+'"]':''); if (d.pnfcampo) return '[data-pnfcampo="'+d.pnfcampo+'"]'; if (d.pnfbusca) return '[data-pnfbusca="'+d.pnfbusca+'"]'; return null; }
   function renderPn(){ if (!$('tabPn')) return; manterTela('tabPn', renderPn0, pnChave); }
   function renderPn0(){
@@ -196,7 +196,7 @@
       var tt=esc(c.titulo||'Sem título');
       return '<div class="gm-card pn-card'+(c.largo?' largo':'')+'" data-pncardid="'+esc(c.id)+'"><div class="gm-h"><span class="gm-t">'+tt+'</span>'+(podeEscrever?'<span class="pn-acoes"><button class="lnk" type="button" data-pnedit="'+i+'" aria-label="Editar o cartão '+tt+'">editar</button><button class="lnk" type="button" data-pndup="'+i+'" aria-label="Duplicar o cartão '+tt+'">duplicar</button><button class="lnk" type="button" data-pnmover="'+i+'|-1" aria-label="Mover '+tt+' para trás">←</button><button class="lnk" type="button" data-pnmover="'+i+'|1" aria-label="Mover '+tt+' para frente">→</button><button class="lnk" type="button" data-pndel="'+i+'" aria-label="Excluir o cartão '+tt+'">excluir</button></span>':'')+'</div>'+corpo+'<p class="pn-desc">'+pnDescr(c)+'</p>'+(c.nota?'<p class="pn-nota">'+esc(c.nota)+'</p>':'')+'</div>'; }).join('')+'</div>':'<div class="empty"><b>Painel vazio</b>Clique em "+ Cartão".</div>';
     el.innerHTML=h; }
-  // 0.34.0: o título do painel vira campo no próprio lugar (Enter grava, Esc cancela)
+  // 0.34.1: o título do painel vira campo no próprio lugar (Enter grava, Esc cancela)
   function pnNomeEditar(){ var b=document.querySelector('#tabPn .pn-nome'), P=state.pnSel?state.pn[state.pnSel]:null; if (!b||!P||!podeEscrever||state.pnNomeEd) return;
     var i=document.createElement('input'), feito=false; i.type='text'; i.className='pn-nome-in'; i.id='pnNomeIn'; i.value=P.nome; i.maxLength=80; i.setAttribute('aria-label','Nome do painel (Enter grava, Esc cancela)');
     function fim(gravar){ if (feito) return; feito=true; state.pnNomeEd=false; var n=i.value.trim(), at=state.pn[P.id];
@@ -264,7 +264,7 @@
     if (d.pnfbusca!=null) return true;
     if (d.pned){ var k=d.pned, v=t.type==='checkbox'?t.checked:t.value;
       if (PN_LEVES[k]){ pnSet(c,k,v); clearTimeout(state.pnPrevT); pnPrevia(); return true; }
-      pnEdLer(); // 0.34.0: o que estava digitado (título, nota, meta…) fica, qualquer que seja a mudança
+      pnEdLer(); // 0.34.1: o que estava digitado (título, nota, meta…) fica, qualquer que seja a mudança
       if (k==='usaB'){ c.b=v?{f:c.f, m:{t:'qtd'}, filtros:[]}:null; if (v){ c.bPct=true; c.bModo='razao'; } }
       else if (k==='f'){ c.f=v; c.filtros=[]; c.m={t:'qtd'}; if (c.g1&&!pnCampo(v,c.g1)) c.g1=''; if (c.g2&&!pnCampo(v,c.g2)) c.g2=''; pnFLimpar('a'); }
       else if (k==='b.f'){ c.b.f=v; c.b.filtros=[]; c.b.m={t:'qtd'}; pnFLimpar('b'); }

@@ -1,5 +1,5 @@
 /* Painel SGQ · CRCO — js/importar.js (0.12.0: o app.js foi dividido por página; tudo continua no mesmo escopo global, na ordem do index.html) */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/importar.js']='0.34.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/importar.js']='0.34.1';
   function salvarCfg(){ if (dbPronto&&podeEscrever) db.doc('config/geral').set({feriadosExtras:state.extras, expIni:state.cfg.expIni, expFim:state.cfg.expFim, intim:null}).catch(function(){ toast('Não consegui salvar a configuração'); }); }
 
   function avDoc(a,res,ob){ return res?{codigo:a.c,mes:a.mes,natureza:a.natOrig||a.nat,exigencias:a.nex,resultado:res,obs:ob,em:new Date().toISOString()}:null; }
@@ -16,7 +16,7 @@
   function exAutores(a){ var L=andIndice()[a.c]||[], out=[]; L.forEach(function(e,i){ if (e.s==='RE' && reVirouNota(L,i) && out.indexOf(e.u)<0 && !/^tri7$/i.test(e.u)) out.push(e.u); }); return out; }
   function irFeedback(a, escolhido){
     var aut=exAutores(a), login=escolhido||aut[0];
-    // 0.34.0: mais de um redator → janela da página com a lista (antes: prompt() pedindo o número)
+    // 0.34.1: mais de um redator → janela da página com a lista (antes: prompt() pedindo o número)
     if (aut.length>1&&!escolhido){ dlgEscolher('Quem redigiu as exigências deste título?', aut.map(function(l){ return [l, nomeLogin(l)]; }), {titulo:'Relatório de quem?', ok:'Abrir relatório'}).then(function(v){ if (v) irFeedback(a, v); }); return; }
     var mA=a.mes||(atoDe(a.c)||{}).mes; if (mA && state.periodo!==mA){ state.periodo=mA; render(); }
     var D=relDados(), k=login?semAc(nomeLogin(login)):null;
