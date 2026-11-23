@@ -2,7 +2,7 @@
  * Monta, com os mesmos números da Ficha da pessoa, a folha de 1 página do POP-SGQ-FDB-001 (proposta de 9 blocos):
  * fatos do período, comparados só com a faixa da própria função; sem ranking, sem saúde, sem remuneração.
  * Nada é gravado: abre uma janela de impressão. O gestor completa à mão os blocos 8 e 9. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/folha.js']='0.35.0';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/folha.js']='0.35.1';
 
   // A nota entra como contexto no bloco "Tempo de trabalho" (decisão da gestão pendente: pôr false tira a nota da folha)
   var FOLHA_NOTA=true;
@@ -30,7 +30,14 @@
       return {nat:n, docs:mD[n], inc:mI[n]||0, taxa:t, taxaEq:grande?te:null, acima:grande&&t!=null&&te!=null&&(mI[n]||0)>=2&&t>te*1.5}; });
     // aprendizagem (contexto, não pontua)
     var ap=(typeof aprLista==='function'?aprLista():[]).filter(function(a){ return a.k===k||semAc(a.nome||'')===semAc(nome); });
-    d.apr=ap.map(function(a){ return {pop:a.pop||'', res:a.status==='concluido'?(a.res==='apto'?'apto':a.res==='nao'?'não apto':'concluído'):'em acompanhamento', treino:a.treino||''}; });
+    // 0.35.1: só o que mudou no período (treinou, concluiu ou ainda está em acompanhamento); "Apto por experiência" não vira linha.
+    // O resto entra no resumo (aptidão registrada = mesmo número do contexto da Ficha) e a lista completa fica na COMPET-SGQ-001.
+    var m0=A.MS[0]||'', m1=A.MS[A.MS.length-1]||'';
+    function noPer(dt){ var m=String(dt||'').slice(0,7); return !!m&&m>=m0&&m<=m1; }
+    d.apr=ap.filter(function(a){ return a.motivo!=='experiencia'&&(a.status!=='concluido'||noPer(a.treino)||noPer(a.avalEm)); })
+      .sort(function(a,b){ return String(b.treino||'')<String(a.treino||'')?-1:1; })
+      .map(function(a){ return {pop:a.pop||'', res:a.status==='concluido'?(a.res==='apto'?'apto':a.res==='nao'?'não apto':'concluído'):'em acompanhamento', treino:a.treino||''}; });
+    d.aptos=p.dev&&p.dev.aptos?p.dev.aptos.length:0; d.funcoesSabe=p.dev&&p.dev.fns?p.dev.fns.length:0;
     // evolução: últimos meses fechados (mesmos números da Ficha)
     d.evol=paEvolLinhas(A.V,k,A.fech);
     return d; }
@@ -86,7 +93,7 @@
       (semNota||d.nota==null?'<div class="l">Só o tempo cronometrado conta.</div>':'<div class="l">Nota de ocupação (contexto): '+vgPct(d.nota)+' · '+esc(d.catTxt)+'</div>'+folhaBarra(d.nota, d.fx&&d.fx.p25, d.fx&&d.fx.p75, 1)+'<div class="leg">Faixa normal da função: '+(d.fx?vgPct(d.fx.p25)+' a '+vgPct(d.fx.p75):'sem faixa')+'</div>')+'</section>');
     h.push('<section class="bloco ghost"><h2><span class="n">05</span> Atendimento <span class="fonte">Senhas · Pesquisa de Satisfação</span></h2><div style="font-size:7.8pt">'+(d.horasBal>0?'Balcão no período: <b>'+trFmtH(d.horasBal)+'</b> de atendimento de senhas. ':'')+'Espera média e avaliações só se aplicam à <b>recepção</b>.</div><div class="leg">Enquanto a pesquisa não identificar quem atendeu, mostra só a espera das senhas.</div></section></div>');
     // 6 capacitação e 7 evolução
-    h.push('<div class="grid2"><section class="bloco"><h2><span class="n">06</span> Capacitação <span class="fonte">Módulo Aprendizagem</span></h2>'+(d.apr.length?'<table><thead><tr><th>POP / IT</th><th>Treino</th><th>Resultado</th></tr></thead><tbody>'+d.apr.slice(0,FOLHA_MAX_APR).map(function(a){ return '<tr><td>'+esc(a.pop)+'</td><td>'+(a.treino?fmtData(a.treino):'—')+'</td><td><span class="tag'+(a.res==='apto'?' ok':'')+'">'+esc(a.res)+'</span></td></tr>'; }).join('')+(d.apr.length>FOLHA_MAX_APR?'<tr><td colspan="3" class="aviso">+ '+(d.apr.length-FOLHA_MAX_APR)+' treinamento(s) no Módulo Aprendizagem</td></tr>':'')+'</tbody></table>':'<div class="l">Nenhum treinamento registrado no período.</div>')+'<div class="leg">Resultados: apto · não apto · amostra pequena.</div></section>');
+    h.push('<div class="grid2"><section class="bloco"><h2><span class="n">06</span> Capacitação <span class="fonte">só o que mudou no período</span></h2>'+(d.apr.length?'<table><thead><tr><th>POP / IT</th><th>Treino</th><th>Resultado</th></tr></thead><tbody>'+d.apr.slice(0,FOLHA_MAX_APR).map(function(a){ return '<tr><td>'+esc(a.pop)+'</td><td>'+(a.treino?fmtData(a.treino):'—')+'</td><td><span class="tag'+(a.res==='apto'?' ok':'')+'">'+esc(a.res)+'</span></td></tr>'; }).join('')+(d.apr.length>FOLHA_MAX_APR?'<tr><td colspan="3" class="aviso">+ '+(d.apr.length-FOLHA_MAX_APR)+' treinamento(s) no Módulo Aprendizagem</td></tr>':'')+'</tbody></table>':'<div class="l">Nenhum treinamento no período.</div>')+'<div class="l" style="margin-top:1mm"><b>Aptidão registrada:</b> '+(d.aptos?d.aptos+' documento(s)':'nenhuma até agora')+' · <b>sabe fazer:</b> '+d.funcoesSabe+' função(ões)</div><div class="leg">Lista completa na COMPET-SGQ-001. Resultados: apto · não apto · amostra pequena.</div></section>');
     var ev=(d.evol||[]).filter(function(l){ return !l.sem; });
     h.push('<section class="bloco"><h2><span class="n">07</span> Evolução <span class="fonte">últimos meses fechados</span></h2>'+(ev.length?'<table><thead><tr><th>Mês</th><th class="num">Docs</th><th class="num">Taxa</th><th class="num">Dias</th>'+(semNota?'':'<th class="num">Nota</th>')+'</tr></thead><tbody>'+ev.map(function(l){ return '<tr><td>'+esc(nomeMes(l.m))+'</td><td class="num">'+l.docs+'</td><td class="num">'+(l.taxa!=null?folhaPct(l.taxa):'<span class="aviso">base pequena</span>')+'</td><td class="num">'+(l.da!=null?l.da:'—')+'</td>'+(semNota?'':'<td class="num">'+(l.nota!=null?vgPct(l.nota):'—')+'</td>')+'</tr>'; }).join('')+'</tbody></table>':'<div class="l">Sem meses fechados com produção.</div>')+'<div class="leg">A tendência pesa mais que um mês isolado. Taxa só com 30+ documentos no mês.</div></section></div>');
     // 8 e 9 (a mão)
