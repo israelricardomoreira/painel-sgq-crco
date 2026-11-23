@@ -2,7 +2,7 @@
  * Regras: compara só quem faz o mesmo serviço (faixa da função principal); critérios fixos, iguais para todos;
  * aprendizagem, mudança de função e afastamento são contexto e não pontuam; atestado e falta nunca entram.
  * O painel monta o caso; quem decide é a gestão, com motivo registrado (LGPD art. 20). Só administrador vê. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/areapessoas.js']='0.34.1';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/areapessoas.js']='0.35.0';
   var PA_ABAS={pfi:'renderFicha', pcm:'renderComparar', pmt:'renderMatriz', pcs:'renderCaso', pcf:'renderConferencia', fot:'renderFotos'};
   function paRender(k){ var f=PA_ABAS[k]; if (f&&typeof window[f]==='function') window[f](); }
   function paSemDados(el, txt){ el.innerHTML='<div class="empty"><b>Sem dados para esta tela</b>'+(txt||'Importe o relatório Desempenho Usuário do VHL (um arquivo por pessoa e mês) em Importar dados.')+'</div>'; }
@@ -91,7 +91,7 @@
     var L=paListaPessoas(A); if (!L.length){ paSemDados(el); return; }
     var k=L.some(function(x){ return x.k===state.pfSel; })?state.pfSel:L[0].k; state.pfSel=k;
     var R=paPorK(A.R), p=R[k], mp=paMatPorCk(A.M,k), nome=(p||mp||{}).nome||k, sit=pesSitDe(nome);
-    var h='<div class="search pa-top">'+paSel('pfSelIn',L,k,'Pessoa')+'<span class="spacer"></span>'+(podeEscrever?oclBtn(nome):'')+'<button type="button" class="btn sm" data-pacmpcom="'+esc(k)+'">Comparar com…</button><button type="button" class="btn sm" data-paver="rel" data-nome="'+esc(nome)+'">Relatório individual</button></div>';
+    var h='<div class="search pa-top">'+paSel('pfSelIn',L,k,'Pessoa')+'<span class="spacer"></span>'+(podeEscrever?oclBtn(nome):'')+'<button type="button" class="btn sm" data-pacmpcom="'+esc(k)+'">Comparar com…</button><button type="button" class="btn sm" data-paver="rel" data-nome="'+esc(nome)+'">Relatório individual</button>'+(p?'<button type="button" class="btn sm" data-pafolha="'+esc(k)+'" title="Abre a folha de feedback de 1 página (A4) para imprimir">Folha de feedback (A4)</button>':'')+'</div>';
     h+='<div class="sec-h"><h2>'+esc(nome)+(sit&&sit.sit!=='ativa'?' <span class="pill mute">'+esc(sit.sit)+(sit.ate?' em '+fmtData(sit.ate):'')+'</span>':'')+'</h2><span class="note">Período: '+esc(paPer(A.MS))+' (segue o Período do topo). Funções e cobertura: últimos 12 meses fechados.</span></div>';
     var g=p&&p.grupo, fx=g&&g.fx&&g.fx.base, td=paTend(A.V,k,A.fech);
     h+='<div class="kpis" style="margin-bottom:12px">'+
@@ -269,6 +269,7 @@
   // ═════════ cliques e trocas ═════════
   function paClique(t){ var d=t.dataset||{};
     if (d.pafoto) return paFotoDaTela(t), true;
+    if (d.pafolha) return paFolhaImprimir(d.pafolha), true; // 0.35.0: folha de feedback em A4
     if (d.pmtodas!=null){ state.pmTodas=d.pmtodas==='1'; renderMatriz(); return true; }
     if (d.pacmpcom){ state.pcA=d.pacmpcom; state.pcB=''; irAba('pcm'); return true; }
     if (d.paver==='rel'){ goGuardar(); state.relSel=semAc(d.nome); irAba('rel'); return true; }

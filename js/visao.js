@@ -5,7 +5,7 @@
  *   balcão (senhas) entram em horas. Retrabalho: cada inconformidade interna e cada exigência avaliada como não conforme desconta o
  *   tempo-padrão de refazer (Re-Análise da natureza). Nenhum peso é escolhido: o "peso" de cada linha é o tempo que a própria equipe leva.
  * Gráficos na frente; o clique numa pessoa abre a conta, linha por linha. */
-(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/visao.js']='0.34.1';
+(window.PAINEL_ARQ=window.PAINEL_ARQ||{})['js/visao.js']='0.35.0';
   var VG_PAD_OK=0.8;   // parte dos atos com tempo-padrão para a pessoa entrar na comparação
   var VG_MIN_H=80;     // horas disponíveis mínimas no período para sair de "pouco dado"
   function vgWmean(E){ var s=0, w=0; E.forEach(function(e){ s+=e.v*e.w; w+=e.w; }); return w?s/w:null; }
@@ -69,7 +69,7 @@
       g.forEach(function(p){ p.grupo=g; p.pouco=p.R.disp<VG_MIN_H*3600; p.cat=p.pouco?null:cat(p.R,fx.base); p.cats=VG_VAR.map(function(vr){ return p.v[vr.id]&&p.v[vr.id].disp>=VG_MIN_H*1800?cat(p.v[vr.id],fx[vr.id]):null; }); var val=p.cats.filter(Boolean); p.estavel=val.length>=3&&val.every(function(c){ return c===p.cat; }); p.nMesma=val.filter(function(c){ return c===p.cat; }).length; p.nVal=val.length; }); });
     return {L:L, G:G};
   }
-  function vgCatTxt(p){ if (p.oculto) return 'fora da comparação'; if (!p.R) return p.cob<VG_PAD_OK?'sem tempo-padrão para a maior parte do trabalho':'poucos dias ativos'; if (!p.grupo||!p.grupo.fx.base) return 'sem faixa (menos de 3 na função)'; if (p.pouco) return 'pouco dado'; return p.cat==='acima'?'acima da faixa':p.cat==='abaixo'?'abaixo da faixa':'na faixa'; }
+  function vgCatTxt(p){ if (p.oculto) return 'fora da comparação'; if (!p.R) return p.cob<VG_PAD_OK?'sem tempo-padrão para a maior parte do trabalho':'poucos dias ativos'; if (!p.grupo||!p.grupo.fx.base) return 'sem faixa (menos de 3 na função)'; if (p.pouco) return 'pouco dado'; if (p.cat==='normal'&&p.R&&p.grupo.fx.base&&p.R.nota<p.grupo.fx.base.p25) return 'no limite da faixa (margem de 5 p.p.)'; return p.cat==='acima'?'acima da faixa':p.cat==='abaixo'?'abaixo da faixa':'na faixa'; }
   function vgPct(x){ return x==null||isNaN(x)?'—':numBR(x*100,0)+'%'; }
 
   // ═════════ página ═════════
